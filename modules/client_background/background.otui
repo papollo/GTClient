@@ -1,6 +1,6 @@
 Panel
   id: background
-  image-source: /images/background
+  image-source: /images/background_gothic
   image-smooth: false
   image-fixed-ratio: true
   anchors.top: parent.top
@@ -21,9 +21,3 @@ Panel
     padding: 2
     color: #ffffff
     font: verdana-11px-monochrome
-
-  UIParticles
-    id: particles
-    effect: background-effect
-    anchors.fill: parent
-    phantom: true

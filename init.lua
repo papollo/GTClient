@@ -4,27 +4,22 @@
 -- updater
 Services = {
     --updater = "http://localhost/api/updater.php", --./updater
-    --status = "http://localhost/login.php", --./client_entergame | ./client_topmenu
-    --websites = "http://localhost/?subtopic=accountmanagement", --./client_entergame "Forgot password and/or email"
+    status = "http://192.168.1.160/login.php", --./client_entergame | ./client_topmenu
+    websites = "http://192.168.1.160/?subtopic=accountmanagement", --./client_entergame "Forgot password and/or email"
 }
 
---[[ Servers_init = {
-    ["http://ip/login.php"] = {
-        ["port"] = 80,
-        ["protocol"] = 1332,
-        ["httpLogin"] = true
-    },
-    ["ip.net"] = {
+Servers_init = {
+    ["192.168.1.160"] = {
         ["port"] = 7171,
-        ["protocol"] = 860,
+        ["protocol"] = 1098,
         ["httpLogin"] = false
     },
 
-} ]]
+}
 
-g_app.setName("OTClient - Redemption");
-g_app.setCompactName("otclient");
-g_app.setOrganizationName("otcr");
+g_app.setName("GothicTales");
+g_app.setCompactName("gothicTales");
+g_app.setOrganizationName("Gothic Tales Team");
 
 g_app.hasUpdater = function()
     return (Services.updater and Services.updater ~= "" and g_modules.getModule("updater"))
@@ -106,7 +101,7 @@ local function loadModules()
     end
 
     -- uncomment the line below so that modules are reloaded when modified. (Note: Use only mod dev)
-    -- g_modules.enableAutoReload()
+    g_modules.enableAutoReload()
 end
 
 -- run updater, must use data.zip
