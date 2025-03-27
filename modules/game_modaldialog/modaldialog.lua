@@ -92,7 +92,7 @@ function onModalDialog(id, title, message, buttons, enterButton, escapeButton, c
 
         additionalHeight = math.min(modalDialog.maximumChoices, math.max(modalDialog.minimumChoices, #choices)) *
                                labelHeight
-        additionalHeight = additionalHeight + choiceList:getPaddingTop() + choiceList:getPaddingBottom()
+        additionalHeight = additionalHeight + choiceList:getPaddingTop() + choiceList:getPaddingBottom() + 10
     end
 
     local horizontalPadding = modalDialog:getPaddingLeft() + modalDialog:getPaddingRight()

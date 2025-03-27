@@ -39,8 +39,8 @@ ModalButton < Button
 
 ModalDialog < MainWindow
   id: modalDialog
-  size: 280 97
-  &minimumWidth: 200
+  size: 280 120
+  &minimumWidth: 600
   &maximumWidth: 600
   &minimumChoices: 4
   &maximumChoices: 10
@@ -49,11 +49,13 @@ ModalDialog < MainWindow
     id: messageLabel
     anchors.top: parent.top
     anchors.left: parent.left
-    text-align: left
+    text-align: top-left
     text-auto-resize: true
     text-wrap: true
-
+    padding-bottom: 10
+    
   ChoiceList
+    &minimumHeight: 60
 
   HorizontalSeparator
     anchors.left: parent.left

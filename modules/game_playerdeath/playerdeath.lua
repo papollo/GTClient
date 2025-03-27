@@ -1,17 +1,17 @@
 local deathTexts = {
     regular = {
-        text = 'Alas! Brave adventurer, you have met a sad fate.\nBut do not despair, for the gods will bring you back\ninto this world in exchange for a small sacrifice\n\nSimply click on Ok to resume your journeys!',
-        height = 140,
+        text = 'Straciles przytomnosc.\n\nOdrodzisz sie w bezpiecznym miejcu,\nale nastepnym razem lepiej uwazaj.\n\nMozesz nie miec tyle szczescia.',
+        height = 185,
         width = 0
     },
     unfair = {
-        text = 'Alas! Brave adventurer, you have met a sad fate.\nBut do not despair, for the gods will bring you back\ninto this world in exchange for a small sacrifice\n\nThis death penalty has been reduced by %i%%\nbecause it was an unfair fight.\n\nSimply click on Ok to resume your journeys!',
+        text = 'Straciles przytomnosc.\n\nOdrodzisz sie w bezpiecznym miejcu,\nale nastepnym razem lepiej uwazaj.\n\nMozesz nie miec tyle szczescia.',
         height = 185,
         width = 0
     },
     blessed = {
-        text = 'Alas! Brave adventurer, you have met a sad fate.\nBut do not despair, for the gods will bring you back into this world\n\nThis death penalty has been reduced by 100%\nbecause you are blessed with the Adventurer\'s Blessing\n\nSimply click on Ok to resume your journeys!',
-        height = 170,
+        text = 'Straciles przytomnosc.\n\nOdrodzisz sie w bezpiecznym miejcu,\nale nastepnym razem lepiej uwazaj.\n\nMozesz nie miec tyle szczescia.',
+        height = 185,
         width = 90
     }
 }

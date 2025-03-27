@@ -4,12 +4,12 @@
 -- updater
 Services = {
     --updater = "http://localhost/api/updater.php", --./updater
-    status = "http://192.168.1.160/login.php", --./client_entergame | ./client_topmenu
-    websites = "http://192.168.1.160/?subtopic=accountmanagement", --./client_entergame "Forgot password and/or email"
+    status = "http://192.168.1.113/login.php", --./client_entergame | ./client_topmenu
+    websites = "http://192.168.1.113/?subtopic=accountmanagement", --./client_entergame "Forgot password and/or email"
 }
 
 Servers_init = {
-    ["192.168.1.160"] = {
+    ["192.168.1.113"] = {
         ["port"] = 7171,
         ["protocol"] = 1098,
         ["httpLogin"] = false
