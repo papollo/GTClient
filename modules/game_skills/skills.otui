@@ -217,7 +217,7 @@ MiniWindow
         image-source: /images/icons/icon_fishing
         image-size: 9 9
       SkillPercentPanel
-        
+
     HorizontalSeparator
       margin-top: 5
       margin-bottom: 5
