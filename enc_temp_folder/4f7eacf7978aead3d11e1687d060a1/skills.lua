@@ -262,6 +262,9 @@ function refresh()
 
     local hasAdditionalSkills = g_game.getFeature(GameAdditionalSkills)
     for i = Skill.Fist, Skill.Transcendence do
+    
+        print(string.format("[Skill Log] Skill ID: %d, Level: %d, Percent: %d", i, player:getSkillLevel(i), player:getSkillLevelPercent(i)))
+
         onSkillChange(player, i, player:getSkillLevel(i), player:getSkillLevelPercent(i))
 
         if i > Skill.Mining then
