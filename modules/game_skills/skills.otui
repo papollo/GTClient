@@ -150,6 +150,7 @@ MiniWindow
 
     SkillButton
       id: skillId0
+      visible: false
       SkillNameLabel
         !text: tr('Fist Fighting')
       SkillValueLabel
@@ -159,19 +160,9 @@ MiniWindow
       SkillPercentPanel
 
     SkillButton
-      id: skillId1
-      SkillNameLabel
-        !text: tr('Club Fighting')
-      SkillValueLabel
-      ImageSkill
-        image-source: /images/icons/icon_club
-        image-size: 9 9
-      SkillPercentPanel
-
-    SkillButton
       id: skillId2
       SkillNameLabel
-        !text: tr('Sword Fighting')
+        !text: tr('One handed')
       SkillValueLabel
       ImageSkill
         image-source: /images/icons/icon_sword
@@ -179,9 +170,19 @@ MiniWindow
       SkillPercentPanel
 
     SkillButton
+      id: skillId1
+      SkillNameLabel
+        !text: tr('Two handed')
+      SkillValueLabel
+      ImageSkill
+        image-source: /images/icons/icon_club
+        image-size: 9 9
+      SkillPercentPanel
+
+    SkillButton
       id: skillId3
       SkillNameLabel
-        !text: tr('Axe Fighting')
+        !text: tr('Bow Fighting')
       SkillValueLabel
       ImageSkill
         image-source: /images/icons/icon_axe
@@ -191,7 +192,7 @@ MiniWindow
     SkillButton
       id: skillId4
       SkillNameLabel
-        !text: tr('Distance Fighting')
+        !text: tr('Crossbow Fighting')
       SkillValueLabel
       ImageSkill
         image-source: /images/icons/icon_distance
@@ -200,6 +201,7 @@ MiniWindow
 
     SkillButton
       id: skillId5
+      visible: false
       SkillNameLabel
         !text: tr('Shielding')
       SkillValueLabel
