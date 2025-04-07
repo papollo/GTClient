@@ -503,6 +503,12 @@ locale = {
     ["Your Money"] = "Seu dinheiro",
     ["Your request has been closed"] = false,
     ["Mining"] = "Mining",
+    ["Strength"] = "Strength",
+    ["Agility"] = "Agility",
+    ["Cooking"] = "Cooking",
+    ["Alchemy"] = "Alchemy",
+    ["Smithing"] = "Smithing",
+    ["Hunting"] = "Hunting",
   }
 }
 
