@@ -499,6 +499,12 @@ locale = {
     ["Your Money:"] = "Twoje pieniadze",
     ["Your request has been closed"] = false,
     ["Mining"] = "Gornictwo",
+    ["Strength"] = "Sila",
+    ["Agility"] = "Zrecznosc",
+    ["Cooking"] = "Gotowanie",
+    ["Alchemy"] = "Alchemia",
+    ["Smithing"] = "Kowalstwo",
+    ["Hunting"] = "Polowanie",
   }
 }
 
