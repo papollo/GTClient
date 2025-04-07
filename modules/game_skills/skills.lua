@@ -264,7 +264,7 @@ function refresh()
     for i = Skill.Fist, Skill.Transcendence do
         onSkillChange(player, i, player:getSkillLevel(i), player:getSkillLevelPercent(i))
 
-        if i > Skill.Mining then
+        if i > Skill.Hunting then
             local ativedAdditionalSkills = hasAdditionalSkills
             if ativedAdditionalSkills then
                 if g_game.getClientVersion() >= 1281 then
