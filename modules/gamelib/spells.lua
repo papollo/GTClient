@@ -2876,11 +2876,11 @@ SpellIcons = {
 
 VocationNames = {
     [0] = 'None',
-    [1] = 'Sorcerer',
-    [2] = 'Druid',
-    [3] = 'Paladin',
-    [4] = 'Knight',
-    [5] = 'Master Sorcerer',
+    [1] = 'Shadow',
+    [2] = 'Guard',
+    [3] = 'Ore Baron',
+    [4] = 'Fire Mage',
+    [5] = 'Fire Archmage',
     [6] = 'Elder Druid',
     [7] = 'Royal Paladin',
     [8] = 'Elite Knight'
