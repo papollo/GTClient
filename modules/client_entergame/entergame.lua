@@ -233,7 +233,7 @@ end
 
 function EnterGame.showPanels()
     if g_modules.getModule("client_bottommenu"):isLoaded()  then
-        modules.client_bottommenu.show()
+        modules.client_bottommenu.hide()
     end
     modules.client_topmenu.toggle()
 end
@@ -346,6 +346,10 @@ function EnterGame.postEventScheduler()
     local onRecvInfo = function(message, err)
         if err then
             g_logger.warning("[Webscraping] Bad Request.Game_entergame postEventScheduler1")
+            return
+        end
+
+        if message then
             return
         end
 
