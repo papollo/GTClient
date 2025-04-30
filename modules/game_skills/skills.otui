@@ -154,7 +154,7 @@ MiniWindow
         !text: tr('Strength')
       SkillValueLabel
       ImageSkill
-        image-source: /images/icons/icon_fishing
+        image-source: /images/icons/icon_fist
         image-size: 9 9
       SkillPercentPanel
 
@@ -164,7 +164,7 @@ MiniWindow
         !text: tr('Agility')
       SkillValueLabel
       ImageSkill
-        image-source: /images/icons/icon_fishing
+        image-source: /images/icons/icon_agility
         image-size: 9 9
       SkillPercentPanel
 
@@ -209,7 +209,7 @@ MiniWindow
         !text: tr('Bow Fighting')
       SkillValueLabel
       ImageSkill
-        image-source: /images/icons/icon_axe
+        image-source: /images/icons/icon_bow
         image-size: 9 9
       SkillPercentPanel
 
@@ -219,7 +219,7 @@ MiniWindow
         !text: tr('Crossbow Fighting')
       SkillValueLabel
       ImageSkill
-        image-source: /images/icons/icon_distance
+        image-source: /images/icons/icon_crossbow
         image-size: 9 9
       SkillPercentPanel
 
@@ -254,7 +254,7 @@ MiniWindow
         !text: tr('Mining')
       SkillValueLabel
       ImageSkill
-        image-source: /images/icons/icon_fishing
+        image-source: /images/icons/icon_mining
         image-size: 9 9
       SkillPercentPanel
 
@@ -264,7 +264,7 @@ MiniWindow
         !text: tr('Cooking')
       SkillValueLabel
       ImageSkill
-        image-source: /images/icons/icon_fishing
+        image-source: /images/icons/icon_cooking
         image-size: 9 9
       SkillPercentPanel
 
@@ -274,7 +274,7 @@ MiniWindow
         !text: tr('Alchemy')
       SkillValueLabel
       ImageSkill
-        image-source: /images/icons/icon_fishing
+        image-source: /images/icons/icon_alchemy
         image-size: 9 9
       SkillPercentPanel
 
@@ -284,7 +284,7 @@ MiniWindow
         !text: tr('Smithing')
       SkillValueLabel
       ImageSkill
-        image-source: /images/icons/icon_fishing
+        image-source: /images/icons/icon_smith
         image-size: 9 9
       SkillPercentPanel
 
@@ -294,7 +294,7 @@ MiniWindow
         !text: tr('Hunting')
       SkillValueLabel
       ImageSkill
-        image-source: /images/icons/icon_fishing
+        image-source: /images/icons/icon_bow
         image-size: 9 9
       SkillPercentPanel
 
