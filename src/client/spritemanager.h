@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -73,11 +73,12 @@ public:
     bool isLoaded() { return m_loaded; }
 
 private:
-    struct FileStream_m
-    {
-        FileStreamPtr file;
-        std::mutex mutex;
-    };
+     struct FileStream_m {
+         FileStreamPtr file;
+         std::mutex mutex;
+
+         FileStream_m(FileStreamPtr f) : file(std::move(f)) {}
+     };
 
     void load();
     FileStreamPtr getSpriteFile() const {

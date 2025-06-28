@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,9 @@
 #include "protocolgame.h"
 #include "framework/net/inputmessage.h"
 #include "game.h"
+
+#include <framework/net/packet_player.h>
+#include <framework/net/packet_recorder.h>
 
 void ProtocolGame::login(const std::string_view accountName, const std::string_view accountPassword, const std::string_view host, uint16_t port,
                          const std::string_view characterName, const std::string_view authenticatorToken, const std::string_view sessionKey)

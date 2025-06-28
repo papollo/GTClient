@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,7 @@
 LightView::LightView(const Size& size) : m_pool(g_drawPool.get(DrawPoolType::LIGHT)) {
     g_mainDispatcher.addEvent([this, size] {
         m_texture = std::make_shared<Texture>(size);
+        m_texture->setCached(true);
         m_texture->setSmooth(true);
     });
 }
@@ -42,6 +43,7 @@ void LightView::resize(const Size& size, const uint16_t tileSize) {
 
     m_mapSize = size;
     m_tileSize = tileSize;
+    m_pool->setScaleFactor(tileSize / g_gameConfig.getSpriteSize());
 
     m_lightData.tiles.resize(size.area());
     m_lightData.lights.clear();
@@ -108,7 +110,7 @@ void LightView::draw(const Rect& dest, const Rect& src)
         g_painter->setCompositionMode(CompositionMode::MULTIPLY);
         g_painter->resetTransformMatrix();
         g_painter->resetColor();
-        g_painter->setTexture(m_texture.get());
+        g_painter->setTexture(m_texture->getId(), m_texture->getTransformMatrixId());
         g_painter->drawCoords(m_coords);
     });
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -105,6 +105,9 @@ protected:
     void onStyleApply(std::string_view styleName, const OTMLNodePtr& styleNode) override;
     void onGeometryChange(const Rect& oldRect, const Rect& newRect) override;
     bool onMouseMove(const Point& mousePos, const Point& mouseMoved) override;
+    bool onMousePress(const Point& mousePos, Fw::MouseButton button) override;
+    bool onMouseRelease(const Point& mousePos, Fw::MouseButton button) override;
+    bool onMouseWheel(const Point& mousePos, Fw::MouseWheelDirection direction) override;
 
 private:
     void updateVisibleDimension();

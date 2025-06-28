@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@
 #include "declarations.h"
 #include "item.h"
 #include "mapview.h"
+#include "statictext.h"
 
 #ifdef FRAMEWORK_EDITOR
 enum tileflags_t : uint32_t
@@ -150,7 +151,8 @@ public:
     bool hasGround() { return (getGround() && getGround()->isSingleGround()) || m_thingTypeFlag & HAS_GROUND_BORDER; };
     bool hasTopGround(const bool ignoreBorder = false) { return (getGround() && getGround()->isTopGround()) || (!ignoreBorder && m_thingTypeFlag & HAS_TOP_GROUND_BORDER); }
 
-    bool hasCreature() { return m_thingTypeFlag & HAS_CREATURE; }
+    bool hasCreatures() { return m_thingTypeFlag & HAS_CREATURE; }
+
     bool hasTopItem() const { return m_thingTypeFlag & HAS_TOP_ITEM; }
     bool hasCommonItem() const { return m_thingTypeFlag & HAS_COMMON_ITEM; }
     bool hasBottomItem() const { return m_thingTypeFlag & HAS_BOTTOM_ITEM; }
@@ -180,7 +182,7 @@ public:
             ;
     }
 
-    bool hasElevation(const int elevation = 1) const { return m_elevation >= elevation; }
+    bool hasElevation(const int elevation = 1) { return m_elevation >= elevation; }
 
 #ifdef FRAMEWORK_EDITOR
     void overwriteMinimapColor(uint8_t color) { m_minimapColor = color; }
@@ -204,7 +206,6 @@ public:
 
     bool checkForDetachableThing(TileSelectType selectType = TileSelectType::FILTERED);
 
-#ifndef BOT_PROTECTION
     void drawTexts(Point dest);
     void setText(const std::string& text, Color color);
     std::string getText();
@@ -213,11 +214,11 @@ public:
     void setFill(Color color);
     void resetFill() { m_fill = Color::alpha; }
     bool canShoot(int distance);
-#endif
+
 private:
     void updateThingStackPos();
     void drawTop(const Point& dest, int flags, bool forceDraw, uint8_t drawElevation);
-    void drawCreature(const Point& dest, int flags, bool forceDraw, uint8_t drawElevation);
+    void drawCreature(const Point& dest, int flags, bool forceDraw, uint8_t drawElevation, const LightViewPtr& lightView = nullptr);
 
     void setThingFlag(const ThingPtr& thing);
 
@@ -228,7 +229,7 @@ private:
             setThingFlag(thing);
     }
 
-    bool hasThingWithElevation() const { return hasElevation() && m_thingTypeFlag & HAS_THING_WITH_ELEVATION; }
+    bool hasThingWithElevation() { return hasElevation() && m_thingTypeFlag & HAS_THING_WITH_ELEVATION; }
     void markHighlightedThing(const Color& color) {
         if (m_highlightThingStackPos > -1 && m_highlightThingStackPos < static_cast<int8_t>(m_things.size())) {
             m_things[m_highlightThingStackPos]->setMarked(color);
@@ -241,12 +242,10 @@ private:
     std::unique_ptr<std::vector<EffectPtr>> m_effects;
     std::unique_ptr<std::vector<TilePtr>> m_tilesRedraw;
 
-#ifndef BOT_PROTECTION
     std::unique_ptr<StaticText> m_timerText;
     std::unique_ptr<StaticText> m_text;
     Color m_fill = Color::alpha;
     ticks_t m_timer = 0;
-#endif
 
     uint32_t m_isCompletelyCovered{ 0 };
     uint32_t m_isCovered{ 0 };

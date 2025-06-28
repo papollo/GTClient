@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -175,6 +175,21 @@ bool UIMap::onMouseMove(const Point& mousePos, const Point& mouseMoved)
     }
 
     return UIWidget::onMouseMove(mousePos, mouseMoved);
+}
+
+bool UIMap::onMousePress(const Point& mousePos, Fw::MouseButton button)
+{
+    return UIWidget::onMousePress(mousePos, button);
+}
+
+bool UIMap::onMouseRelease(const Point& mousePos, Fw::MouseButton button)
+{
+    return UIWidget::onMouseRelease(mousePos, button);
+}
+
+bool UIMap::onMouseWheel(const Point& mousePos, Fw::MouseWheelDirection direction)
+{
+    return UIWidget::onMouseWheel(mousePos, direction);
 }
 
 void UIMap::updateVisibleDimension()

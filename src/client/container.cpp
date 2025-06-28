@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,27 +45,30 @@ void Container::onAddItem(const ItemPtr& item, int slot)
 {
     slot -= m_firstIndex;
 
-    ++m_size;
     // indicates that there is a new item on next page
     if (m_hasPages && slot > m_capacity) {
-        callLuaField("onSizeChange", m_size);
+        callLuaField("onSizeChange", ++m_size);
         return;
     }
 
-    if (slot == 0)
-        m_items.emplace_front(item);
-    else
-        m_items.emplace_back(item);
+    if (m_items.size() == m_capacity) {
+        onRemoveItem(m_firstIndex + m_capacity - 1, nullptr);
+        ++m_size;
+    }
+
+    m_items.insert(m_items.begin() + slot, item);
+    ++m_size;
+    
     updateItemsPositions();
 
     callLuaField("onSizeChange", m_size);
     callLuaField("onAddItem", slot, item);
 }
 
-ItemPtr Container::findItemById(const uint32_t itemId, const int subType) const
+ItemPtr Container::findItemById(const uint32_t itemId, const int subType, const uint8_t tier) const
 {
     for (const auto& item : m_items)
-        if (item->getId() == itemId && (subType == -1 || item->getSubType() == subType))
+        if (item->getId() == itemId && (subType == -1 || item->getSubType() == subType) && item->getTier() == tier)
             return item;
     return nullptr;
 }
@@ -85,7 +88,7 @@ void Container::onUpdateItem(int slot, const ItemPtr& item)
         return;
     }
 
-    const auto& oldItem = m_items[slot];
+    const auto oldItem = m_items[slot];
     m_items[slot] = item;
     item->setPosition(getSlotPosition(slot));
 
@@ -95,9 +98,10 @@ void Container::onUpdateItem(int slot, const ItemPtr& item)
 void Container::onRemoveItem(int slot, const ItemPtr& lastItem)
 {
     slot -= m_firstIndex;
+
+    // indicates that there has been deleted an item on next page
     if (m_hasPages && slot >= static_cast<int>(m_items.size())) {
-        --m_size;
-        callLuaField("onSizeChange", m_size);
+        callLuaField("onSizeChange", --m_size);
         return;
     }
 
@@ -106,7 +110,7 @@ void Container::onRemoveItem(int slot, const ItemPtr& lastItem)
         return;
     }
 
-    const auto& item = m_items[slot];
+    const auto item = m_items[slot];
     m_items.erase(m_items.begin() + slot);
 
     if (lastItem) {

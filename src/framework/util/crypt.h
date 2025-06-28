@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,7 @@
 #ifdef USE_GMP
 #include <gmp.h>
 #else
-using RSA = struct rsa_st;
+#include <openssl/rsa.h>
 #endif
 
 class Crypt
@@ -55,7 +55,7 @@ public:
     int rsaGetSize();
 
     std::string crc32(const std::string& decoded_string, bool upperCase);
-    std::string sha1Encrpyt(const std::string& input);
+    std::string sha1Encrypt(const std::string& input);
 
 protected:
     void sha1Block(const uint8_t* block, uint32_t* H);

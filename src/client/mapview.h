@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,9 @@ struct AwareRange
     uint8_t vertical() const { return top + bottom + 1; }
 
     Size dimension() const { return { left * 2 + 1 , top * 2 + 1 }; }
+
+    bool operator==(const AwareRange& other) const
+    { return left == other.left && top == other.top && right == other.right && bottom == other.bottom; }
 };
 
 struct MapPosInfo
@@ -201,7 +204,7 @@ protected:
 private:
     enum class FadeType
     {
-        NONE$, IN$, OUT$
+        NONE, FADE_IN, FADE_OUT
     };
 
     struct MapObject
@@ -318,12 +321,15 @@ private:
     bool m_forceDrawViewportEdge{ false };
     bool m_drawHighlightTarget{ false };
     bool m_shiftPressed{ false };
+    bool m_multithreading{ false };
 
-    FadeType m_fadeType{ FadeType::NONE$ };
+    FadeType m_fadeType{ FadeType::NONE };
 
     AntialiasingMode m_antiAliasingMode{ ANTIALIASING_DISABLED };
 
     std::vector<FloorData> m_floors;
+    std::vector<std::vector<FloorData>> m_floorThreads;
+
     std::vector<TilePtr> m_foregroundTiles;
 
     PainterShaderProgramPtr m_shader;

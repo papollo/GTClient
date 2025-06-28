@@ -12,34 +12,34 @@ panels = {
     keybindsPanel = nil
 }
 -- LuaFormatter off
-local buttons = {{
+local buttons = { {
 
     text = "Controls",
     icon = "/images/icons/icon_controls",
     open = "generalPanel",
-    subCategories = {{
+    subCategories = { {
         text = "General Hotkeys",
         open = "keybindsPanel"
-    }}
+    } }
 }, {
     text = "Interface",
     icon = "/images/icons/icon_interface",
     open = "interface",
-    subCategories = {{
+    subCategories = { {
         text = "HUD",
         open = "interfaceHUD"
     }, {
         text = "Console",
         open = "interfaceConsole"
-    }}
+    } }
 }, {
     text = "Graphics",
     icon = "/images/icons/icon_graphics",
     open = "graphicsPanel",
-    subCategories = {{
+    subCategories = { {
         text = "Effects",
         open = "graphicsEffectsPanel"
-    }}
+    } }
 }, {
     text = "Sound",
     icon = "/images/icons/icon_sound",
@@ -64,8 +64,8 @@ local buttons = {{
     }, ]] {
         text = "Help",
         open = "miscHelp"
-    }}
-}}
+    } }
+} }
 
 -- LuaFormatter on
 local extraWidgets = {
@@ -137,16 +137,14 @@ local function setupComboBox()
         setOption('framesRarity', comboBox:getCurrentOption().data)
     end
 
-    if not g_game.isEnabledBotProtection() then
-        local profileCombobox = panels.misc:recursiveGetChildById('profile')
+    local profileCombobox = panels.misc:recursiveGetChildById('profile')
 
-        for i = 1, 10 do
-            profileCombobox:addOption(tostring(i), i)
-        end
+    for i = 1, 10 do
+        profileCombobox:addOption(tostring(i), i)
+    end
 
-        profileCombobox.onOptionChange = function(comboBox, option)
-            setOption('profile', comboBox:getCurrentOption().data)
-        end
+    profileCombobox.onOptionChange = function(comboBox, option)
+        setOption('profile', comboBox:getCurrentOption().data)
     end
 
     for _, preset in ipairs(Keybind.presets) do
@@ -192,28 +190,28 @@ function controller:onInit()
 
     extraWidgets.audioButton = modules.client_topmenu.addTopRightToggleButton('audioButton', tr('Audio'),
         '/images/topbuttons/button_mute_up', function() toggleOption('enableAudio') end)
-        
+
     extraWidgets.optionsButton = modules.client_topmenu.addTopRightToggleButton('optionsButton', tr('Options'),
         '/images/topbuttons/button_options', toggle)
 
     extraWidgets.logoutButton = modules.client_topmenu.addTopRightToggleButton('logoutButton', tr('Exit'),
-            '/images/topbuttons/logout', toggle)
+        '/images/topbuttons/logout', toggle)
 
-    panels.generalPanel = g_ui.loadUI('styles/controls/general',controller.ui.optionsTabContent)
-    panels.keybindsPanel = g_ui.loadUI('styles/controls/keybinds',controller.ui.optionsTabContent)
+    panels.generalPanel = g_ui.loadUI('styles/controls/general', controller.ui.optionsTabContent)
+    panels.keybindsPanel = g_ui.loadUI('styles/controls/keybinds', controller.ui.optionsTabContent)
 
-    panels.graphicsPanel = g_ui.loadUI('styles/graphics/graphics',controller.ui.optionsTabContent)
-    panels.graphicsEffectsPanel = g_ui.loadUI('styles/graphics/effects',controller.ui.optionsTabContent)
-    
-    panels.interface = g_ui.loadUI('styles/interface/interface',controller.ui.optionsTabContent)
-    panels.interfaceConsole = g_ui.loadUI('styles/interface/console',controller.ui.optionsTabContent)
-    panels.interfaceHUD = g_ui.loadUI('styles/interface/HUD',controller.ui.optionsTabContent)
+    panels.graphicsPanel = g_ui.loadUI('styles/graphics/graphics', controller.ui.optionsTabContent)
+    panels.graphicsEffectsPanel = g_ui.loadUI('styles/graphics/effects', controller.ui.optionsTabContent)
 
-    panels.soundPanel = g_ui.loadUI('styles/sound/audio',controller.ui.optionsTabContent)
-    
-    panels.misc = g_ui.loadUI('styles/misc/misc',controller.ui.optionsTabContent)
-    panels.miscHelp = g_ui.loadUI('styles/misc/help',controller.ui.optionsTabContent)
-   
+    panels.interface = g_ui.loadUI('styles/interface/interface', controller.ui.optionsTabContent)
+    panels.interfaceConsole = g_ui.loadUI('styles/interface/console', controller.ui.optionsTabContent)
+    panels.interfaceHUD = g_ui.loadUI('styles/interface/HUD', controller.ui.optionsTabContent)
+
+    panels.soundPanel = g_ui.loadUI('styles/sound/audio', controller.ui.optionsTabContent)
+
+    panels.misc = g_ui.loadUI('styles/misc/misc', controller.ui.optionsTabContent)
+    panels.miscHelp = g_ui.loadUI('styles/misc/help', controller.ui.optionsTabContent)
+
     self.ui:hide()
 
     configureCharacterCategories()
@@ -222,34 +220,34 @@ function controller:onInit()
 
     Keybind.new("UI", "Toggle Fullscreen", "Ctrl+Shift+F", "")
     Keybind.bind("UI", "Toggle Fullscreen", {
-      {
-        type = KEY_DOWN,
-        callback = function() toggleOption('fullscreen') end,
-      }
+        {
+            type = KEY_DOWN,
+            callback = function() toggleOption('fullscreen') end,
+        }
     })
     Keybind.new("UI", "Show/hide FPS / lag indicator", "", "")
-    Keybind.bind("UI", "Show/hide FPS / lag indicator", {{
+    Keybind.bind("UI", "Show/hide FPS / lag indicator", { {
         type = KEY_DOWN,
         callback = function()
             toggleOption('showPing')
             toggleOption('showFps')
         end
-    }})
+    } })
 
     Keybind.new("UI", "Show/hide Creature Names and Bars", "Ctrl+N", "")
     Keybind.bind("UI", "Show/hide Creature Names and Bars", {
-      {
-        type = KEY_DOWN,
-        callback = toggleDisplays,
-      }
+        {
+            type = KEY_DOWN,
+            callback = toggleDisplays,
+        }
     })
 
     Keybind.new("Sound", "Mute/unmute", "", "")
     Keybind.bind("Sound", "Mute/unmute", {
-      {
-        type = KEY_DOWN,
-        callback = function() toggleOption('enableAudio') end,
-      }
+        {
+            type = KEY_DOWN,
+            callback = function() toggleOption('enableAudio') end,
+        }
     })
 end
 
@@ -259,8 +257,9 @@ function controller:onTerminate()
     panels = {}
     extraWidgets = {}
     buttons = {}
-    Keybind.delete("UI", "Toggle Full Screen")
+    Keybind.delete("UI", "Toggle Fullscreen")
     Keybind.delete("UI", "Show/hide Creature Names and Bars")
+    Keybind.delete("UI", "Show/hide FPS / lag indicator")
     Keybind.delete("Sound", "Mute/unmute")
 
     terminate_binds()
@@ -405,6 +404,7 @@ local function createSubWidget(parent, subId, subButton)
     subWidget.Button.Title:setText(subButton.text)
     subWidget:setVisible(false)
     subWidget.open = subButton.open
+    subWidget.callbackFunc = subButton.callbackFunc
 
     function subWidget.Button.onClick()
         local selectedOption = controller.ui.selectedOption
@@ -427,6 +427,9 @@ local function createSubWidget(parent, subId, subButton)
             controller.ui.selectedOption = panelToShow
         else
             print("Error: panelToShow is nil or does not exist in panels")
+        end
+        if subWidget.callbackFunc then
+            subWidget.callbackFunc()
         end
     end
 
@@ -485,7 +488,6 @@ function configureCharacterCategories()
                 end
 
                 close(oldOpen)
-
             end
 
             if parent.subCategoriesSize then
@@ -594,7 +596,7 @@ function removeButton(categoryText, buttonText)
     end
 end
 
-function addButton(categoryText, buttonText, openPanel)
+function addButton(categoryText, buttonText, openPanel, callback)
     for _, category in ipairs(buttons) do
         if category.text == categoryText then
             if not category.subCategories then
@@ -603,7 +605,8 @@ function addButton(categoryText, buttonText, openPanel)
             local panelName = type(openPanel) == "string" and openPanel or getPanelName(openPanel)
             table.insert(category.subCategories, {
                 text = buttonText,
-                open = panelName
+                open = panelName,
+                callbackFunc = callback
             })
             if type(openPanel) ~= "string" then
                 panels[panelName] = openPanel
@@ -629,4 +632,27 @@ end
 
 function getPanel()
     return controller.ui.optionsTabContent
+end
+
+function openOptionsCategory(category, subcategory)
+    if not controller.ui:isVisible() then
+        show()
+    end
+    for i = 1, controller.ui.optionsTabBar:getChildCount() do
+        local widget = controller.ui.optionsTabBar:getChildByIndex(i)
+        if widget and widget.Button.Title:getText() == category then
+            widget.Button:onClick()
+            if subcategory and widget.subCategories then
+                for subId, _ in ipairs(widget.subCategories) do
+                    local subWidget = widget:getChildById(subId)
+                    if subWidget and subWidget.Button.Title:getText() == subcategory then
+                        subWidget.Button:onClick()
+                        return true
+                    end
+                end
+            end
+            return true
+        end
+    end
+    return false
 end

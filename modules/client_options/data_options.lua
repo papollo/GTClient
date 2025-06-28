@@ -23,7 +23,7 @@ return {
             g_window.setFullscreen(value)
         end
     },
-    classicControl                    = false,
+    classicControl                    = g_platform.isMobile() and true or false,
     smartWalk                         = false,
     autoChaseOverride                 = true,
     moveStack                         = false,
@@ -35,6 +35,7 @@ return {
     showPrivateMessagesInConsole      = true,
     showOthersStatusMessagesInConsole = false,
     showPrivateMessagesOnScreen       = true,
+    showLootMessagesOnScreen          = true,
     showOutfitsOnList                 = {
         value = true,
         action = function(value, options, controller, panels, extraWidgets)
@@ -150,27 +151,28 @@ return {
             g_app.setDrawTexts(value)
         end
     },
-    walkFirstStepDelay                = {
-        value = 250,
-        action = function(value, options, controller, panels, extraWidgets)
-            panels.generalPanel:recursiveGetChildById('walkFirstStepDelay'):setText(string.format(
-                'Walk Delay after first step: %sms', value))
-            g_game.setWalkFirstStepDelay(value)
-        end
-    },
     walkTurnDelay                     = {
         value = 100,
         action = function(value, options, controller, panels, extraWidgets)
             panels.generalPanel:recursiveGetChildById('walkTurnDelay'):setText(string.format(
                 'Walk delay after turn: %sms',
                 value))
-            g_game.setWalkTurnDelay(value)
         end
     },
-    turnDelay                         = {
+    walkTeleportDelay                 = {
         value = 50,
         action = function(value, options, controller, panels, extraWidgets)
-            panels.generalPanel:recursiveGetChildById('turnDelay'):setText(string.format('Turn delay: %sms', value))
+            panels.generalPanel:recursiveGetChildById('walkTeleportDelay'):setText(string.format(
+                'Walk delay after teleport: %sms',
+                value))
+        end
+    },
+    walkStairsDelay                   = {
+        value = 50,
+        action = function(value, options, controller, panels, extraWidgets)
+            panels.generalPanel:recursiveGetChildById('walkStairsDelay'):setText(string.format(
+                'Walk delay after floor change: %sms',
+                value))
         end
     },
     hotkeyDelay                       = {
@@ -220,7 +222,7 @@ return {
         end
     },
     forceEffectOptimization           = {
-        value = true,
+        value = false,
         action = function(value, options, controller, panels, extraWidgets)
             g_app.forceEffectOptimization(value)
         end
@@ -266,29 +268,25 @@ return {
     },
     hudScale                          = {
         event = nil,
-        value = 0,
+        value = g_platform.isMobile() and 2 or 0,
         action = function(value, options, controller, panels, extraWidgets)
-            if g_platform.isMobile() then
-                hudWidget:disable()
-            else
-                value = value / 2
+            value = value / 2
 
-                if options.hudScale.event ~= nil then
-                    removeEvent(options.hudScale.event)
-                end
-
-                options.hudScale.event = scheduleEvent(function()
-                    g_app.setHUDScale(math.max(value + 0.5, 1))
-                    options.hudScale.event = nil
-                end, 250)
+            if options.hudScale.event ~= nil then
+                removeEvent(options.hudScale.event)
             end
+
+            options.hudScale.event = scheduleEvent(function()
+                g_app.setHUDScale(math.max(value + 0.5, 1))
+                options.hudScale.event = nil
+            end, 250)
 
             local hudWidget = panels.interfaceHUD:recursiveGetChildById('hudScale')
             hudWidget:setText(string.format('HUD Scale: %sx', math.max(value + 0.5, 1)))
         end
     },
     creatureInformationScale          = {
-        value = 0,
+        value = g_platform.isMobile() and 2 or 0,
         action = function(value, options, controller, panels, extraWidgets)
             if value == 0 then
                 value = g_window.getDisplayDensity() - 0.5
@@ -301,7 +299,7 @@ return {
         end
     },
     staticTextScale                   = {
-        value = 0,
+        value = g_platform.isMobile() and 2 or 0,
         action = function(value, options, controller, panels, extraWidgets)
             if value == 0 then
                 value = g_window.getDisplayDensity() - 0.5
@@ -314,7 +312,7 @@ return {
         end
     },
     animatedTextScale                 = {
-        value = 0,
+        value = g_platform.isMobile() and 2 or 0,
         action = function(value, options, controller, panels, extraWidgets)
             if value == 0 then
                 value = g_window.getDisplayDensity() - 0.5
@@ -333,7 +331,7 @@ return {
         end
     },
     showLeftPanel                     = {
-        value = false,
+        value = true,
         action = function(value, options, controller, panels, extraWidgets)
             modules.game_interface.getLeftPanel():setOn(value)
         end
@@ -399,7 +397,30 @@ return {
     profile                           = {
         value = 1,
     },
-    showExpiryInInvetory           = {
+    rightJoystick                     = {
+        value = false,
+        action = function(value, options, controller, panels, extraWidgets)
+            if not g_platform.isMobile() then return end
+            if value == true then
+                modules.game_shortcuts.getPanel():breakAnchors()
+                modules.game_shortcuts.getPanel():addAnchor(AnchorBottom, "parent", AnchorBottom)
+                modules.game_shortcuts.getPanel():addAnchor(AnchorLeft, "parent", AnchorLeft)
+
+                modules.game_joystick.getPanel():breakAnchors()
+                modules.game_joystick.getPanel():addAnchor(AnchorBottom, "parent", AnchorBottom)
+                modules.game_joystick.getPanel():addAnchor(AnchorRight, "parent", AnchorRight)
+            else
+                modules.game_joystick.getPanel():breakAnchors()
+                modules.game_joystick.getPanel():addAnchor(AnchorBottom, "parent", AnchorBottom)
+                modules.game_joystick.getPanel():addAnchor(AnchorLeft, "parent", AnchorLeft)
+
+                modules.game_shortcuts.getPanel():breakAnchors()
+                modules.game_shortcuts.getPanel():addAnchor(AnchorBottom, "parent", AnchorBottom)
+                modules.game_shortcuts.getPanel():addAnchor(AnchorRight, "parent", AnchorRight)
+            end
+        end
+    },
+    showExpiryInInvetory              = {
         value = true,
         event = nil,
         action = function(value, options, controller, panels, extraWidgets)
@@ -412,7 +433,7 @@ return {
             end, 100)
         end
     },
-    showExpiryInContainers           = {
+    showExpiryInContainers            = {
         value = true,
         event = nil,
         action = function(value, options, controller, panels, extraWidgets)
@@ -444,8 +465,8 @@ return {
             end, 100)
         end
     },
-    autoSwitchPreset                    = false,
-    listKeybindsPanel                   = {
+    autoSwitchPreset                  = false,
+    listKeybindsPanel                 = {
         action = function(value, options, controller, panels, extraWidgets)
             listKeybindsComboBox(value)
         end

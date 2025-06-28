@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -64,6 +64,7 @@ public:
     void setMasterId(const uint32_t id) { m_masterId = id; }
     void setName(std::string_view name);
     void setHealthPercent(uint8_t healthPercent);
+    void setManaPercent(uint8_t value) { m_manaPercent = value; }
     void setDirection(Otc::Direction direction);
     void setOutfit(const Outfit& outfit);
     void setLight(const Light& light) { m_light = light; }
@@ -74,6 +75,7 @@ public:
     void setEmblem(uint8_t emblem);
     void setType(uint8_t type);
     void setIcon(uint8_t icon);
+    void setIcons(const std::vector<std::tuple<uint8_t, uint8_t, uint16_t>>& icons);
     void setSkullTexture(const std::string& filename);
     void setShieldTexture(const std::string& filename, bool blink);
     void setEmblemTexture(const std::string& filename);
@@ -82,6 +84,7 @@ public:
     void setPassable(const bool passable) { m_passable = passable; }
     void setMountShader(std::string_view name);
     void setStaticWalking(uint16_t v);
+    void setIconsTexture(const std::string& filename, const Rect& clip, const uint16_t count);
 
     void onStartAttachEffect(const AttachedEffectPtr& effect) override;
     void onDispatcherAttachEffect(const AttachedEffectPtr& effect) override;
@@ -106,7 +109,7 @@ public:
     int getDisplacementY() const override;
     int getExactSize(int layer = 0, int xPattern = 0, int yPattern = 0, int zPattern = 0, int animationPhase = 0) override;
 
-    float getStepProgress() { return m_walkTimer.ticksElapsed() / m_stepCache.duration; }
+    float getStepProgress() { return m_walkTimer.ticksElapsed() / static_cast<float>(m_stepCache.duration); }
     float getStepTicksLeft() { return static_cast<float>(m_stepCache.getDuration(m_lastStepDirection)) - m_walkTimer.ticksElapsed(); }
 
     uint8_t getSkull() { return m_skull; }
@@ -115,6 +118,7 @@ public:
     uint8_t getType() { return m_type; }
     uint8_t getIcon() { return m_icon; }
     uint8_t getHealthPercent() { return m_healthPercent; }
+    uint8_t getManaPercent() { return m_manaPercent; }
 
     uint16_t getSpeed() { return m_speed; }
     uint16_t getBaseSpeed() { return m_baseSpeed; }
@@ -180,17 +184,29 @@ minHeight,
     void setWidgetInformation(const UIWidgetPtr& info);
     UIWidgetPtr getWidgetInformation() { return m_widgetInformation; }
 
-#ifndef BOT_PROTECTION
     void setText(const std::string& text, const Color& color);
     std::string getText();
     void clearText() { setText("", Color::white); }
     bool canShoot(int distance);
-#endif
+
+    const auto& getIcons() {
+        static std::vector<std::tuple<uint8_t, uint8_t, uint16_t>> vec;
+        return m_icons ? m_icons->iconEntries : vec;
+    }
+
+    bool isCameraFollowing() const {
+        return m_cameraFollowing;
+    }
+
+    void setCameraFollowing(bool v) {
+        m_cameraFollowing = v;
+    }
 
 protected:
-    virtual void updateWalkOffset(uint8_t totalPixelsWalked);
-    virtual void updateWalk(bool isPreWalking = false);
     virtual void terminateWalk();
+    virtual void onWalking() {};
+    void updateWalkOffset(uint8_t totalPixelsWalked);
+    void updateWalk();
 
     ThingType* getThingType() const override;
     ThingType* getMountThingType() const;
@@ -204,6 +220,8 @@ protected:
     Otc::Direction m_direction{ Otc::South };
 
     Timer m_walkTimer;
+
+    int16_t m_lastMapDuration = -1;
 
 private:
     void nextWalkUpdate();
@@ -226,9 +244,25 @@ private:
         uint16_t getDuration(const Otc::Direction dir) const { return Position::isDiagonal(dir) ? diagonalDuration : duration; }
     };
 
+    struct IconRenderData
+    {
+        struct AtlasIconGroup
+        {
+            TexturePtr texture;
+            Rect clip;
+            uint16_t count{ 0 };
+        };
+
+        std::vector<AtlasIconGroup> atlasGroups;
+        std::vector<std::tuple<uint8_t, uint8_t, uint16_t>> iconEntries; // (icon, category, count)
+        CachedText numberText;
+    };
+
     UIWidgetPtr m_widgetInformation;
 
     TilePtr m_walkingTile;
+
+    std::unique_ptr<IconRenderData> m_icons;
 
     TexturePtr m_skullTexture;
     TexturePtr m_shieldTexture;
@@ -246,8 +280,8 @@ private:
     CachedText m_name;
     CachedStep m_stepCache;
 
-    Position m_lastStepFromPosition;
     Position m_lastStepToPosition;
+    Position m_lastStepFromPosition;
     Position m_oldPosition;
 
     Timer m_footTimer;
@@ -283,6 +317,7 @@ private:
 
     uint8_t m_type;
     uint8_t m_healthPercent{ 101 };
+    uint8_t m_manaPercent{ 101 };
     uint8_t m_skull{ Otc::SkullNone };
     uint8_t m_icon{ Otc::NpcIconNone };
     uint8_t m_shield{ Otc::ShieldNone };
@@ -307,6 +342,7 @@ private:
     bool m_allowAppearWalk{ false };
     bool m_showTimedSquare{ false };
     bool m_showStaticSquare{ false };
+    bool m_cameraFollowing{ false };
 
     bool m_removed{ true };
     bool m_drawOutfitColor{ true };
@@ -314,9 +350,7 @@ private:
     bool m_typing{ false };
     bool m_isCovered{ false };
 
-#ifndef BOT_PROTECTION
     StaticTextPtr m_text;
-#endif
 };
 
 // @bindclass

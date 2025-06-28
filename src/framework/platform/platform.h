@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -88,7 +88,7 @@ public:
         return m_device.type == Mobile;
 #else
         return MAIN_THREAD_EM_ASM_INT({
-            return (/ iphone | ipod | ipad | android / i).test(navigator.userAgent);
+            return (/iphone|ipod|ipad|android/i).test(navigator.userAgent);
         }) == 1;
 #endif
     }

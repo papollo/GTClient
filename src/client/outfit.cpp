@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -118,6 +118,7 @@ void Outfit::resetClothes()
     setLegs(0);
     setFeet(0);
     setMount(0);
+    setFamiliar(0);
     setWing(0);
     setAura(0);
     setEffect(0);

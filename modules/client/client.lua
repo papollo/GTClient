@@ -1,4 +1,4 @@
-local musicFilename = '/sounds/startup'
+local musicFilename = 'sounds/startup'
 local musicChannel = nil
 if g_sounds then
     musicChannel = g_sounds.getChannel(SoundChannels.Music)
@@ -14,7 +14,6 @@ function setMusic(filename)
 end
 
 function startup()
-    -- Play startup music (The Silver Tree, by Mattias Westlund)
     if musicChannel then
         musicChannel:enqueue(musicFilename, 3)
         connect(g_game, {
@@ -48,6 +47,9 @@ function startup()
         end
     else
         EnterGame.firstShow()
+    end
+    if g_app.hasUpdater() and g_sounds then
+        g_sounds.setAudioEnabled(g_settings.getBoolean('enableAudio'))
     end
 end
 

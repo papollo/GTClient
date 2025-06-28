@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -75,7 +75,7 @@ bool ResourceManager::discoverWorkDir(const std::string& existentFile)
             continue;
 
         if (PHYSFS_exists(existentFile.c_str())) {
-            g_logger.debug(stdext::format("Found work dir at '%s'", dir));
+            g_logger.debug("Found work dir at '{}'", dir);
             m_workDir = dir;
             found = true;
             break;
@@ -91,7 +91,7 @@ bool ResourceManager::setupUserWriteDir(const std::string& appWriteDirName)
     const std::string userDir = getUserDir();
     std::string dirName;
 #ifndef WIN32
-    dirName = stdext::format(".%s", appWriteDirName);
+    dirName = fmt::format(".{}", appWriteDirName);
 #else
     dirName = appWriteDirName;
 #endif
@@ -99,7 +99,11 @@ bool ResourceManager::setupUserWriteDir(const std::string& appWriteDirName)
 
     if (!PHYSFS_setWriteDir(writeDir.c_str())) {
         if (!PHYSFS_setWriteDir(userDir.c_str()) || !PHYSFS_mkdir(dirName.c_str())) {
-            g_logger.error(stdext::format("Unable to create write directory '%s': %s", writeDir, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())));
+            g_logger.error(
+                "Unable to create write directory '{}': {}",
+                writeDir,
+                PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())
+            );
             return false;
         }
     }
@@ -109,7 +113,11 @@ bool ResourceManager::setupUserWriteDir(const std::string& appWriteDirName)
 bool ResourceManager::setWriteDir(const std::string& writeDir, bool)
 {
     if (!PHYSFS_setWriteDir(writeDir.c_str())) {
-        g_logger.error(stdext::format("Unable to set write directory '%s': %s", writeDir, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())));
+        g_logger.error(
+            "Unable to set write directory '{}': {}",
+            writeDir,
+            PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())
+        );
         return false;
     }
 
@@ -119,7 +127,7 @@ bool ResourceManager::setWriteDir(const std::string& writeDir, bool)
     m_writeDir = writeDir;
 
     if (!addSearchPath(writeDir))
-        g_logger.error(stdext::format("Unable to add write '%s' directory to search path", writeDir));
+        g_logger.error("Unable to add write '{}' directory to search path", writeDir);
 
     return true;
 }
@@ -139,7 +147,13 @@ bool ResourceManager::addSearchPath(const std::string& path, const bool pushFron
         }
 
         if (!found) {
-            //g_logger.error(stdext::format("Could not add '%s' to directory search path. Reason %s", path, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())));
+            /*g_logger.error(
+                "Could not add '{}' to directory search path. Reason {}",
+                path,
+                PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())
+            );
+            */
+
             return false;
         }
     }
@@ -168,7 +182,11 @@ void ResourceManager::searchAndAddPackages(const std::string& packagesDir, const
             continue;
         std::string package = getRealDir(packagesDir) + "/" + file;
         if (!addSearchPath(package, true))
-            g_logger.error(stdext::format("Unable to read package '%s': %s", package, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())));
+            g_logger.error(
+                "Unable to read package '{}': {}",
+                package,
+                PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())
+            );
     }
 }
 
@@ -209,7 +227,7 @@ std::string ResourceManager::readFileContents(const std::string& fileName)
 {
     const std::string fullPath = resolvePath(fileName);
 
-    if (fullPath.find(g_resources.getByteStrings(0)) != std::string::npos) {
+    if (fullPath.find(AY_OBFUSCATE("/downloads")) != std::string::npos) {
         const auto dfile = g_http.getFile(fullPath.substr(10));
         if (dfile)
             return std::string(dfile->response.begin(), dfile->response.end());
@@ -217,7 +235,7 @@ std::string ResourceManager::readFileContents(const std::string& fileName)
 
     PHYSFS_File* file = PHYSFS_openRead(fullPath.c_str());
     if (!file)
-        throw Exception("unable to open file '%s': %s", fullPath, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+        throw Exception("unable to open file '{}': {}", fullPath, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
 
     const int fileSize = PHYSFS_fileLength(file);
     std::string buffer(fileSize, 0);
@@ -225,21 +243,23 @@ std::string ResourceManager::readFileContents(const std::string& fileName)
     PHYSFS_close(file);
 
 #if ENABLE_ENCRYPTION == 1
-    bool hasHeader = false;
-    if (buffer.size() >= std::string(ENCRYPTION_HEADER).size() &&
-        buffer.substr(0, std::string(ENCRYPTION_HEADER).size()) == std::string(ENCRYPTION_HEADER)) {
-        hasHeader = true;
-    }
-
-    if (g_game.getFeature(Otc::GameAllowCustomBotScripts)) {
-        if (fullPath.find(g_resources.getByteStrings(1)) != std::string::npos && !hasHeader) {
-            return buffer;
-        }
-    }
+    const auto headerSize = std::string(ENCRYPTION_HEADER).size();
+    const bool hasHeader = (buffer.size() >= headerSize &&
+                            buffer.compare(0, headerSize, ENCRYPTION_HEADER) == 0);
 
     if (hasHeader) {
-        buffer = buffer.substr(std::string(ENCRYPTION_HEADER).size());
+        buffer = buffer.substr(headerSize);
         buffer = decrypt(buffer);
+    } else {
+        std::string path = fullPath;
+        std::replace(path.begin(), path.end(), '\\', '/');
+        if (path.compare(0, 5, std::string(AY_OBFUSCATE("/bot/"))) == 0) {
+            if (g_game.getFeature(Otc::GameAllowCustomBotScripts)) {
+                return buffer;
+            }
+            return "";
+        }
+        buffer = "";
     }
 #endif
 
@@ -254,7 +274,11 @@ bool ResourceManager::writeFileBuffer(const std::string& fileName, const uint8_t
 
         if (!PHYSFS_isDirectory(dirPath.c_str())) {
             if (!PHYSFS_mkdir(dirPath.c_str())) {
-                g_logger.error(stdext::format("Unable to create write directory '%s': %s", dirPath, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())));
+                g_logger.error(
+                    "Unable to create write directory '{}': {}",
+                    dirPath,
+                    PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())
+                );
                 return false;
             }
         }
@@ -301,7 +325,7 @@ FileStreamPtr ResourceManager::openFile(const std::string& fileName)
 
     PHYSFS_File* file = PHYSFS_openRead(fullPath.c_str());
     if (!file)
-        throw Exception("unable to open file '%s': %s", fullPath, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+        throw Exception("unable to open file '{}': {}", fullPath, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
     return { std::make_shared<FileStream>(fullPath, file, false) };
 }
 
@@ -309,7 +333,7 @@ FileStreamPtr ResourceManager::appendFile(const std::string& fileName) const
 {
     PHYSFS_File* file = PHYSFS_openAppend(fileName.c_str());
     if (!file)
-        throw Exception("failed to append file '%s': %s", fileName, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+        throw Exception("failed to append file '{}': {}", fileName, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
     return { std::make_shared<FileStream>(fileName, file, true) };
 }
 
@@ -317,7 +341,7 @@ FileStreamPtr ResourceManager::createFile(const std::string& fileName) const
 {
     PHYSFS_File* file = PHYSFS_openWrite(fileName.c_str());
     if (!file)
-        throw Exception("failed to create file '%s': %s", fileName, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
+        throw Exception("failed to create file '{}': {}", fileName, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()));
     return { std::make_shared<FileStream>(fileName, file, true) };
 }
 
@@ -407,7 +431,7 @@ std::string ResourceManager::resolvePath(const std::string& path)
     }
 
     if (!(fullPath.starts_with("/")))
-        g_logger.traceWarning(stdext::format("the following file path is not fully resolved: %s", path));
+        g_logger.traceWarning(fmt::format("the following file path is not fully resolved: {}", path));
 
     stdext::replace_all(fullPath, "//", "/");
     return fullPath;
@@ -636,7 +660,7 @@ std::string ResourceManager::selfChecksum() {
 }
 
 void ResourceManager::updateFiles(const std::set<std::string>& files) {
-    g_logger.info(stdext::format("Updating client, %i files", files.size()));
+    g_logger.info("Updating client, {} files", files.size());
 
     const auto& oldWriteDir = getWriteDir();
     setWriteDir(getWorkDir());
@@ -651,15 +675,16 @@ void ResourceManager::updateFiles(const std::set<std::string>& files) {
 
         if (dFile) {
             if (!writeFileBuffer(fileName, (const uint8_t*)dFile->response.data(), dFile->response.size(), true)) {
-                g_logger.error(stdext::format("Cannot write file: %s", fileName));
+                g_logger.error("Cannot write file: {}", fileName);
             } else {
-                //g_logger.info(stdext::format("Updated file: %s", fileName));
+                //g_logger.info("Updated file: {}", fileName);
             }
         } else {
-            g_logger.error(stdext::format("Cannot find file: %s in downloads", fileName));
+            g_logger.error("Cannot find file: {} in downloads", fileName);
         }
     }
     setWriteDir(oldWriteDir);
+    addSearchPath(getWorkDir(), true);
 }
 
 void ResourceManager::updateExecutable(std::string fileName)
@@ -676,16 +701,22 @@ void ResourceManager::updateExecutable(std::string fileName)
 
     const auto dFile = g_http.getFile(fileName);
     if (!dFile)
-        g_logger.fatal(stdext::format("Cannot find executable: %s in downloads", fileName));
+        g_logger.fatal("Cannot find executable: {} in downloads", fileName);
 
     const auto& oldWriteDir = getWriteDir();
     setWriteDir(getWorkDir());
     const std::filesystem::path path(m_binaryPath);
     const auto newBinary = path.stem().string() + "-" + std::to_string(time(nullptr)) + path.extension().string();
-    g_logger.info(stdext::format("Updating binary file: %s", newBinary));
+    g_logger.info("Updating binary file: {}", newBinary);
     PHYSFS_file* file = PHYSFS_openWrite(newBinary.c_str());
-    if (!file)
-        return g_logger.fatal(stdext::format("can't open %s for writing: %s", newBinary, PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())));
+    if (!file) {
+        return g_logger.fatal(
+            "can't open {} for writing: {}",
+            newBinary,
+            PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())
+        );
+    }
+
     PHYSFS_writeBytes(file, dFile->response.data(), dFile->response.size());
     PHYSFS_close(file);
     setWriteDir(oldWriteDir);
@@ -758,26 +789,4 @@ std::unordered_map<std::string, std::string> ResourceManager::decompressArchive(
 {
     std::unordered_map<std::string, std::string> ret;
     return ret;
-}
-
-std::string ResourceManager::decodificateStrings(const std::vector<unsigned char>& bytes) {
-    std::string result;
-    for (const unsigned char c : bytes) {
-        result.push_back(c ^ 0xAA);
-    }
-    return result;
-}
-
-// used to obfuscate vulnerable strings (provisional)
-std::string ResourceManager::getByteStrings(const size_t line) {
-    const std::vector<std::vector<unsigned char>> strTable = {
-        {0x85, 0xCE, 0xC5, 0xDD, 0xC4, 0xC6, 0xC5, 0xCB, 0xCE, 0xD9},  // "/downloads"
-        {0x85, 0xC8, 0xC5, 0xDE, 0x85},  // "/bot/"
-        {0xE6, 0xC3, 0xC4, 0xC2, 0xCB, 0x8A, 0xCE, 0xCF, 0x8A, 0xD8, 0xCF, 0xDE, 0xC5, 0xD8, 0xC4, 0xC5, 0x8A, 0xC3, 0xC4, 0xDC, 0xCB, 0xC6, 0xC3, 0xCE, 0xCB},  // "Linha de retorno invalida"
-    };
-
-    if (line < strTable.size()) {
-        return decodificateStrings(strTable[line]);
-    }
-    return decodificateStrings(strTable[2]);
 }

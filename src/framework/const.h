@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -293,6 +293,7 @@ namespace Fw
         AlternateState = 1 << 10,
         DraggingState = 1 << 11,
         HiddenState = 1 << 12,
-        LastWidgetState = 1 << 13
+        MobileState = 1 << 13,
+        LastWidgetState = 1 << 14
     };
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,12 +27,15 @@
 #include <framework/core/eventdispatcher.h>
 #include <framework/core/resourcemanager.h>
 #include <framework/graphics/image.h>
+#include "framework/core/graphicalapplication.h"
 
 #ifdef NDEBUG
 #include <timeapi.h>
 #endif
 
 #define HSB_BIT_SET(p, n) (p[(n)/8] |= (128 >>((n)%8)))
+
+constexpr auto WINDOW_NAME = "BASED_ON_TIBIA_GAME_ENGINE";
 
 WIN32Window::WIN32Window()
 {
@@ -243,8 +246,8 @@ void WIN32Window::terminate()
     }
 
     if (m_instance) {
-        if (!UnregisterClassA(g_app.getCompactName().data(), m_instance))
-            g_logger.error("UnregisterClassA failed");
+        if (!UnregisterClassA(WINDOW_NAME, m_instance))
+            g_logger.error("UnregisterClassA failed: " + std::to_string(GetLastError()));
         m_instance = nullptr;
     }
 
@@ -273,7 +276,7 @@ void WIN32Window::internalCreateWindow()
     wc.hCursor = m_defaultCursor;
     wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
     wc.lpszMenuName = nullptr;
-    wc.lpszClassName = g_app.getCompactName().data();
+    wc.lpszClassName = WINDOW_NAME;
 
     if (!RegisterClassA(&wc))
         g_logger.fatal("Failed to register the window class.");
@@ -287,7 +290,7 @@ void WIN32Window::internalCreateWindow()
 
     updateUnmaximizedCoords();
     m_window = CreateWindowExA(dwExStyle,
-                               g_app.getCompactName().data(),
+                               WINDOW_NAME,
                                nullptr,
                                dwStyle,
                                screenRect.left(),
@@ -346,11 +349,11 @@ void WIN32Window::internalCreateGLContext()
 
     m_eglSurface = eglCreateWindowSurface(m_eglDisplay, m_eglConfig, m_window, NULL);
     if (m_eglSurface == EGL_NO_SURFACE)
-        g_logger.fatal(stdext::format("Unable to create EGL surface: %s", eglGetError()));
+        g_logger.fatal("Unable to create EGL surface: {}", eglGetError());
 
     m_eglContext = eglCreateContext(m_eglDisplay, m_eglConfig, EGL_NO_CONTEXT, contextAtrrList);
     if (m_eglContext == EGL_NO_CONTEXT)
-        g_logger.fatal(stdext::format("Unable to create EGL context: %s", eglGetError()));
+        g_logger.fatal("Unable to create EGL context: {}", eglGetError());
 
 #else
     static PIXELFORMATDESCRIPTOR pfd = { sizeof(PIXELFORMATDESCRIPTOR),
@@ -960,7 +963,7 @@ void WIN32Window::setIcon(const std::string& file)
         const auto& image = Image::load(file);
 
         if (!image) {
-            g_logger.traceError(stdext::format("unable to load icon file %s", file));
+            g_logger.traceError("unable to load icon file {}", file);
             return;
         }
 

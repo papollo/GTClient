@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,7 @@ public:
     bool hasPages() { return m_hasPages; }
     int getSize() { return m_size; }
     int getFirstIndex() { return m_firstIndex; }
-    ItemPtr findItemById(uint32_t itemId, int subType) const;
+    ItemPtr findItemById(uint32_t itemId, int subType, uint8_t tier) const;
 
 protected:
     Container(const uint8_t id, const uint8_t capacity, const std::string_view name, ItemPtr containerItem, const bool hasParent, const bool isUnlocked, const bool hasPages, const uint16_t containerSize, const uint16_t firstIndex)

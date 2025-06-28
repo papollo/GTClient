@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -269,7 +269,8 @@ public:
     bool isLookPossible(const Position& pos);
     bool isCovered(const Position& pos, uint8_t firstFloor = 0);
     bool isCompletelyCovered(const Position& pos, uint8_t firstFloor = 0);
-    bool isAwareOfPosition(const Position& pos) const;
+    bool isAwareOfPosition(const Position& pos) const { return isAwareOfPosition(pos, m_awareRange); }
+    bool isAwareOfPosition(const Position& pos, const AwareRange& awareRange) const;
 
     void resetLastCamera() const;
 
@@ -295,10 +296,8 @@ public:
     void setFloatingEffect(const bool enable) { m_floatingEffect = enable; }
     bool isDrawingFloatingEffects() { return m_floatingEffect; }
 
-#ifndef BOT_PROTECTION
     std::map<std::string, std::tuple<int, int, int, std::string>> findEveryPath(const Position& start, int maxDistance, const std::map<std::string, std::string>& params);
     std::vector<CreaturePtr> getSpectatorsByPattern(const Position& centerPos, const std::string& pattern, Otc::Direction direction);
-#endif
 
     int getMinimapColor(const Position& pos);
     bool isSightClear(const Position& fromPos, const Position& toPos);

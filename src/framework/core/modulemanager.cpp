@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,8 @@
 
 #include "modulemanager.h"
 #include "resourcemanager.h"
-
+#include "graphicalapplication.h"
+#include <framework/platform/platformwindow.h>
 #include <framework/core/application.h>
 #include <framework/core/asyncdispatcher.h>
 #include <framework/core/eventdispatcher.h>
@@ -86,7 +87,7 @@ ModulePtr ModuleManager::discoverModule(const std::string& moduleFile)
         if (push)
             m_modules.emplace_back(module);
     } catch (const stdext::exception& e) {
-        g_logger.error(stdext::format("Unable to discover module from file '%s': %s", moduleFile, e.what()));
+        g_logger.error("Unable to discover module from file '{}': {}", moduleFile, e.what());
     }
     return module;
 }
@@ -95,7 +96,7 @@ void ModuleManager::ensureModuleLoaded(const std::string_view moduleName)
 {
     const auto& module = g_modules.getModule(moduleName);
     if (!module || !module->load())
-        g_logger.fatal(stdext::format("Unable to load '%s' module", moduleName));
+        g_logger.fatal("Unable to load '{}' module", moduleName);
 }
 
 void ModuleManager::unloadModules()
@@ -147,6 +148,8 @@ void ModuleManager::enableAutoReload() {
     if (m_reloadEnable)
         return;
 
+    g_window.setTitle(g_app.getName() + " (LIVE RELOAD ENABLED)");
+
     m_reloadEnable = true;
 
     struct FileInfo
@@ -169,10 +172,10 @@ void ModuleManager::enableAutoReload() {
         ModuleData data = { .ref = module, .files = {} };
 
         bool hasFile = false;
-        for (auto path : g_resources.listDirectoryFiles("/" + module->getName(), true, false, true)) {
+        for (const auto& path : g_resources.listDirectoryFiles("/" + module->getName(), true, false, true)) {
             ticks_t time = g_resources.getFileTime(path);
             if (time > 0) {
-                data.files.emplace_back(std::make_shared<FileInfo>(std::move(path), time));
+                data.files.emplace_back(std::make_shared<FileInfo>(FileInfo{ path, time }));
                 hasFile = true;
             }
         }

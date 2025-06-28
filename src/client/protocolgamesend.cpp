@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,15 +25,7 @@
 #include "protocolgame.h"
 #include <framework/util/crypt.h>
 
-void ProtocolGame::send(const OutputMessagePtr& outputMessage)
-{
-    // avoid usage of automated sends (bot modules)
-    if (!g_game.checkBotProtection())
-        return;
-
-    Protocol::send(outputMessage);
-}
-
+void ProtocolGame::onSend() {}
 void ProtocolGame::sendExtendedOpcode(const uint8_t opcode, const std::string& buffer)
 {
     if (m_enableSendExtendedOpcode) {
@@ -43,7 +35,7 @@ void ProtocolGame::sendExtendedOpcode(const uint8_t opcode, const std::string& b
         msg->addString(buffer);
         send(msg);
     } else {
-        g_logger.error(stdext::format("Unable to send extended opcode %d, extended opcodes are not enabled", opcode));
+        g_logger.error("Unable to send extended opcode {}, extended opcodes are not enabled", opcode);
     }
 }
 
@@ -301,15 +293,25 @@ void ProtocolGame::sendGmTeleport(const Position& pos)
     send(msg);
 }
 
-void ProtocolGame::sendEquipItem(const uint16_t itemId, const uint16_t countOrSubType)
+void ProtocolGame::sendEquipItemWithTier(const uint16_t itemId, const uint8_t tier)
 {
     const auto& msg = std::make_shared<OutputMessage>();
     msg->addU8(Proto::ClientEquipItem);
     msg->addU16(itemId);
-    if (g_game.getFeature(Otc::GameCountU16))
+    msg->addU8(tier);
+    send(msg);
+}
+
+void ProtocolGame::sendEquipItemWithCountOrSubType(const uint16_t itemId, const uint16_t countOrSubType)
+{
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientEquipItem);
+    msg->addU16(itemId);
+    if (g_game.getFeature(Otc::GameCountU16)) {
         msg->addU16(countOrSubType);
-    else
+    } else {
         msg->addU8(static_cast<uint8_t>(countOrSubType));
+    }
     send(msg);
 }
 
@@ -739,6 +741,20 @@ void ProtocolGame::sendRequestBless()
     send(msg);
 }
 
+void ProtocolGame::sendRequestTrackerQuestLog(const std::map<uint16_t, std::string>& quests)
+{
+    const auto msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientRequestTrackerQuestLog);
+    msg->addU8(static_cast<uint8_t>(quests.size()));
+    for (const auto& [questId, questName] : quests) {
+        msg->addU16(questId);
+        if (g_game.getClientVersion() >= 1410) {
+            msg->addString(questName);
+        }
+    }
+    send(msg);
+}
+
 void ProtocolGame::sendRequestOutfit()
 {
     const auto& msg = std::make_shared<OutputMessage>();
@@ -790,8 +806,11 @@ void ProtocolGame::sendChangeOutfit(const Outfit& outfit)
         msg->addU8(outfit.hasMount());
     }
 
+    if (g_game.getFeature(Otc::GamePlayerFamiliars)) {
+        msg->addU16(outfit.getFamiliar()); //familiars
+    }
+
     if (g_game.getClientVersion() >= 1281) {
-        msg->addU16(0x00); //familiars
         msg->addU8(0x00); //randomizeMount
     }
     if (g_game.getFeature(Otc::GameWingsAurasEffectsShader)) {
@@ -1018,7 +1037,7 @@ void ProtocolGame::sendRequestBestiaryOverview(const std::string_view catName)
 {
     const auto& msg = std::make_shared<OutputMessage>();
     msg->addU8(Proto::ClientBestiaryRequestOverview);
-    msg->addU8(0x02);
+    msg->addU8(0x00);
     msg->addString(catName);
     send(msg);
 }
@@ -1056,6 +1075,47 @@ void ProtocolGame::sendCyclopediaRequestCharacterInfo(const uint32_t playerId, c
     send(msg);
 }
 
+void ProtocolGame::sendCyclopediaHouseAuction(const Otc::CyclopediaHouseAuctionType_t type, const uint32_t houseId, const uint32_t timestamp, const uint64_t bidValue, const std::string_view name)
+{
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientCyclopediaHouseAuction);
+    msg->addU8(type);
+
+    switch (type) {
+        case Otc::CYCLOPEDIA_HOUSE_TYPE_NONE:
+            msg->addString(name); // townName
+            break;
+        case Otc::CYCLOPEDIA_HOUSE_TYPE_BID:
+            msg->addU32(houseId);
+            msg->addU64(bidValue);
+            break;
+        case Otc::CYCLOPEDIA_HOUSE_TYPE_MOVEOUT:
+            msg->addU32(houseId);
+            msg->addU32(timestamp);
+            break;
+        case Otc::CYCLOPEDIA_HOUSE_TYPE_TRANSFER:
+            msg->addU32(houseId);
+            msg->addU32(timestamp);
+            msg->addString(name); // newOwner
+            msg->addU64(bidValue);
+            break;
+        case Otc::CYCLOPEDIA_HOUSE_TYPE_CANCEL_MOVEOUT:
+            msg->addU32(houseId);
+            break;
+        case Otc::CYCLOPEDIA_HOUSE_TYPE_CANCEL_TRANSFER:
+            msg->addU32(houseId);
+            break;
+        case Otc::CYCLOPEDIA_HOUSE_TYPE_ACCEPT_TRANSFER:
+            msg->addU32(houseId);
+            break;
+        case Otc::CYCLOPEDIA_HOUSE_TYPE_REFECT_TRANSFER:
+            msg->addU32(houseId);
+            break;
+    }
+
+    send(msg);
+}
+
 void ProtocolGame::sendRequestBosstiaryInfo()
 {
     const auto& msg = std::make_shared<OutputMessage>();
@@ -1088,16 +1148,21 @@ void ProtocolGame::sendStatusTrackerBestiary(const uint16_t raceId, const bool s
     send(msg);
 }
 
-void ProtocolGame::sendBuyStoreOffer(const uint32_t offerId, const uint8_t productType, const std::string_view name)
+void ProtocolGame::sendBuyStoreOffer(const uint32_t offerId, const uint8_t action, const std::string_view& name, const uint8_t type, const std::string_view& location)
 {
     const auto& msg = std::make_shared<OutputMessage>();
     msg->addU8(Proto::ClientBuyStoreOffer);
     msg->addU32(offerId);
-    msg->addU8(productType);
-
-    if (productType == Otc::ProductTypeNameChange)
+    msg->addU8(action);
+    if (action > 0 && action < 6) {
         msg->addString(name);
-
+        if (action == 3 || action == 5) {
+            msg->addU8(type);
+        }
+        if (action == 5) {
+            msg->addString(location);
+        }
+    }
     send(msg);
 }
 
@@ -1116,16 +1181,62 @@ void ProtocolGame::sendRequestTransactionHistory(const uint32_t page, const uint
     send(msg);
 }
 
-void ProtocolGame::sendRequestStoreOffers(const std::string_view categoryName, const uint8_t serviceType)
+void ProtocolGame::sendRequestStoreOffers(const std::string_view categoryName, const std::string_view subCategory, const uint8_t sortOrder, const uint8_t serviceType)
 {
     const auto& msg = std::make_shared<OutputMessage>();
     msg->addU8(Proto::ClientRequestStoreOffers);
-
-    if (g_game.getFeature(Otc::GameIngameStoreServiceType)) {
-        msg->addU8(serviceType);
-    }
+    msg->addU8(Otc::Store_Type_Actions_t::OPEN_CATEGORY);
     msg->addString(categoryName);
+    msg->addString(subCategory);
+    msg->addU8(sortOrder);
+    msg->addU8(serviceType);
+    send(msg);
+}
 
+void ProtocolGame::sendRequestStoreHome() 
+{
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientRequestStoreOffers);
+    msg->addU8(Otc::Store_Type_Actions_t::OPEN_HOME);
+    send(msg);
+}
+void ProtocolGame::sendRequestStorePremiumBoost()
+{
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientRequestStoreOffers);
+    msg->addU8(Otc::Store_Type_Actions_t::OPEN_PREMIUM_BOOST);
+    msg->addU8(0);
+    send(msg);
+}
+
+void ProtocolGame::sendRequestUsefulThings(const uint8_t offerId)
+{
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientRequestStoreOffers);
+    msg->addU8(Otc::Store_Type_Actions_t::OPEN_USEFUL_THINGS);
+    msg->addU8(offerId);
+    send(msg);
+}
+
+void ProtocolGame::sendRequestStoreOfferById(uint32_t offerId, const uint8_t sortOrder, const uint8_t serviceType)
+{
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientRequestStoreOffers);
+    msg->addU8(Otc::Store_Type_Actions_t::OPEN_OFFER);
+    msg->addU32(offerId);
+    msg->addU8(sortOrder);
+    msg->addU8(serviceType);
+    send(msg);
+}
+
+void ProtocolGame::sendRequestStoreSearch(const std::string_view searchText, const uint8_t sortOrder, const uint8_t serviceType)
+{
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientRequestStoreOffers);
+    msg->addU8(Otc::Store_Type_Actions_t::OPEN_SEARCH);
+    msg->addString(searchText);
+    msg->addU8(sortOrder);
+    msg->addU8(serviceType);
     send(msg);
 }
 
@@ -1283,6 +1394,33 @@ void ProtocolGame::sendCloseImbuingWindow()
     send(msg);
 }
 
+void ProtocolGame::sendOpenRewardWall()
+{
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientOpenRewardWall);
+    send(msg);
+}
+
+void ProtocolGame::sendOpenRewardHistory()
+{
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientOpenRewardHistory);
+    send(msg);
+}
+
+void ProtocolGame::sendGetRewardDaily(const uint8_t bonusShrine, const std::map<uint16_t, uint8_t>& items)
+{
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::sendGetRewardDaily);
+    msg->addU8(bonusShrine);
+    msg->addU8(items.size());
+    for (const auto& [itemId, count] : items) {
+        msg->addU16(itemId);
+        msg->addU8(count);
+    }
+    send(msg);
+}
+
 void ProtocolGame::sendStashWithdraw(const uint16_t itemId, const uint32_t count, const uint8_t stackpos)
 {
     const auto& msg = std::make_shared<OutputMessage>();
@@ -1317,10 +1455,25 @@ void ProtocolGame::sendImbuementDurations(const bool isOpen)
     send(msg);
 }
 
+void ProtocolGame::sendQuickLoot(const uint8_t variant, const Position& pos, const uint16_t itemId, const uint8_t stackpos)
+{
+    const auto msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientSendQuickLoot);
+    if (g_game.getClientVersion() >= 1332) {
+        msg->addU8(variant);
+    }
+    addPosition(msg, pos);
+    if (variant != 2) {
+        msg->addU16(itemId);
+        msg->addU8(stackpos);
+    }
+    send(msg);
+}
+
 void ProtocolGame::requestQuickLootBlackWhiteList(const uint8_t filter, const uint16_t size, const std::vector<uint16_t>& listedItems)
 {
     const auto msg = std::make_shared<OutputMessage>();
-    msg->addU8(0x91);
+    msg->addU8(Proto::ClientQuickLootBlackWhitelist);
     msg->addU8(filter);
     msg->addU16(size);
 
@@ -1333,7 +1486,7 @@ void ProtocolGame::requestQuickLootBlackWhiteList(const uint8_t filter, const ui
 void ProtocolGame::openContainerQuickLoot(const uint8_t action, const uint8_t category, const Position& pos, const uint16_t itemId, const uint8_t stackpos, const bool useMainAsFallback)
 {
     const auto msg = std::make_shared<OutputMessage>();
-    msg->addU8(0x90);
+    msg->addU8(Proto::ClientLootContainer);
     msg->addU8(action);
 
     if (action == 0 || action == 4) {

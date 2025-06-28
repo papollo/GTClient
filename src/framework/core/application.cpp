@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -89,10 +89,15 @@ void Application::init(std::vector<std::string>& args, ApplicationContext* conte
         startupOptions += arg;
     }
     if (startupOptions.length() > 0)
-        g_logger.info(stdext::format("Startup options: %s", startupOptions));
+        g_logger.info("Startup options: {}", startupOptions);
 
     m_startupOptions = startupOptions;
     m_startupArgs = args;
+
+    // mobile testing
+    if (startupOptions.find("-mobile") != std::string::npos) {
+        g_platform.setDevice({ Platform::Mobile, Platform::Android });
+    }
 
     // initialize configs
     g_configs.init();

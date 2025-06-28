@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -93,8 +93,6 @@ public:
     bool launchCorrect(const std::vector<std::string>& args);
     std::string createArchive(const std::unordered_map<std::string, std::string>& files);
     std::unordered_map<std::string, std::string> decompressArchive(std::string dataOrPath);
-    std::string decodificateStrings(const std::vector<unsigned char>& bytes);
-    std::string getByteStrings(size_t line);
 
     std::string getBinaryPath() { return m_binaryPath.string(); }
 

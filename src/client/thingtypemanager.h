@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,11 +23,15 @@
 #pragma once
 
 #include "thingtype.h"
+#include "staticdata.h"
 #include <framework/global.h>
 
 #ifdef FRAMEWORK_EDITOR
 #include "itemtype.h"
 #endif
+
+using RaceList = std::vector<RaceType>;
+static const RaceType emptyRaceType{};
 
 class ThingTypeManager
 {
@@ -38,6 +42,7 @@ public:
     bool loadDat(std::string file);
     bool loadOtml(std::string file);
     bool loadAppearances(const std::string& file);
+    bool loadStaticData(const std::string& file);
 
 #ifdef FRAMEWORK_EDITOR
     void parseItemType(uint16_t id, pugi::xml_node node);
@@ -63,9 +68,13 @@ public:
 
     ThingTypeList findThingTypeByAttr(ThingAttr attr, ThingCategory category);
 
+    const RaceType& getRaceData(uint32_t raceId);
+    RaceList getRacesByName(const std::string& searchString);
+
     const ThingTypePtr& getNullThingType() { return m_nullThingType; }
 
     const ThingTypePtr& getThingType(uint16_t id, ThingCategory category);
+    ThingType* getRawThingType(uint16_t id, ThingCategory category);
 
     const ThingTypeList& getThingTypes(ThingCategory category);
 
@@ -77,6 +86,7 @@ public:
 
 private:
     ThingTypeList m_thingTypes[ThingLastCategory];
+    RaceList m_monsterRaces;
 
     ThingTypePtr m_nullThingType;
 

@@ -16,7 +16,6 @@ option(TOGGLE_FRAMEWORK_NET "Use NET " ON)
 option(TOGGLE_FRAMEWORK_EDITOR "Use Editor " OFF)
 option(TOGGLE_DIRECTX "Use DX9 support" OFF)
 option(TOGGLE_BIN_FOLDER "Use build/bin folder for generate compilation files" OFF)
-option(TOGGLE_BOT_PROTECTION "Use bot protection" ON)
 option(DEBUG_LOG "Enable Debug Log" OFF)
 option(ASAN_ENABLED "Build this target with AddressSanitizer" OFF)
 option(BUILD_STATIC_LIBRARY "Build using static libraries" OFF)
@@ -75,14 +74,6 @@ endif()
 if (ANDROID OR WASM)
 	set(FRAMEWORK_DEFINITIONS ${FRAMEWORK_DEFINITIONS} -DOPENGL_ES=2)
 endif()
-
-# Set for use bot protection
-if(TOGGLE_BOT_PROTECTION)
-	message(STATUS "Bot protection: ON")
-else(TOGGLE_BOT_PROTECTION)
-	message(STATUS "Bot protection: OFF")
-endif(TOGGLE_BOT_PROTECTION)
-
 
 # Set for use precompiled header
 if(TOGGLE_PRE_COMPILED_HEADER)
@@ -173,11 +164,6 @@ endif()
 
 # Client options
 add_definitions(-DCLIENT)
-# Set bot protection
-if(TOGGLE_BOT_PROTECTION)
-	add_definitions(-DBOT_PROTECTION)
-endif(TOGGLE_BOT_PROTECTION)
-add_definitions(-D_WIN32_WINNT=0x0501)
 add_definitions(${FRAMEWORK_DEFINITIONS})
 add_definitions(-D"VERSION=${VERSION}")
 
@@ -206,6 +192,7 @@ find_package(STDUUID CONFIG REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(httplib CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
 
 if(APPLE)
 	# Required for Physfs
@@ -229,8 +216,8 @@ if(TOGGLE_FRAMEWORK_SOUND)
 		find_package(OpenAL CONFIG REQUIRED)
 	endif()
 	find_package(VorbisFile REQUIRED)
-	find_package(Vorbis REQUIRED)
-	find_package(Ogg REQUIRED)
+	find_package(Vorbis CONFIG REQUIRED)
+	find_package(Ogg CONFIG REQUIRED)
 endif()
 if(ANDROID)
 	set(LUA_LIBRARY ${LUA_LIBRARY} ${Android_LIBRARIES}/liblua.a)
@@ -313,6 +300,8 @@ set(SOURCE_FILES
 	framework/util/crypt.cpp
 	framework/proxy/proxy.cpp
 	framework/proxy/proxy_client.cpp
+	framework/net/packet_player.cpp
+	framework/net/packet_recorder.cpp
 
 	client/animatedtext.cpp
 	client/animator.cpp
@@ -384,7 +373,6 @@ if (TOGGLE_FRAMEWORK_GRAPHICS)
 		framework/graphics/fontmanager.cpp
 		framework/graphics/framebuffer.cpp
 		framework/graphics/graphics.cpp
-		framework/graphics/hardwarebuffer.cpp
 		framework/graphics/image.cpp
 		framework/graphics/painter.cpp
 		framework/graphics/paintershaderprogram.cpp
@@ -458,6 +446,8 @@ if(MSVC)
 		_WIN32_WINNT=0x0600
 	)
 
+	target_compile_options(${PROJECT_NAME} PUBLIC /MP /FS /Zf /EHsc )
+
 	if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 		string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
 		string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
@@ -477,7 +467,6 @@ if(MSVC)
 		set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "")
 	else()
 		log_option_disabled("STATIC_LIBRARY")
-		target_compile_options(${PROJECT_NAME} PUBLIC /MP /FS /Zf /EHsc )
 		set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "")
 	endif()
 
@@ -521,6 +510,7 @@ if(MSVC)
 		LibLZMA::LibLZMA
 		winmm.lib
 		pugixml::pugixml
+		fmt::fmt-header-only
 	)
 elseif(ANDROID)
 	target_include_directories(${PROJECT_NAME}
@@ -566,6 +556,7 @@ elseif(ANDROID)
 		android
 		log
 		pugixml::pugixml
+		fmt::fmt-header-only
 	)
 
 elseif(WASM)
@@ -616,6 +607,10 @@ elseif(WASM)
 		OpenSSL::SSL
 		OpenSSL::Crypto
 		httplib::httplib
+		fmt::fmt
+		Ogg::ogg
+		Vorbis::vorbisfile
+		Vorbis::vorbis
 	)
 
 
@@ -695,6 +690,10 @@ else() # Linux
 		OpenSSL::SSL
 		OpenSSL::Crypto
 		httplib::httplib
+		fmt::fmt-header-only
+		Ogg::ogg
+		Vorbis::vorbisfile
+		Vorbis::vorbis
 	)
 
 	if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -718,6 +717,11 @@ if(WIN32)
 		LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:windows /ENTRY:mainCRTStartup"
 	)
 endif(WIN32)
+
+if(ANDROID)
+  set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld")
+  set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld")
+endif()
 
 # *****************************************************************************
 # Link compilation files folder

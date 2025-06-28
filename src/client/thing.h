@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,8 @@ public:
     virtual uint32_t getId() { return m_clientId; }
     uint16_t getClientId() const { return m_clientId; }
 
-    Position getPosition() { return m_position; }
+    virtual Position getPosition() { return m_position; }
+    Position getServerPosition() { return m_position; }
 
     const TilePtr& getTile();
     ContainerPtr getParentContainer();
@@ -208,6 +209,23 @@ public:
     uint8_t getPatternY()const { return m_numPatternY; }
     uint8_t getPatternZ()const { return m_numPatternZ; }
 
+    float getScaleFactor() {
+        if (m_scale.value == 100)
+            return 1.f;
+
+        const auto scale = m_scale.value * (m_scale.speed == 0 ? 1.f : m_scale.timer.ticksElapsed() / static_cast<float>(m_scale.speed));
+        return std::min<float>(scale, m_scale.value) / 100.f;
+    }
+
+    void setScaleFactor(float v, uint16_t ms = 0) {
+        m_scale.value = v * 100;
+        m_scale.speed = ms;
+        m_scale.timer.restart();
+    }
+	
+    bool canAnimate() { return m_animate; }
+    void setAnimate(bool aniamte) { m_animate = aniamte; }
+
 protected:
     virtual ThingType* getThingType() const = 0;
 
@@ -223,6 +241,13 @@ protected:
 
     Color m_markedColor{ Color::white };
     Color m_highlightColor{ Color::white };
+
+    struct
+    {
+        Timer timer;
+        uint16_t speed{ 0 };
+        uint16_t value{ 100 };
+    } m_scale;
 
     Position m_position;
     DrawConductor m_drawConductor{ .agroup = false, .order = THIRD };
@@ -242,6 +267,7 @@ private:
     void lua_setHighlight(const std::string_view color) { setHighlight(Color(color)); }
 
     bool m_canDraw{ true };
+    bool m_animate{ true };
 
     friend class Client;
     friend class Tile;

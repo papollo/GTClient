@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,7 @@ Color::Color(const std::string_view coltext)
     update();
 }
 
-void Color::update() { m_hash = stdext::hash_int(rgba()); }
+void Color::update() { m_hash = rgba(); }
 
 std::ostream& operator<<(std::ostream& out, const Color& color)
 {

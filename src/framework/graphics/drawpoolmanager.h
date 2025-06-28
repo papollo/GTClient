@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -99,7 +99,7 @@ public:
 
     void flush() const { if (getCurrentPool()) getCurrentPool()->flush(); }
 
-    DrawPoolType getCurrentType() const { return getCurrentPool()->m_type; }
+    DrawPoolType getCurrentType() const;
 
     void repaint(const DrawPoolType drawPool) const {
         get(drawPool)->repaint();

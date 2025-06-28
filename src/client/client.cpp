@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -70,8 +70,12 @@ void Client::terminate()
 
 void Client::preLoad() {
     if (m_mapWidget) {
-        m_mapWidget->updateMapRect();
-        m_mapWidget->getMapView()->preLoad();
+        if (m_mapWidget->isDestroyed())
+            m_mapWidget = nullptr;
+        else {
+            m_mapWidget->updateMapRect();
+            m_mapWidget->getMapView()->preLoad();
+        }
     }
 }
 
@@ -81,7 +85,8 @@ void Client::draw(const DrawPoolType type)
         m_mapWidget = nullptr;
         return;
     }
-
+    if (m_mapWidget && m_mapWidget->isDestroyed())
+        m_mapWidget = nullptr;
     if (type == DrawPoolType::MAP && !m_mapWidget)
         m_mapWidget = g_ui.getRootWidget()->recursiveGetChildById("gameMapPanel")->static_self_cast<UIMap>();
 

@@ -52,21 +52,6 @@ local skillsTuples = {
 
 StatsBar = {}
 
-
-local function createBlankIcon()
-    local statsBarConfigs = getConfigurations()
-    
-    for _, statsBarConfig in ipairs(statsBarConfigs) do
-        local icon = g_ui.createWidget('ConditionWidget', statsBarConfig.icons)
-        icon:setImageSource('/images/ui/blank')
-        icon:setImageSize({
-            width = 1,
-            height = 1
-        })
-        icon:setMarginRight(-10)
-    end
-end
-
 function getConfigurations()
     -- This method will return all the stats bar configurations.
     local configs = {}
@@ -260,14 +245,24 @@ end
 local function loadIcon(bitChanged, content, topmenu)
     local icon = g_ui.createWidget('ConditionWidget', content)
     icon:setId(Icons[bitChanged].id)
-    icon:setImageSource(Icons[bitChanged].path)
-    icon:setTooltip(Icons[bitChanged].tooltip)
-    icon:setImageSize({
-        width = 9,
-        height = 9
-    })
+    icon:setImageSource("/images/game/states/player-state-flags")
+    icon:setImageClip(((Icons[bitChanged].clip - 1) * 9) .. ' 0 9 9')
+    local tooltip = Icons[bitChanged].tooltip
+    if tooltip == "You are GoshnarTaint" then
+        tooltip = "Goshnar's Lairs Penalties:\n" ..
+                  "- 10% chance of creature teleportation to you\n" ..
+                  "- 0.5% chance of new creature spawn when hitting another\n" ..
+                  "- 15% increased damage received\n" ..
+                  "- 10% chance of creature full heal instead of dying\n" ..
+                  "- Lose 10% of current HP and mana every 10 seconds"
+    end
+    icon:setTooltip(tooltip)
+    icon:setImageSize(tosize("9 9"))
+    icon:setMarginRight(-1)
     if topmenu then
         icon:setMarginTop(5)
+        icon:setMarginLeft(2)
+        icon:setMarginRight(-2)
     end
     return icon
 end
@@ -289,13 +284,32 @@ end
 local function toggleIcon(bitChanged)
     local contents = getStatsBarsIconContent()
 
+    local iconId = Icons[bitChanged]
+    if not iconId then
+        g_logger.warning(string.format("No icon ID %s (%s)  found. Check Icons array in modules/gamelib/player.lua.", tostring(bitChanged), tostring(math.log(bitChanged) / math.log(2))))
+        return
+    end
     for _, contentData in ipairs(contents) do
-        local icon = contentData.content:getChildById(Icons[bitChanged].id)
+        local icon = contentData.content:getChildById(iconId.id)
         if icon then
             icon:destroy()
         else
             icon = loadIcon(bitChanged, contentData.content, contentData.loadIconTransparent)
             icon:setParent(contentData.content)
+        end
+    end
+end
+
+function processIcon(id, action, createIfMissing)
+    -- game_rewardwall
+    for _, contentData in ipairs(getStatsBarsIconContent()) do
+        local icon = contentData.content:getChildById(id)
+        if icon then
+            action(icon)
+        elseif createIfMissing then
+            icon = loadIcon(id, contentData.content, contentData.loadIconTransparent)
+            icon:setParent(contentData.content)
+            action(icon)
         end
     end
 end
@@ -542,8 +556,6 @@ end
 
 function StatsBar.OnGameStart()
     StatsBar.loadSettings()
-
-    createBlankIcon()
     StatsBar.reloadCurrentTab()
     modules.game_healthcircle.setStatsBarOption()
 end
@@ -656,4 +668,33 @@ function StatsBar.terminate()
     })
     
     StatsBar.destroyAllBars()
+end
+
+function StatsBar.onHungryChange(regenerationTime, alert)
+    local contents = getStatsBarsIconContent()
+    local info = Icons[PlayerStates.Hungry]
+    if regenerationTime <= alert then
+        for _, contentData in ipairs(contents) do
+            local icon = contentData.content:getChildById(info.id)
+            if not icon then
+                icon = g_ui.createWidget('ConditionWidget', contentData.content)
+                icon:setId(info.id)
+                icon:setImageSource("/images/game/states/player-state-flags")
+                icon:setImageClip(((info.clip - 1) * 9) .. ' 0 9 9')
+                icon:setTooltip(info.tooltip)
+                icon:setImageSize(tosize("9 9"))
+                if contentData.loadIconTransparent then
+                    icon:setMarginTop(5)
+                end
+            end
+        end
+    else
+        for _, contentData in ipairs(contents) do
+            local icon = contentData.content:getChildById(info.id)
+            if icon then
+                icon:destroy()
+                icon = nil
+            end
+        end
+    end
 end

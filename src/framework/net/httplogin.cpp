@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -210,6 +210,10 @@ httplib::Result LoginHttp::loginHttpsJson(const std::string& host,
 
     client.set_logger(
         [this](const auto& req, const auto& res) { LoginHttp::Logger(req, res); });
+
+    client.set_ca_cert_path("./cacert.pem");
+    client.enable_server_certificate_verification(false);
+    client.enable_server_hostname_verification(false);
 
     const json body = { {"email", email}, {"password", password}, {"stayloggedin", true}, {"type", "login"} };
     const httplib::Headers headers = { {"User-Agent", "Mozilla/5.0"} };

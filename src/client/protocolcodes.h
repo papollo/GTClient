@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -77,6 +77,7 @@ namespace Proto
         GameServerCreatureShader = 54,
         GameServerMapShader = 55,
         GameServerCreatureTyping = 56,
+        GameServerFeatures = 67,
         GameServerFloorDescription = 75,
 
         // original tibia ONLY
@@ -169,11 +170,15 @@ namespace Proto
         GameServerFloorChangeUp = 190,
         GameServerFloorChangeDown = 191,
         GameServerLootContainers = 192,
+        GameServerCyclopediaHouseAuctionMessage = 195,
+        GameServerCyclopediaHousesInfo = 198,
+        GameServerCyclopediaHouseList = 199,
         GameServerChooseOutfit = 200,
         GameServerSendUpdateImpactTracker = 204,
         GameServerSendItemsPrice = 205,
         GameServerSendUpdateSupplyTracker = 206,
         GameServerSendUpdateLootTracker = 207,
+        GameServerQuestTracker = 208,
         GameServerKillTracker = 209,
         GameServerVipAdd = 210,
         GameServerVipState = 211,
@@ -279,6 +284,9 @@ namespace Proto
         ClientOnWrapItem = 139,
         ClientLook = 140,
         ClientLookCreature = 141,
+        ClientSendQuickLoot = 143,
+        ClientLootContainer = 144,
+        ClientQuickLootBlackWhitelist = 145,
         ClientTalk = 150,
         ClientRequestChannels = 151,
         ClientJoinChannel = 152,
@@ -301,6 +309,7 @@ namespace Proto
         ClientOpenOwnChannel = 170,
         ClientInviteToOwnChannel = 171,
         ClientExcludeFromOwnChannel = 172,
+        ClientCyclopediaHouseAuction = 173,
         ClientBosstiaryRequestInfo = 174,
         ClientBosstiaryRequestSlotInfo = 175,
         ClientBosstiaryRequestSlotAction = 176,
@@ -312,12 +321,16 @@ namespace Proto
         ClientSeekInContainer = 204,
         ClientInspectionObject = 205,
         ClientRequestBless = 207,
+        ClientRequestTrackerQuestLog = 208,
         ClientRequestOutfit = 210,
         ClientChangeOutfit = 211,
         ClientMount = 212,
         ClientApplyImbuement = 213,
         ClientClearImbuement = 214,
         ClientCloseImbuingWindow = 215,
+        ClientOpenRewardWall = 216,
+        ClientOpenRewardHistory = 217,
+        sendGetRewardDaily = 218,
         ClientAddVip = 220,
         ClientRemoveVip = 221,
         ClientEditVip = 222,

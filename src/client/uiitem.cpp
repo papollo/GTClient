@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2024 OTClient <https://github.com/edubart/otclient>
+ * Copyright (c) 2010-2025 OTClient <https://github.com/edubart/otclient>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -49,9 +49,9 @@ void UIItem::drawSelf(const DrawPoolType drawPane)
         g_drawPool.releaseFrameBuffer(getPaddingRect());
 
         if (m_font && (m_alwaysShowCount || m_item->isStackable() || m_item->isChargeable()) && m_item->getCountOrSubType() > 1) {
-            static const Color STACK_COLOR(231, 231, 231);
+            static constexpr Color STACK_COLOR(231, 231, 231);
             const auto& count = m_item->getCountOrSubType();
-            const auto& countText = count < 1000 ? std::to_string(count) : stdext::format("%.0fk", count / 1000.f);
+            const auto& countText = count < 1000 ? std::to_string(count) : fmt::format("{}k", count / 1000.f);
             m_font->drawText(countText, Rect(m_rect.topLeft(), m_rect.bottomRight() - Point(3, 0)), STACK_COLOR, Fw::AlignBottomRight);
         }
 
@@ -74,34 +74,29 @@ void UIItem::setItemId(const int id)
         m_item->setId(id);
     else
         m_item = Item::create(id);
-#ifndef BOT_PROTECTION
+
     callLuaField("onItemChange");
-#endif
 }
 
 void UIItem::setItemCount(const int count)
 {
     if (m_item) m_item->setCount(count);
-#ifndef BOT_PROTECTION
+
     callLuaField("onItemChange");
-#endif
 }
 
 void UIItem::setItemSubType(const int subType)
 {
     if (m_item) m_item->setSubType(subType);
-#ifndef BOT_PROTECTION
+
     callLuaField("onItemChange");
-#endif
 }
 
 void UIItem::setItem(const ItemPtr& item)
 {
     m_item = item;
 
-#ifndef BOT_PROTECTION
     callLuaField("onItemChange");
-#endif
 }
 
 void UIItem::onStyleApply(const std::string_view styleName, const OTMLNodePtr& styleNode)
