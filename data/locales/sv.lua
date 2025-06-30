@@ -183,6 +183,7 @@ locale = {
     ["Exclude from private chat"] = "Exkludera från privat chat",
     ["Exit"] = "Avsluta",
     ["Experience"] = "Erfarenhet",
+    ["ExpRate"] = "Experience rate",
     ["Filter list to match your level"] = "Filtrera efter nivå",
     ["Filter list to match your vocation"] = "Filtrera efter kallelse",
     ["Filters"] = false,

@@ -341,6 +341,46 @@ void LocalPlayer::setExperience(const uint64_t experience)
     callLuaField("onExperienceChange", experience, oldExperience);
 }
 
+void LocalPlayer::setBaseXpRate(uint16_t rate) {
+	if (m_baseXpRate == rate)
+		return;
+
+	const uint16_t oldBaseXpRate = m_baseXpRate;
+    m_baseXpRate = rate;
+
+	callLuaField("onBaseXpRateChange", rate, oldBaseXpRate);
+}
+
+void LocalPlayer::setStaminaMultiplier(uint16_t multiplier) {
+    if (m_staminaMultiplier == multiplier)
+        return;
+
+    const uint16_t oldStaminaMultiplier= m_staminaMultiplier;
+    m_staminaMultiplier = multiplier;
+
+    callLuaField("onStaminaMultiplierChange", multiplier, oldStaminaMultiplier);
+}
+
+void LocalPlayer::setFoodXpBoost(uint16_t foodBoost) {
+    if (m_foodXpBoost == foodBoost)
+        return;
+
+    const uint16_t oldFoodXpBoost = m_foodXpBoost;
+    m_foodXpBoost = foodBoost;
+
+    callLuaField("onFoodXpBoostChange", foodBoost, oldFoodXpBoost);
+}
+
+void LocalPlayer::setAlchemyXpBoost(uint16_t alchemyBoost) {
+    if (m_alchemyXpBoost == alchemyBoost)
+        return;
+
+    const uint16_t oldAlchemyXpBoost = m_alchemyXpBoost;
+    m_alchemyXpBoost = alchemyBoost;
+
+    callLuaField("onAlchemyXpBoostChange", alchemyBoost, oldAlchemyXpBoost);
+}
+
 void LocalPlayer::setLevel(const uint16_t level, const uint8_t levelPercent)
 {
     if (m_level == level && m_levelPercent == levelPercent)

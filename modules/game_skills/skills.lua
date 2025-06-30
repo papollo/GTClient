@@ -2,9 +2,18 @@ skillsWindow = nil
 skillsButton = nil
 skillsSettings = nil
 
+local baseXpRate = 0
+local staminaMultiplier = 0
+local foodXpBoost = 0
+local alchemyXpBoost = 0
+
 function init()
     connect(LocalPlayer, {
         onExperienceChange = onExperienceChange,
+        onBaseXpRateChange = onBaseXpRateChange,
+        onStaminaMultiplierChange = onStaminaMultiplierChange,
+        onFoodXpBoostChange = onFoodXpBoostChange,
+        onAlchemyXpBoostChange = onAlchemyXpBoostChange,
         onLevelChange = onLevelChange,
         onHealthChange = onHealthChange,
         onManaChange = onManaChange,
@@ -54,6 +63,10 @@ end
 function terminate()
     disconnect(LocalPlayer, {
         onExperienceChange = onExperienceChange,
+        onBaseXpRateChange = onBaseXpRateChange,
+        onStaminaMultiplierChange = onStaminaMultiplierChange,
+        onFoodXpBoostChange = onFoodXpBoostChange,
+        onAlchemyXpBoostChange = onAlchemyXpBoostChange,
         onLevelChange = onLevelChange,
         onHealthChange = onHealthChange,
         onManaChange = onManaChange,
@@ -113,7 +126,7 @@ function setSkillBase(id, value, baseValue)
         widget:setColor('#008b00') -- green
         skill:setTooltip(baseValue .. ' +' .. (value - baseValue))
     elseif value < baseValue then
-        widget:setColor('#b22222') -- red
+        widget:setColor('#e81a1a') -- red
         skill:setTooltip(baseValue .. ' ' .. (value - baseValue))
     else
         widget:setColor('#bbbbbb') -- default
@@ -210,7 +223,7 @@ function checkAlert(id, value, maxValue, threshold, greaterThan)
     end
 
     if alert then
-        setSkillColor(id, '#b22222') -- red
+        setSkillColor(id, '#e81a1a') -- red
     else
         resetSkillColor(id)
     end
@@ -252,6 +265,10 @@ function refresh()
     expSpeedEvent = cycleEvent(checkExpSpeed, 30 * 1000)
 
     onExperienceChange(player, player:getExperience())
+    onBaseXpRateChange(player, player:getBaseXpRate())
+    onStaminaMultiplierChange(player, player:getStaminaMultiplier())
+    onFoodXpBoostChange(player, player:getFoodXpBoost())
+    onAlchemyXpBoostChange(player, player:getAlchemyXpBoost())
     onLevelChange(player, player:getLevel(), player:getLevelPercent())
     onHealthChange(player, player:getHealth(), player:getMaxHealth())
     onManaChange(player, player:getMana(), player:getMaxMana())
@@ -412,6 +429,54 @@ end
 
 function onExperienceChange(localPlayer, value)
     setSkillValue('experience', comma_value(value))
+end
+
+function onBaseXpRateChange(LocalPlayer, value)
+    baseXpRate = value
+    updateXpRate()
+end
+
+function onStaminaMultiplierChange(LocalPlayer, value)
+    staminaMultiplier = value
+    updateXpRate()
+end
+
+function onFoodXpBoostChange(LocalPlayer, value)
+    foodXpBoost = value
+    updateXpRate()
+end
+
+function onAlchemyXpBoostChange(LocalPlayer, value)
+    alchemyXpBoost = value
+    updateXpRate()
+end
+
+function updateXpRate()
+    local total = ( baseXpRate * ( staminaMultiplier / 10.0) ) + foodXpBoost + alchemyXpBoost
+    local tooltip = tr('XP Rate Breakdown:\n') ..
+                    tr('(Base * stamina) + food + alchemy\n') ..
+                    tr('Base: %d%%\n', baseXpRate) ..
+                    tr('Stamina: %.1fx\n', staminaMultiplier / 10.0) ..
+                    tr('Food: %d%%\n', foodXpBoost) ..
+                    tr('Alchemy: %d%%', alchemyXpBoost)
+
+    local skillWidget = skillsWindow:recursiveGetChildById('xpRate')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(total .. "%")
+
+        if total > 150 then
+            widget:setColor('#e5c300')
+        elseif total > 100 then
+            widget:setColor('#89F013')
+        elseif total < 51 then
+            widget:setColor('#e81a1a')
+        else
+            widget:setColor('#bbbbbb')        
+        end
+
+        skillWidget:setTooltip(tooltip)
+    end
 end
 
 function onLevelChange(localPlayer, value, percent)

@@ -839,6 +839,10 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<LocalPlayer>("setTotalCapacity", &LocalPlayer::setTotalCapacity);
     g_lua.bindClassMemberFunction<LocalPlayer>("setFreeCapacity", &LocalPlayer::setFreeCapacity);
     g_lua.bindClassMemberFunction<LocalPlayer>("setExperience", &LocalPlayer::setExperience);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setBaseXpRate", &LocalPlayer::setBaseXpRate);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setStaminaMultiplier", &LocalPlayer::setStaminaMultiplier);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setFoodXpBonus", &LocalPlayer::setFoodXpBoost);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setAlchemyXpBonus", &LocalPlayer::setAlchemyXpBoost);
     g_lua.bindClassMemberFunction<LocalPlayer>("setLevel", &LocalPlayer::setLevel);
     g_lua.bindClassMemberFunction<LocalPlayer>("setMana", &LocalPlayer::setMana);
     g_lua.bindClassMemberFunction<LocalPlayer>("setMagicLevel", &LocalPlayer::setMagicLevel);
@@ -854,6 +858,10 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<LocalPlayer>("getMaxHealth", &LocalPlayer::getMaxHealth);
     g_lua.bindClassMemberFunction<LocalPlayer>("getFreeCapacity", &LocalPlayer::getFreeCapacity);
     g_lua.bindClassMemberFunction<LocalPlayer>("getExperience", &LocalPlayer::getExperience);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getBaseXpRate", &LocalPlayer::getBaseXpRate);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getStaminaMultiplier", &LocalPlayer::getStaminaMultiplier);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getFoodXpBoost", &LocalPlayer::getFoodXpBoost);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getAlchemyXpBoost", &LocalPlayer::getAlchemyXpBoost);
     g_lua.bindClassMemberFunction<LocalPlayer>("getLevel", &LocalPlayer::getLevel);
     g_lua.bindClassMemberFunction<LocalPlayer>("getLevelPercent", &LocalPlayer::getLevelPercent);
     g_lua.bindClassMemberFunction<LocalPlayer>("getMana", &LocalPlayer::getMana);

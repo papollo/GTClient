@@ -2190,13 +2190,23 @@ void ProtocolGame::parsePlayerStats(const InputMessagePtr& msg) const
         if (g_game.getClientVersion() <= 1096) {
             msg->getDouble(); // experienceBonus
         } else {
-            msg->getU16(); // baseXpGain
+            const uint16_t baseXpRate = msg->getU16();
+            m_localPlayer->setBaseXpRate(baseXpRate);
+
+            const uint16_t foodXpBoost = msg->getU16();
+            m_localPlayer->setFoodXpBoost(foodXpBoost);
+
+            const uint16_t alchemyXpBoost = msg->getU16();
+            m_localPlayer->setAlchemyXpBoost(alchemyXpBoost);
+
             if (g_game.getClientVersion() < 1281) {
                 msg->getU16(); // voucherAddend
             }
             msg->getU16(); // grindingAddend
             msg->getU16(); // storeBoostAddend
-            msg->getU16(); // huntingBoostFactor
+
+            const uint16_t staminaMultiplier = msg->getU16(); // stamina multiplier
+            m_localPlayer->setStaminaMultiplier(staminaMultiplier);
         }
     }
 

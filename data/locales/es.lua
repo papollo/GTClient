@@ -186,6 +186,7 @@ locale = {
     ["Exclude from private chat"] = "Ejecutar desde un canal privado",
     ["Exit"] = "Salir",
     ["Experience"] = "Experiencia",
+    ["ExpRate"] = "Experience rate",
     ["Filter list to match your level"] = "Filtrar lista para coincidir con el nivel",
     ["Filter list to match your vocation"] = "Filtrar lsta para coincidir con la vocación",
     ["Filters"] = false,

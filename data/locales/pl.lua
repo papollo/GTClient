@@ -178,6 +178,7 @@ locale = {
     ["Exclude from private chat"] = "Wyrzuc w prywatnej konwersacji",
     ["Exit"] = "Wyjdz",
     ["Experience"] = "Doswiadczenie",
+    ["ExpRate"] = "Przelicznik EXP",
     ["Filter list to match your level"] = "Wyswietl tylko odpowiednie dla mojego poziomu",
     ["Filter list to match your vocation"] = "Wyswietl tylko odpowiednie dla mojej klasy",
     ["Filters"] = false,

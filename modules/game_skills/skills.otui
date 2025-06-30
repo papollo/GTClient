@@ -74,6 +74,13 @@ MiniWindow
       SkillNameLabel
         !text: tr('Experience')
       SkillValueLabel
+      
+    SkillButton
+      id: xpRate
+      height: 15
+      SkillNameLabel
+        !text: tr('ExpRate')
+      SkillValueLabel
 
     SkillButton
       id: level

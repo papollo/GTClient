@@ -182,6 +182,7 @@ locale = {
     ["Exclude from private chat"] = "Aus dem Privatgespr‰ch ausschlieﬂen",
     ["Exit"] = false,
     ["Experience"] = "Erfahrung",
+    ["ExpRate"] = "Experience rate",
     ["Filter list to match your level"] = false,
     ["Filter list to match your vocation"] = false,
     ["Filters"] = false,
