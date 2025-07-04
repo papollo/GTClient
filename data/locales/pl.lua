@@ -243,6 +243,7 @@ locale = {
     ["Knight"] = "Rycerz",
     ["Leave Party"] = "Opusc druzyne",
     ["Level"] = "Poziom",
+    ["LearningPoints"] = "Punkty Nauki",
     ["Life Leech Amount"] = false,
     ["Life Leech Chance"] = false,
     ["Lifetime Premium Account"] = "Konto Premium na Stale",

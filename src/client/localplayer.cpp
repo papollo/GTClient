@@ -381,6 +381,16 @@ void LocalPlayer::setAlchemyXpBoost(uint16_t alchemyBoost) {
     callLuaField("onAlchemyXpBoostChange", alchemyBoost, oldAlchemyXpBoost);
 }
 
+void LocalPlayer::setLearningPoints(uint16_t learningPoints) {
+    if (m_learningPoints == learningPoints)
+        return;
+
+    const uint16_t oldLearningPoints = m_learningPoints;
+    m_learningPoints = learningPoints;
+
+    callLuaField("onLearningPointsChange", learningPoints, oldLearningPoints);
+}
+
 void LocalPlayer::setLevel(const uint16_t level, const uint8_t levelPercent)
 {
     if (m_level == level && m_levelPercent == levelPercent)

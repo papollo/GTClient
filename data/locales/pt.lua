@@ -246,6 +246,7 @@ locale = {
     ["Knight"] = "Knight",
     ["Leave Party"] = "Sair do grupo",
     ["Level"] = "Nível",
+    ["LearningPoints"] = "Learning Points",
     ["Life Leech Amount"] = false,
     ["Life Leech Chance"] = false,
     ["Lifetime Premium Account"] = "Conta Premium para a vida toda.",

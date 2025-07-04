@@ -251,6 +251,7 @@ locale = {
     ["Knight"] = false,
     ["Leave Party"] = "Dejar el party",
     ["Level"] = "Nivel",
+    ["LearningPoints"] = "Learning Points",
     ["Life Leech Amount"] = false,
     ["Life Leech Chance"] = false,
     ["Lifetime Premium Account"] = "Tiempo de Premium Account infinito",

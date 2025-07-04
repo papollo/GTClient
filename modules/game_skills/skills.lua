@@ -14,6 +14,7 @@ function init()
         onStaminaMultiplierChange = onStaminaMultiplierChange,
         onFoodXpBoostChange = onFoodXpBoostChange,
         onAlchemyXpBoostChange = onAlchemyXpBoostChange,
+        onLearningPointsChange = onLearningPointsChange,
         onLevelChange = onLevelChange,
         onHealthChange = onHealthChange,
         onManaChange = onManaChange,
@@ -67,6 +68,7 @@ function terminate()
         onStaminaMultiplierChange = onStaminaMultiplierChange,
         onFoodXpBoostChange = onFoodXpBoostChange,
         onAlchemyXpBoostChange = onAlchemyXpBoostChange,
+        onLearningPointsChange = onLearningPointsChange,
         onLevelChange = onLevelChange,
         onHealthChange = onHealthChange,
         onManaChange = onManaChange,
@@ -269,6 +271,7 @@ function refresh()
     onStaminaMultiplierChange(player, player:getStaminaMultiplier())
     onFoodXpBoostChange(player, player:getFoodXpBoost())
     onAlchemyXpBoostChange(player, player:getAlchemyXpBoost())
+    onLearningPointsChange(player, player:getLearningPoints())
     onLevelChange(player, player:getLevel(), player:getLevelPercent())
     onHealthChange(player, player:getHealth(), player:getMaxHealth())
     onManaChange(player, player:getMana(), player:getMaxMana())
@@ -497,6 +500,10 @@ function onLevelChange(localPlayer, value, percent)
     end
 
     setSkillPercent('level', percent, text)
+end
+
+function onLearningPointsChange(player, learningPoints)
+    setSkillValue('learningPoints', learningPoints)
 end
 
 function onHealthChange(localPlayer, health, maxHealth)

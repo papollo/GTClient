@@ -90,6 +90,13 @@ MiniWindow
       RedPercentPanel
 
     SkillButton
+      id: learningPoints
+      height: 15
+      SkillNameLabel
+        !text: tr('LearningPoints')
+      SkillValueLabel
+
+    SkillButton
       id: health
       height: 15
       SkillNameLabel

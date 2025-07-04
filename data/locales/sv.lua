@@ -248,6 +248,7 @@ locale = {
     ["Knight"] = false,
     ["Leave Party"] = "Lämna Grupp",
     ["Level"] = "Nivå",
+    ["LearningPoints"] = "Learning Points",
     ["Life Leech Amount"] = false,
     ["Life Leech Chance"] = false,
     ["Lifetime Premium Account"] = false,

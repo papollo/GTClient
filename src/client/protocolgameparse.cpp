@@ -2223,6 +2223,7 @@ void ProtocolGame::parsePlayerStats(const InputMessagePtr& msg) const
     }
 
     const uint8_t soul = g_game.getFeature(Otc::GameSoul) ? msg->getU8() : 0;
+    const uint16_t learningPoints = msg->getU16();
     const uint16_t stamina = g_game.getFeature(Otc::GamePlayerStamina) ? msg->getU16() : 0;
     const uint16_t baseSpeed = g_game.getFeature(Otc::GameSkillsBase) ? msg->getU16() : 0;
     const uint16_t regeneration = g_game.getFeature(Otc::GamePlayerRegenerationTime) ? msg->getU16() : 0;
@@ -2251,6 +2252,7 @@ void ProtocolGame::parsePlayerStats(const InputMessagePtr& msg) const
     m_localPlayer->setMana(mana, maxMana);
     m_localPlayer->setStamina(stamina);
     m_localPlayer->setSoul(soul);
+    m_localPlayer->setLearningPoints(learningPoints);
     m_localPlayer->setBaseSpeed(baseSpeed);
     m_localPlayer->setRegenerationTime(regeneration);
     m_localPlayer->setOfflineTrainingTime(training);

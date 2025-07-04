@@ -47,6 +47,7 @@ public:
     void setStaminaMultiplier(uint16_t staminaMultiplier);
     void setFoodXpBoost(uint16_t foodBoost);
     void setAlchemyXpBoost(uint16_t alchemyBoost);
+    void setLearningPoints(uint16_t learningPoints);
     void setLevel(uint16_t level, uint8_t levelPercent);
     void setMana(uint32_t mana, uint32_t maxMana);
     void setMagicLevel(uint16_t magicLevel, uint16_t magicLevelPercent);
@@ -94,6 +95,7 @@ public:
     uint16_t getStaminaMultiplier() { return m_staminaMultiplier; };
     uint16_t getFoodXpBoost() { return m_foodXpBoost; };
     uint16_t getAlchemyXpBoost() { return m_alchemyXpBoost; };
+    uint16_t getLearningPoints() { return m_learningPoints; };
 
     const std::vector<uint16_t>& getSpells() { return m_spells; }
     ItemPtr getInventoryItem(const Otc::InventorySlot inventory) { return m_inventoryItems[inventory]; }
@@ -186,6 +188,7 @@ private:
     uint64_t m_staminaMultiplier{ 0 };
     uint64_t m_foodXpBoost{ 0 };
     uint64_t m_alchemyXpBoost{ 0 };
+    uint16_t m_learningPoints{ 0 };
     uint16_t m_level{ 0 };
     uint8_t m_levelPercent{ 0 };
     uint32_t m_mana{ 0 };
