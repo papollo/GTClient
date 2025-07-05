@@ -80,6 +80,9 @@ namespace Proto
         GameServerFeatures = 67,
         GameServerFloorDescription = 75,
 
+        //Gothania Custom Opcodes
+        GothaniaPlayerSkills = 80,
+        
         // original tibia ONLY
         GameServerImbuementDurations = 93,
         GameServerPassiveCooldown = 94,

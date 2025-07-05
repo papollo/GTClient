@@ -391,6 +391,105 @@ void LocalPlayer::setLearningPoints(uint16_t learningPoints) {
     callLuaField("onLearningPointsChange", learningPoints, oldLearningPoints);
 }
 
+void LocalPlayer::setLockPickSkill(uint8_t lockPickSkill)
+{
+	if (m_lockPickSkill == lockPickSkill)
+		return;
+
+    const uint8_t oldLockPickSkill = m_lockPickSkill;
+	m_lockPickSkill = lockPickSkill;
+	
+    callLuaField("onLockPickSkillChange", lockPickSkill, oldLockPickSkill);
+}
+
+void LocalPlayer::setBreakLockSkill(uint8_t breakLockSkill) 
+{
+	if (m_breakLockSkill == breakLockSkill)
+		return;
+
+	const uint8_t oldBreakLockSkill = m_breakLockSkill;
+	m_breakLockSkill = breakLockSkill;
+
+	callLuaField("onBreakLockSkillChange", breakLockSkill, oldBreakLockSkill);
+}
+
+void LocalPlayer::setPickPocketSkill(uint8_t pickPocketSkill)
+{
+	if (m_pickPocketSkill == pickPocketSkill)
+		return;
+
+	const uint8_t oldPickPocketSkill = m_pickPocketSkill;
+	m_pickPocketSkill = pickPocketSkill;
+
+	callLuaField("onPickPocketSkillChange", pickPocketSkill, oldPickPocketSkill);
+}
+
+void LocalPlayer::setSmithSkill(uint8_t smithSkill)
+{
+	if (m_smithSkill == smithSkill)
+		return;
+
+	const uint8_t oldSmithSkill = m_smithSkill;
+	m_smithSkill = smithSkill;
+	
+    callLuaField("onSmithSkillChange", smithSkill, oldSmithSkill);
+}
+
+void LocalPlayer::setMiningSkill(uint8_t miningSkill)
+{
+	if (m_miningSkill == miningSkill)
+		return;
+
+    const uint8_t oldMiningSkill = m_miningSkill;
+	m_miningSkill = miningSkill;
+	
+    callLuaField("onMiningSkillChange", miningSkill, oldMiningSkill);
+}
+
+void LocalPlayer::setCookingSkill(uint8_t cookingSkill)
+{
+	if (m_cookingSkill == cookingSkill)
+		return;
+
+    const uint8_t oldCookingSkill = m_cookingSkill;
+	m_cookingSkill = cookingSkill;
+	
+    callLuaField("onCookingSkillChange", cookingSkill, oldCookingSkill);
+}
+
+void LocalPlayer::setHuntingSkill(uint8_t huntingSkill)
+{
+	if (m_huntingSkill == huntingSkill)
+		return;
+
+    const uint8_t oldHuntingSkill = m_huntingSkill;
+	m_huntingSkill = huntingSkill;
+	
+    callLuaField("onHuntingSkillChange", huntingSkill, oldHuntingSkill);
+}
+
+void LocalPlayer::setMagicCircleSkill(uint8_t magicCircleSkill)
+{
+	if (m_magicCircleSkill == magicCircleSkill)
+		return;
+
+    const uint8_t oldMagicCircleSkill = m_magicCircleSkill;
+	m_magicCircleSkill = magicCircleSkill;
+	
+    callLuaField("onMagicCircleSkillChange", magicCircleSkill, oldMagicCircleSkill);
+}
+
+void LocalPlayer::setAcrobaticSkill(uint8_t acrobaticSkill)
+{
+	if (m_acrobaticSkill == acrobaticSkill)
+		return;
+
+    const uint8_t oldAcrobaticSkill = m_acrobaticSkill;
+	m_acrobaticSkill = acrobaticSkill;
+	
+    callLuaField("onAcrobaticSkillChange", acrobaticSkill, oldAcrobaticSkill);
+}
+
 void LocalPlayer::setLevel(const uint16_t level, const uint8_t levelPercent)
 {
     if (m_level == level && m_levelPercent == levelPercent)

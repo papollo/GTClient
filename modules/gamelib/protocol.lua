@@ -19,6 +19,7 @@ GameServerOpcodes = {
 
     -- NOTE: add any custom opcodes in this range
     -- 51 - 99
+    GothaniaPlayerSkills = 80,
 
     -- original tibia ONLY
     GameServerPassiveCooldown = 94,

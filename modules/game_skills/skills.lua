@@ -29,7 +29,16 @@ function init()
         onMagicLevelChange = onMagicLevelChange,
         onBaseMagicLevelChange = onBaseMagicLevelChange,
         onSkillChange = onSkillChange,
-        onBaseSkillChange = onBaseSkillChange
+        onBaseSkillChange = onBaseSkillChange,
+        onLockPickSkillChange = onLockPickSkillChange,
+        onBreakLockSkillChange = onBreakLockSkillChange,
+        onPickPocketSkillChange = onPickPocketSkillChange,
+        onSmithSkillChange = onSmithSkillChange,
+        onMiningSkillChange = onMiningSkillChange,
+        onCookingSkillChange = onCookingSkillChange,
+        onHuntingSkillChange = onHuntingSkillChange,
+        onMagicCircleSkillChange = onMagicCircleSkillChange,
+        onAcrobaticSkillChange = onAcrobaticSkillChange
     })
     connect(g_game, {
         onGameStart = online,
@@ -83,7 +92,16 @@ function terminate()
         onMagicLevelChange = onMagicLevelChange,
         onBaseMagicLevelChange = onBaseMagicLevelChange,
         onSkillChange = onSkillChange,
-        onBaseSkillChange = onBaseSkillChange
+        onBaseSkillChange = onBaseSkillChange,
+        onLockPickSkillChange = onLockPickSkillChange,
+        onBreakLockSkillChange = onBreakLockSkillChange,
+        onPickPocketSkillChange = onPickPocketSkillChange,
+        onSmithSkillChange = onSmithSkillChange,
+        onMiningSkillChange = onMiningSkillChange,
+        onCookingSkillChange = onCookingSkillChange,
+        onHuntingSkillChange = onHuntingSkillChange,
+        onMagicCircleSkillChange = onMagicCircleSkillChange,
+        onAcrobaticSkillChange = onAcrobaticSkillChange
     })
     disconnect(g_game, {
         onGameStart = online,
@@ -282,6 +300,15 @@ function refresh()
     onOfflineTrainingChange(player, player:getOfflineTrainingTime())
     onRegenerationChange(player, player:getRegenerationTime())
     onSpeedChange(player, player:getSpeed())
+    onLockPickSkillChange(player, player:getLockPickSkill())
+    onBreakLockSkillChange(player, player:getBreakLockSkill())
+    onPickPocketSkillChange(player, player:getPickPocketSkill())
+    onSmithSkillChange(player, player:getSmithSkill())
+    onMiningSkillChange(player, player:getMiningSkill())
+    onCookingSkillChange(player, player:getCookingSkill())
+    onHuntingSkillChange(player, player:getHuntingSkill())
+    onMagicCircleSkillChange(player, player:getMagicCircleSkill())
+    onAcrobaticSkillChange(player, player:getAcrobaticSkill())
 
     local hasAdditionalSkills = g_game.getFeature(GameAdditionalSkills)
     for i = Skill.Fist, Skill.Transcendence do
@@ -403,7 +430,7 @@ function onSkillButtonClick(button)
     local skillIcon = button:getChildById('icon')
     if percentBar and skillIcon then
         showPercentBar(button, not percentBar:isVisible())
-        skillIcon:setVisible(skillIcon:isVisible())
+        skillIcon:setVisible(true)
 
         local char = g_game.getCharacterName()
         if percentBar:isVisible() then
@@ -421,7 +448,7 @@ function showPercentBar(button, show)
     local skillIcon = button:getChildById('icon')
     if percentBar and skillIcon then
         percentBar:setVisible(show)
-        skillIcon:setVisible(show)
+        skillIcon:setVisible(true)
         if show then
             button:setHeight(21)
         else
@@ -504,6 +531,57 @@ end
 
 function onLearningPointsChange(player, learningPoints)
     setSkillValue('learningPoints', learningPoints)
+end
+
+function onLockPickSkillChange(localPlayer, lockPickSkill)
+    local skillWidget = skillsWindow:recursiveGetChildById('lockPickSkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(lockPickSkill .. "/3")
+        skillWidget:setTooltip(tr("LockPickSkillFull"))
+    end
+end
+
+function onBreakLockSkillChange(localPlayer, breakLockSkill)
+    local skillWidget = skillsWindow:recursiveGetChildById('breakLockSkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(breakLockSkill .. "/3")
+        skillWidget:setTooltip(tr("BreakLockSkillFull"))
+    end
+end
+
+function onPickPocketSkillChange(localPlayer, pickPocketSkill)
+    local skillWidget = skillsWindow:recursiveGetChildById('pickPocketSkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(pickPocketSkill .. "/3")
+        skillWidget:setTooltip(tr("PickPocketSkillFull"))
+    end
+end
+
+function onSmithSkillChange(localPlayer, smithSkill)
+    setSkillValue('smithSkill', smithSkill .. "/3")
+end
+
+function onMiningSkillChange(localPlayer, miningSkill)
+    setSkillValue('miningSkill', miningSkill .. "/3")
+end
+
+function onCookingSkillChange(localPlayer, cookingSkill)
+    setSkillValue('cookingSkill', cookingSkill .. "/3")
+end
+
+function onHuntingSkillChange(localPlayer, huntingSkill)
+    setSkillValue('huntingSkill', huntingSkill .. "/3")
+end
+
+function onMagicCircleSkillChange(localPlayer, magicCircleSkill)
+    setSkillValue('magicCircleSkill', magicCircleSkill .. "/5")
+end
+
+function onAcrobaticSkillChange(localPlayer, acrobaticSkill)
+    setSkillValue('acrobaticSkill', acrobaticSkill .. "/1")
 end
 
 function onHealthChange(localPlayer, health, maxHealth)

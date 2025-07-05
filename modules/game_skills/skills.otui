@@ -27,7 +27,7 @@ ImageSkill < UIWidget
   id: icon
   size: 9 9
   width: 9
-  margin-top: 13
+  margin-top: 3
   anchors.left: parent.left
   anchors.top: parent.top
   phantom: false
@@ -47,7 +47,6 @@ SkillPercentPanel < ProgressBar
   background-color: green
   height: 5
   margin-top: 15
-  margin-left: 15
   anchors.left: parent.left
   anchors.right: parent.right
   anchors.top: parent.top
@@ -151,45 +150,88 @@ MiniWindow
       SkillValueLabel
       RedPercentPanel
 
+    HorizontalSeparator
+      margin-top: 5
+      margin-bottom: 5
+
+    Label
+      !text: tr('MagicLabel')
+      font: verdana-11px-bold
+      margin-top: 3
+      margin-bottom: 3
+      color: #FFFFFF
+      text-align: center
+
     SkillButton
       id: magiclevel
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Magic Level')
       SkillValueLabel
       ImageSkill
         image-source: /images/icons/icon_magic
         image-size: 9 9
-      SkillPercentPanel
-        background-color: red
+
+    SkillButton
+      id: magicCircleSkill
+      height: 15
+      SkillNameLabel
+        !text: tr('MagicCircleSkill')
+      SkillValueLabel
+    
+    HorizontalSeparator
+      margin-top: 5
+      margin-bottom: 5
+
+    Label
+      !text: tr('AttributesLabel')
+      font: verdana-11px-bold
+      margin-top: 3
+      margin-bottom: 3
+      color: #FFFFFF
+      text-align: center
 
     SkillButton
       id: skillId8
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Strength')
       SkillValueLabel
       ImageSkill
         image-source: /images/icons/icon_fist
         image-size: 9 9
-      SkillPercentPanel
 
     SkillButton
       id: skillId9
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Agility')
       SkillValueLabel
       ImageSkill
         image-source: /images/icons/icon_agility
         image-size: 9 9
-      SkillPercentPanel
 
     HorizontalSeparator
       margin-top: 5
       margin-bottom: 5
 
+    Label
+      !text: tr('FightingLabel')
+      font: verdana-11px-bold
+      margin-top: 3
+      margin-bottom: 3
+      color: #FFFFFF
+      text-align: center
+
     SkillButton
       id: skillId0
+      height: 15
       visible: false
       SkillNameLabel
+        margin-left: 12
         !text: tr('Fist Fighting')
       SkillValueLabel
       ImageSkill
@@ -199,46 +241,51 @@ MiniWindow
 
     SkillButton
       id: skillId2
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('One handed')
       SkillValueLabel
       ImageSkill
         image-source: /images/icons/icon_sword
         image-size: 9 9
-      SkillPercentPanel
 
     SkillButton
       id: skillId1
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Two handed')
       SkillValueLabel
       ImageSkill
         image-source: /images/icons/icon_club
         image-size: 9 9
-      SkillPercentPanel
 
     SkillButton
       id: skillId3
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Bow Fighting')
       SkillValueLabel
       ImageSkill
         image-source: /images/icons/icon_bow
         image-size: 9 9
-      SkillPercentPanel
 
     SkillButton
       id: skillId4
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Crossbow Fighting')
       SkillValueLabel
       ImageSkill
         image-source: /images/icons/icon_crossbow
         image-size: 9 9
-      SkillPercentPanel
 
     SkillButton
       id: skillId5
+      height: 15
       visible: false
       SkillNameLabel
         !text: tr('Shielding')
@@ -252,9 +299,88 @@ MiniWindow
       margin-top: 5
       margin-bottom: 5
 
+    Label
+      !text: tr('Specialization')
+      font: verdana-11px-bold
+      margin-top: 3
+      margin-bottom: 3
+      color: #FFFFFF
+      text-align: center
+
+    SkillButton
+      id: lockPickSkill
+      height: 15
+      SkillNameLabel
+        !text: tr('LockPickSkill')
+      SkillValueLabel
+       
+    SkillButton
+      id: breakLockSkill
+      height: 15
+      SkillNameLabel
+        !text: tr('BreakLockSkill')
+      SkillValueLabel  
+    
+    SkillButton
+      id: pickPocketSkill
+      height: 15
+      SkillNameLabel
+        !text: tr('PickPocketSkill')
+      SkillValueLabel
+
+    SkillButton
+      id: smithSkill
+      height: 15
+      SkillNameLabel
+        !text: tr('SmithSkill')
+      SkillValueLabel
+
+    SkillButton
+      id: miningSkill
+      height: 15
+      SkillNameLabel
+        !text: tr('MiningSkill')
+      SkillValueLabel
+
+    SkillButton
+      id: cookingSkill
+      height: 15
+      SkillNameLabel
+        !text: tr('CookingSkill')
+      SkillValueLabel
+
+    SkillButton
+      id: huntingSkill
+      height: 15
+      SkillNameLabel
+        !text: tr('HuntingSkill')
+      SkillValueLabel
+
+
+    SkillButton
+      id: acrobaticSkill
+      height: 15
+      SkillNameLabel
+        !text: tr('AcrobaticSkill')
+      SkillValueLabel
+
+    HorizontalSeparator
+      margin-top: 5
+      margin-bottom: 5
+
+    Label
+      !text: tr('SkillExperience')
+      font: verdana-11px-bold
+      margin-top: 3
+      margin-bottom: 3
+      color: #FFFFFF
+      text-align: center
+
     SkillButton
       id: skillId6
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Fishing')
       SkillValueLabel
       ImageSkill
@@ -264,7 +390,9 @@ MiniWindow
 
     SkillButton
       id: skillId7
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Mining')
       SkillValueLabel
       ImageSkill
@@ -274,7 +402,9 @@ MiniWindow
 
     SkillButton
       id: skillId10
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Cooking')
       SkillValueLabel
       ImageSkill
@@ -284,7 +414,9 @@ MiniWindow
 
     SkillButton
       id: skillId11
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Alchemy')
       SkillValueLabel
       ImageSkill
@@ -294,7 +426,9 @@ MiniWindow
 
     SkillButton
       id: skillId12
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Smithing')
       SkillValueLabel
       ImageSkill
@@ -304,7 +438,9 @@ MiniWindow
 
     SkillButton
       id: skillId13
+      height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('Hunting')
       SkillValueLabel
       ImageSkill

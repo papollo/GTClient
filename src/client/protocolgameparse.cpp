@@ -601,6 +601,9 @@ void ProtocolGame::parseMessage(const InputMessagePtr& msg)
                 case Proto::GameServerStoreCompletePurchase:
                     parseCompleteStorePurchase(msg);
                     break;
+                case Proto::GothaniaPlayerSkills:
+					parseGothaniaPlayerSkills(msg);
+					break;
                 default:
                     throw Exception("unhandled opcode {}", opcode);
             }
@@ -2256,6 +2259,29 @@ void ProtocolGame::parsePlayerStats(const InputMessagePtr& msg) const
     m_localPlayer->setBaseSpeed(baseSpeed);
     m_localPlayer->setRegenerationTime(regeneration);
     m_localPlayer->setOfflineTrainingTime(training);
+}
+
+void ProtocolGame::parseGothaniaPlayerSkills(const InputMessagePtr& msg) const
+{
+    const uint8_t lockPickSkill = msg->getU8();
+    const uint8_t breakLockSkill = msg->getU8();
+    const uint8_t pickPocketSkill = msg->getU8();
+    const uint8_t smithSkill = msg->getU8();
+    const uint8_t miningSkill = msg->getU8();
+    const uint8_t cookingSkill = msg->getU8();
+    const uint8_t huntingSkill = msg->getU8();
+    const uint8_t magicCircleSkill = msg->getU8();
+    const uint8_t acrobaticSkill = msg->getU8();
+
+	m_localPlayer->setLockPickSkill(lockPickSkill);
+	m_localPlayer->setBreakLockSkill(breakLockSkill);
+	m_localPlayer->setPickPocketSkill(pickPocketSkill);
+	m_localPlayer->setSmithSkill(smithSkill);
+	m_localPlayer->setMiningSkill(miningSkill);
+	m_localPlayer->setCookingSkill(cookingSkill);
+	m_localPlayer->setHuntingSkill(huntingSkill);
+	m_localPlayer->setMagicCircleSkill(magicCircleSkill);
+	m_localPlayer->setAcrobaticSkill(acrobaticSkill);
 }
 
 void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const

@@ -843,7 +843,18 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<LocalPlayer>("setStaminaMultiplier", &LocalPlayer::setStaminaMultiplier);
     g_lua.bindClassMemberFunction<LocalPlayer>("setFoodXpBonus", &LocalPlayer::setFoodXpBoost);
     g_lua.bindClassMemberFunction<LocalPlayer>("setAlchemyXpBonus", &LocalPlayer::setAlchemyXpBoost);
+
     g_lua.bindClassMemberFunction<LocalPlayer>("setLearningPoints", &LocalPlayer::setLearningPoints);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setLockPickSkill", &LocalPlayer::setLockPickSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setBreakLockSkill", &LocalPlayer::setBreakLockSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setPickPocketSkill", &LocalPlayer::setPickPocketSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setSmithSkill", &LocalPlayer::setSmithSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setMiningSkill", &LocalPlayer::setMiningSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setCookingSkill", &LocalPlayer::setCookingSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setHuntingSkill", &LocalPlayer::setHuntingSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setMagicCircleSkill", &LocalPlayer::setMagicCircleSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setAcrobaticSkill", &LocalPlayer::setAcrobaticSkill);
+
     g_lua.bindClassMemberFunction<LocalPlayer>("setLevel", &LocalPlayer::setLevel);
     g_lua.bindClassMemberFunction<LocalPlayer>("setMana", &LocalPlayer::setMana);
     g_lua.bindClassMemberFunction<LocalPlayer>("setMagicLevel", &LocalPlayer::setMagicLevel);
@@ -863,7 +874,18 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<LocalPlayer>("getStaminaMultiplier", &LocalPlayer::getStaminaMultiplier);
     g_lua.bindClassMemberFunction<LocalPlayer>("getFoodXpBoost", &LocalPlayer::getFoodXpBoost);
     g_lua.bindClassMemberFunction<LocalPlayer>("getAlchemyXpBoost", &LocalPlayer::getAlchemyXpBoost);
+
     g_lua.bindClassMemberFunction<LocalPlayer>("getLearningPoints", &LocalPlayer::getLearningPoints);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getLockPickSkill", &LocalPlayer::getLockPickSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getBreakLockSkill", &LocalPlayer::getBreakLockSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getPickPocketSkill", &LocalPlayer::getPickPocketSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getSmithSkill", &LocalPlayer::getSmithSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getMiningSkill", &LocalPlayer::getMiningSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getCookingSkill", &LocalPlayer::getCookingSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getHuntingSkill", &LocalPlayer::getHuntingSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getMagicCircleSkill", &LocalPlayer::getMagicCircleSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getAcrobaticSkill", &LocalPlayer::getAcrobaticSkill);
+
     g_lua.bindClassMemberFunction<LocalPlayer>("getLevel", &LocalPlayer::getLevel);
     g_lua.bindClassMemberFunction<LocalPlayer>("getLevelPercent", &LocalPlayer::getLevelPercent);
     g_lua.bindClassMemberFunction<LocalPlayer>("getMana", &LocalPlayer::getMana);

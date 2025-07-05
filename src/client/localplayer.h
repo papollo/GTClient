@@ -47,7 +47,6 @@ public:
     void setStaminaMultiplier(uint16_t staminaMultiplier);
     void setFoodXpBoost(uint16_t foodBoost);
     void setAlchemyXpBoost(uint16_t alchemyBoost);
-    void setLearningPoints(uint16_t learningPoints);
     void setLevel(uint16_t level, uint8_t levelPercent);
     void setMana(uint32_t mana, uint32_t maxMana);
     void setMagicLevel(uint16_t magicLevel, uint16_t magicLevelPercent);
@@ -65,6 +64,29 @@ public:
     void setBlessings(uint16_t blessings);
     void setResourceBalance(Otc::ResourceTypes_t type, uint64_t value);
     void takeScreenshot(uint8_t type);
+
+    // Gothania Custom
+    void setLearningPoints(uint16_t learningPoints);
+    void setLockPickSkill(uint8_t lockPickSkill);
+    void setBreakLockSkill(uint8_t breakLockSkill);
+    void setPickPocketSkill(uint8_t pickPocketSkill);
+    void setSmithSkill(uint8_t smithSkill);
+	void setMiningSkill(uint8_t miningSkill);
+    void setCookingSkill(uint8_t cookingSkill);
+    void setHuntingSkill(uint8_t huntingSkill);
+    void setMagicCircleSkill(uint8_t magicCircleSkill);
+    void setAcrobaticSkill(uint8_t acrobaticSkill);
+
+    uint16_t getLearningPoints() { return m_learningPoints; };
+	uint8_t getLockPickSkill() { return m_lockPickSkill; };
+	uint8_t getBreakLockSkill() { return m_breakLockSkill; };
+	uint8_t getPickPocketSkill() { return m_pickPocketSkill; };
+	uint8_t getSmithSkill() { return m_smithSkill; };
+	uint8_t getMiningSkill() { return m_miningSkill; };
+	uint8_t getCookingSkill() { return m_cookingSkill; };
+	uint8_t getHuntingSkill() { return m_huntingSkill; };
+	uint8_t getMagicCircleSkill() { return m_magicCircleSkill; };
+	uint8_t getAcrobaticSkill() { return m_acrobaticSkill; };
 
     uint32_t getFreeCapacity() { return m_freeCapacity; }
     uint32_t getTotalCapacity() { return m_totalCapacity; }
@@ -95,7 +117,6 @@ public:
     uint16_t getStaminaMultiplier() { return m_staminaMultiplier; };
     uint16_t getFoodXpBoost() { return m_foodXpBoost; };
     uint16_t getAlchemyXpBoost() { return m_alchemyXpBoost; };
-    uint16_t getLearningPoints() { return m_learningPoints; };
 
     const std::vector<uint16_t>& getSpells() { return m_spells; }
     ItemPtr getInventoryItem(const Otc::InventorySlot inventory) { return m_inventoryItems[inventory]; }
@@ -188,7 +209,6 @@ private:
     uint64_t m_staminaMultiplier{ 0 };
     uint64_t m_foodXpBoost{ 0 };
     uint64_t m_alchemyXpBoost{ 0 };
-    uint16_t m_learningPoints{ 0 };
     uint16_t m_level{ 0 };
     uint8_t m_levelPercent{ 0 };
     uint32_t m_mana{ 0 };
@@ -200,6 +220,18 @@ private:
     uint16_t m_stamina{ 0 };
     uint16_t m_regenerationTime{ 0 };
     uint16_t m_offlineTrainingTime{ 0 };
+
+    uint16_t m_learningPoints{ 0 };
+
+	uint8_t m_lockPickSkill{ 0 };
+	uint8_t m_breakLockSkill{ 0 };
+	uint8_t m_pickPocketSkill{ 0 };
+	uint8_t m_smithSkill{ 0 };
+	uint8_t m_miningSkill{ 0 };
+	uint8_t m_cookingSkill{ 0 };
+	uint8_t m_huntingSkill{ 0 };
+	uint8_t m_magicCircleSkill{ 0 };
+	uint8_t m_acrobaticSkill{ 0 };
 
     friend class Game;
 };
