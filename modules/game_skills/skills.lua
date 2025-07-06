@@ -609,7 +609,7 @@ function onAcrobaticSkillChange(localPlayer, acrobaticSkill)
     local skillWidget = skillsWindow:recursiveGetChildById('acrobaticSkill')
     if skillWidget then
         local widget = skillWidget:getChildById('value')
-        widget:setText(acrobaticSkill .. "/5")
+        widget:setText(acrobaticSkill .. "/1")
         skillWidget:setTooltip(tr("AcrobaticSkillFull"))
     end
 end
