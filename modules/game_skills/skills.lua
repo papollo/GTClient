@@ -440,7 +440,7 @@ function onSkillButtonClick(button)
             skillsWindow:modifyMaximumHeight(-6)
             skillSettings[char][button:getId()] = 1
         end
-    end
+    end     
 end
 
 function showPercentBar(button, show)
@@ -561,27 +561,57 @@ function onPickPocketSkillChange(localPlayer, pickPocketSkill)
 end
 
 function onSmithSkillChange(localPlayer, smithSkill)
-    setSkillValue('smithSkill', smithSkill .. "/3")
+    local skillWidget = skillsWindow:recursiveGetChildById('smithSkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(smithSkill .. "/3")
+        skillWidget:setTooltip(tr("SmithSkillFull"))
+    end
 end
 
 function onMiningSkillChange(localPlayer, miningSkill)
-    setSkillValue('miningSkill', miningSkill .. "/3")
+    local skillWidget = skillsWindow:recursiveGetChildById('miningSkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(miningSkill .. "/3")
+        skillWidget:setTooltip(tr("MiningSkillFull"))
+    end
 end
 
 function onCookingSkillChange(localPlayer, cookingSkill)
-    setSkillValue('cookingSkill', cookingSkill .. "/3")
+    local skillWidget = skillsWindow:recursiveGetChildById('cookingSkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(cookingSkill .. "/3")
+        skillWidget:setTooltip(tr("CookingSkillFull"))
+    end
 end
 
 function onHuntingSkillChange(localPlayer, huntingSkill)
-    setSkillValue('huntingSkill', huntingSkill .. "/3")
+    local skillWidget = skillsWindow:recursiveGetChildById('huntingSkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(huntingSkill .. "/3")
+        skillWidget:setTooltip(tr("HuntingSkillFull"))
+    end
 end
 
 function onMagicCircleSkillChange(localPlayer, magicCircleSkill)
-    setSkillValue('magicCircleSkill', magicCircleSkill .. "/5")
+    local skillWidget = skillsWindow:recursiveGetChildById('magicCircleSkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(magicCircleSkill .. "/5")
+        skillWidget:setTooltip(tr("MagicCircleSkillFull"))
+    end
 end
 
 function onAcrobaticSkillChange(localPlayer, acrobaticSkill)
-    setSkillValue('acrobaticSkill', acrobaticSkill .. "/1")
+    local skillWidget = skillsWindow:recursiveGetChildById('acrobaticSkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(acrobaticSkill .. "/5")
+        skillWidget:setTooltip(tr("AcrobaticSkillFull"))
+    end
 end
 
 function onHealthChange(localPlayer, health, maxHealth)

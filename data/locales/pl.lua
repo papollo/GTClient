@@ -399,11 +399,17 @@ locale = {
     ["PickPocketSkill"] = "Kradziez kiesz.",
     ["PickPocketSkillFull"] = "Kradziez kieszonkowa",
     ["SmithSkill"] = "Kowalstwo",
+    ["SmithSkillFull"] = "Kowalstwo",
     ["MiningSkill"] = "Gornictwo",
+    ["MiningSkillFull"] = "Gornictwo",
     ["CookingSkill"] = "Gotowanie",
-    ["HuntingSkill"] = "Polowanie",
+    ["CookingSkillFull"] = "Gotowanie",
+    ["HuntingSkill"] = "Skorowanie zwie.",
+    ["HuntingSkillFull"] = "Skorowanie zwierzat",
     ["MagicCircleSkill"] = "Krag Magiczny",
+    ["MagicCircleSkillFull"] = "Krag Magiczny",
     ["AcrobaticSkill"] = "Akrobatyka",
+    ["AcrobaticSkillFull"] = "Akrobatyka",
     ["Show all items"] = "Pokaz wszystkie przedmioty",
     ["Show an extra right panel"] = "Pokaz dodatkowy prawy panel",
     ["Show connection ping"] = "Wyswietl ping",
@@ -523,7 +529,7 @@ locale = {
     ["Cooking"] = "Gotowanie",
     ["Alchemy"] = "Alchemia",
     ["Smithing"] = "Kowalstwo",
-    ["Hunting"] = "Polowanie",
+    ["Hunting"] = "Skorowanie",
   }
 }
 

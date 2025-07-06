@@ -177,9 +177,13 @@ MiniWindow
       id: magicCircleSkill
       height: 15
       SkillNameLabel
+        margin-left: 12
         !text: tr('MagicCircleSkill')
       SkillValueLabel
-    
+      ImageSkill
+        image-source: /images/icons/icon_magic_circle
+        image-size: 9 9
+
     HorizontalSeparator
       margin-top: 5
       margin-bottom: 5
