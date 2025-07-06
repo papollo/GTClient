@@ -260,8 +260,10 @@ local function setupQuestItemClickHandler(item, isQuestList)
             self.iconShow:setVisible(true)
             self.iconPin:setVisible(true)
             questLogController.ui.panelQuestLineSelected:setText(self:getText())
+            UITextList.questLogInfo:setText("")
         else
-            UITextList.questLogInfo:setText(self.description)
+            local text = self.description:gsub("\\n", "\n")
+            UITextList.questLogInfo:setText(text)
         end
         UICheckBox.showInQuestTracker:setChecked(
             isIdInTracker(g_game.getCharacterName():lower(), tonumber(self:getId())))
@@ -677,6 +679,9 @@ function questLogController:onGameStart()
         UICheckBox.showInQuestTracker:setVisible(false)
         questLogController.ui.trackerButton:setVisible(false)
     end
+    
+    UITextList.questLogLine:destroyChildren()
+    UITextList.questLogInfo:setText("")
 end
 
 function questLogController:onGameEnd()
