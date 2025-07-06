@@ -47,6 +47,7 @@ MultiLineQuestLog < Panel
     vertical-scrollbar: spellsScrollBar
     anchors.fill: parent
     padding: 1
+    padding-right: 20
     width: 10
     focusable: false
     text-wrap: true
