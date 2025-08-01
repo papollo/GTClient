@@ -172,6 +172,7 @@ MiniWindow
       ImageSkill
         image-source: /images/icons/icon_magic
         image-size: 9 9
+      SkillPercentPanel
 
     SkillButton
       id: magicCircleSkill
@@ -253,6 +254,7 @@ MiniWindow
       ImageSkill
         image-source: /images/icons/icon_sword
         image-size: 9 9
+      SkillPercentPanel
 
     SkillButton
       id: skillId1
@@ -264,6 +266,7 @@ MiniWindow
       ImageSkill
         image-source: /images/icons/icon_club
         image-size: 9 9
+      SkillPercentPanel
 
     SkillButton
       id: skillId3
@@ -275,6 +278,7 @@ MiniWindow
       ImageSkill
         image-source: /images/icons/icon_bow
         image-size: 9 9
+      SkillPercentPanel
 
     SkillButton
       id: skillId4
@@ -286,6 +290,7 @@ MiniWindow
       ImageSkill
         image-source: /images/icons/icon_crossbow
         image-size: 9 9
+      SkillPercentPanel
 
     SkillButton
       id: skillId5

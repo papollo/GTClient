@@ -260,7 +260,6 @@ local function setupQuestItemClickHandler(item, isQuestList)
             self.iconShow:setVisible(true)
             self.iconPin:setVisible(true)
             questLogController.ui.panelQuestLineSelected:setText(self:getText())
-            UITextList.questLogInfo:setText("")
         else
             local text = self.description:gsub("\\n", "\n")
             UITextList.questLogInfo:setText(text)
@@ -433,6 +432,9 @@ end
 =================================================== ]] --
 local function onQuestLog(questList)
     UITextList.questLogList:destroyChildren()
+    
+    UITextList.questLogLine:destroyChildren()
+    UITextList.questLogInfo:setText("")
 
     questLogCache = {
         items = {},
@@ -624,7 +626,6 @@ function questLogController:onInit()
     UITextList.questLogList = questLogController.ui.panelQuestLog.areaPanelQuestList.questList
     UITextList.questLogLine = questLogController.ui.panelQuestLineSelected.ScrollAreaQuestList.questList
     UITextList.questLogInfo = questLogController.ui.panelQuestLineSelected.panelQuestInfo.questList
-    UITextList.questLogInfo:setBackgroundColor('#363636')
 
     UITextEdit.search = questLogController.ui.panelQuestLog.textEditSearchQuest
     UIlabel.numberQuestComplete = questLogController.ui.panelQuestLog.filterPanel.lblCompleteNumber
@@ -679,9 +680,6 @@ function questLogController:onGameStart()
         UICheckBox.showInQuestTracker:setVisible(false)
         questLogController.ui.trackerButton:setVisible(false)
     end
-    
-    UITextList.questLogLine:destroyChildren()
-    UITextList.questLogInfo:setText("")
 end
 
 function questLogController:onGameEnd()
