@@ -260,7 +260,8 @@ private:
     void parsePlayerInfo(const InputMessagePtr& msg) const;
     void parsePlayerStats(const InputMessagePtr& msg) const;
     void parsePlayerSkills(const InputMessagePtr& msg) const;
-    void parseGothaniaPlayerSkills(const InputMessagePtr& msg) const;
+    void parseGothicTalesPlayerSkills(const InputMessagePtr& msg) const;
+    void parseGothicTalesPlayerBonusSkills(const InputMessagePtr& msg) const;
     void parsePlayerState(const InputMessagePtr& msg) const;
     void parsePlayerCancelAttack(const InputMessagePtr& msg);
     void parsePlayerModes(const InputMessagePtr& msg);

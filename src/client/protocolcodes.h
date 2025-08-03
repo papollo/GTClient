@@ -81,7 +81,8 @@ namespace Proto
         GameServerFloorDescription = 75,
 
         //Gothania Custom Opcodes
-        GothaniaPlayerSkills = 80,
+        GothicTalesPlayerSkills = 80,
+        GothicTalesPlayerBonusSkills = 81,
         
         // original tibia ONLY
         GameServerImbuementDurations = 93,

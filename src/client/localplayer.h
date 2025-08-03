@@ -65,7 +65,14 @@ public:
     void setResourceBalance(Otc::ResourceTypes_t type, uint64_t value);
     void takeScreenshot(uint8_t type);
 
-    // Gothania Custom
+    // Gothic Tales skills methods
+    void setMagicLevelBonusSkill(uint8_t magicLevelBonusSkill);
+    void setOneHandedBonusSkill(uint8_t oneHandedBonusSkill);
+    void setTwoHandedBonusSkill(uint8_t twoHandedBonusSkill);
+    void setBowBonusSkill(uint8_t bowBonusSkill);
+    void setCrossbowBonusSkill(uint8_t crossbowBonusSkill);
+
+    // Gothic Tales Custom methods
     void setLearningPoints(uint16_t learningPoints);
     void setLockPickSkill(uint8_t lockPickSkill);
     void setBreakLockSkill(uint8_t breakLockSkill);
@@ -78,6 +85,13 @@ public:
     void setAcrobaticSkill(uint8_t acrobaticSkill);
 
     uint16_t getLearningPoints() { return m_learningPoints; };
+
+    uint8_t getMagicLevelBonusSkill() { return m_magicLevelBonusSkill; };
+    uint8_t getOneHandedBonusSkill() { return m_oneHandedBonusSkill; };
+    uint8_t getTwoHandedBonusSkill() { return m_twoHandedBonusSkill; };
+    uint8_t getBowBonusSkill() { return m_bowBonusSkill; };
+    uint8_t getCrossbowBonusSkill() { return m_crossbowBonusSkill; };
+
 	uint8_t getLockPickSkill() { return m_lockPickSkill; };
 	uint8_t getBreakLockSkill() { return m_breakLockSkill; };
 	uint8_t getPickPocketSkill() { return m_pickPocketSkill; };
@@ -222,6 +236,12 @@ private:
     uint16_t m_offlineTrainingTime{ 0 };
 
     uint16_t m_learningPoints{ 0 };
+
+	uint8_t m_magicLevelBonusSkill{ 0 };
+	uint8_t m_oneHandedBonusSkill{ 0 };
+	uint8_t m_twoHandedBonusSkill{ 0 };
+	uint8_t m_bowBonusSkill{ 0 };
+	uint8_t m_crossbowBonusSkill{ 0 };
 
 	uint8_t m_lockPickSkill{ 0 };
 	uint8_t m_breakLockSkill{ 0 };

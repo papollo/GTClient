@@ -391,6 +391,61 @@ void LocalPlayer::setLearningPoints(uint16_t learningPoints) {
     callLuaField("onLearningPointsChange", learningPoints, oldLearningPoints);
 }
 
+void LocalPlayer::setMagicLevelBonusSkill(uint8_t magicLevelBonusSkill)
+{
+	if (m_magicLevelBonusSkill == magicLevelBonusSkill)
+		return;
+
+    const uint8_t oldMagicLevelBonusSkill = m_magicLevelBonusSkill;
+	m_magicLevelBonusSkill = magicLevelBonusSkill;
+
+    callLuaField("onMagicLevelBonusChange", magicLevelBonusSkill, oldMagicLevelBonusSkill);
+}
+
+void LocalPlayer::setOneHandedBonusSkill(uint8_t oneHandedBonusSkill)
+{
+	if (m_oneHandedBonusSkill == oneHandedBonusSkill)
+		return;
+
+    const uint8_t oldOneHandedBonusSkill = m_oneHandedBonusSkill;
+	m_oneHandedBonusSkill = oneHandedBonusSkill;
+
+    callLuaField("onOneHandedBonusSkillChange", oneHandedBonusSkill, oldOneHandedBonusSkill);
+}
+
+void LocalPlayer::setTwoHandedBonusSkill(uint8_t twoHandedBonusSkill)
+{
+	if (m_twoHandedBonusSkill == twoHandedBonusSkill)
+		return;
+
+    const uint8_t oldTwoHandedBonusSkill = m_twoHandedBonusSkill;
+	m_twoHandedBonusSkill = twoHandedBonusSkill;
+
+    callLuaField("onTwoHandedBonusSkillChange", twoHandedBonusSkill, oldTwoHandedBonusSkill);
+}
+
+void LocalPlayer::setBowBonusSkill(uint8_t bowBonusSkill)
+{
+	if (m_bowBonusSkill == bowBonusSkill)
+		return;
+
+    const uint8_t oldBowBonusSkill = m_bowBonusSkill;
+	m_bowBonusSkill = bowBonusSkill;
+
+    callLuaField("onBowBonusSkillChange", bowBonusSkill, oldBowBonusSkill);
+}
+
+void LocalPlayer::setCrossbowBonusSkill(uint8_t crossbowBonusSkill)
+{
+	if (m_crossbowBonusSkill == crossbowBonusSkill)
+		return;
+
+    const uint8_t oldCrossbowBonusSkill = m_crossbowBonusSkill;
+	m_crossbowBonusSkill = crossbowBonusSkill;
+
+    callLuaField("onCrossbowBonusSkillChange", crossbowBonusSkill, oldCrossbowBonusSkill);
+}
+
 void LocalPlayer::setLockPickSkill(uint8_t lockPickSkill)
 {
 	if (m_lockPickSkill == lockPickSkill)

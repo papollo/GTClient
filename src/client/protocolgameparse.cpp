@@ -601,9 +601,12 @@ void ProtocolGame::parseMessage(const InputMessagePtr& msg)
                 case Proto::GameServerStoreCompletePurchase:
                     parseCompleteStorePurchase(msg);
                     break;
-                case Proto::GothaniaPlayerSkills:
-					parseGothaniaPlayerSkills(msg);
+                case Proto::GothicTalesPlayerSkills:
+					parseGothicTalesPlayerSkills(msg);
 					break;
+                case Proto::GothicTalesPlayerBonusSkills:
+                    parseGothicTalesPlayerBonusSkills(msg);
+                    break;
                 default:
                     throw Exception("unhandled opcode {}", opcode);
             }
@@ -2261,7 +2264,7 @@ void ProtocolGame::parsePlayerStats(const InputMessagePtr& msg) const
     m_localPlayer->setOfflineTrainingTime(training);
 }
 
-void ProtocolGame::parseGothaniaPlayerSkills(const InputMessagePtr& msg) const
+void ProtocolGame::parseGothicTalesPlayerSkills(const InputMessagePtr& msg) const
 {
     const uint8_t lockPickSkill = msg->getU8();
     const uint8_t breakLockSkill = msg->getU8();
@@ -2282,6 +2285,21 @@ void ProtocolGame::parseGothaniaPlayerSkills(const InputMessagePtr& msg) const
 	m_localPlayer->setHuntingSkill(huntingSkill);
 	m_localPlayer->setMagicCircleSkill(magicCircleSkill);
 	m_localPlayer->setAcrobaticSkill(acrobaticSkill);
+}
+
+void ProtocolGame::parseGothicTalesPlayerBonusSkills(const InputMessagePtr& msg) const
+{
+    const uint8_t magicLevelBonusSkill = msg->getU8();
+    const uint8_t oneHandedBonusSkill = msg->getU8();
+    const uint8_t twoHandedBonusSkill = msg->getU8();
+    const uint8_t bowBonusSkill = msg->getU8();
+    const uint8_t crossbowBonusSkill = msg->getU8();
+
+	m_localPlayer->setMagicLevelBonusSkill(magicLevelBonusSkill);
+	m_localPlayer->setOneHandedBonusSkill(oneHandedBonusSkill);
+	m_localPlayer->setTwoHandedBonusSkill(twoHandedBonusSkill);
+	m_localPlayer->setBowBonusSkill(bowBonusSkill);
+	m_localPlayer->setCrossbowBonusSkill(crossbowBonusSkill);
 }
 
 void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const

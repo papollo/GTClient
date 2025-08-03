@@ -844,6 +844,12 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<LocalPlayer>("setFoodXpBonus", &LocalPlayer::setFoodXpBoost);
     g_lua.bindClassMemberFunction<LocalPlayer>("setAlchemyXpBonus", &LocalPlayer::setAlchemyXpBoost);
 
+    g_lua.bindClassMemberFunction<LocalPlayer>("setMagicLevelBonusSkill", &LocalPlayer::setMagicLevelBonusSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setOneHandedBonusSkill", &LocalPlayer::setOneHandedBonusSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setTwoHandedBonusSkill", &LocalPlayer::setTwoHandedBonusSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setBowBonusSkill", &LocalPlayer::setBowBonusSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setCrossbowBonusSkill", &LocalPlayer::setCrossbowBonusSkill);
+
     g_lua.bindClassMemberFunction<LocalPlayer>("setLearningPoints", &LocalPlayer::setLearningPoints);
     g_lua.bindClassMemberFunction<LocalPlayer>("setLockPickSkill", &LocalPlayer::setLockPickSkill);
     g_lua.bindClassMemberFunction<LocalPlayer>("setBreakLockSkill", &LocalPlayer::setBreakLockSkill);
@@ -876,6 +882,13 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<LocalPlayer>("getAlchemyXpBoost", &LocalPlayer::getAlchemyXpBoost);
 
     g_lua.bindClassMemberFunction<LocalPlayer>("getLearningPoints", &LocalPlayer::getLearningPoints);
+
+    g_lua.bindClassMemberFunction<LocalPlayer>("getMagicLevelBonusSkill", &LocalPlayer::getMagicLevelBonusSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getOneHandedBonusSkill", &LocalPlayer::getOneHandedBonusSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getTwoHandedBonusSkill", &LocalPlayer::getTwoHandedBonusSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getBowBonusSkill", &LocalPlayer::getBowBonusSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getCrossbowBonusSkill", &LocalPlayer::getCrossbowBonusSkill);
+
     g_lua.bindClassMemberFunction<LocalPlayer>("getLockPickSkill", &LocalPlayer::getLockPickSkill);
     g_lua.bindClassMemberFunction<LocalPlayer>("getBreakLockSkill", &LocalPlayer::getBreakLockSkill);
     g_lua.bindClassMemberFunction<LocalPlayer>("getPickPocketSkill", &LocalPlayer::getPickPocketSkill);

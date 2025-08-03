@@ -7,6 +7,27 @@ local staminaMultiplier = 0
 local foodXpBoost = 0
 local alchemyXpBoost = 0
 
+local magicLevelSkill = 0
+local magicLevelSkillPercent = 0
+local magicLevelBonusSkill = 0
+
+local oneHandedSkill = 0
+local oneHandedSkillPercent = 0
+local oneHandedBonusSkill = 0
+
+local twoHandedSkill = 0
+local twoHandedSkillPercent = 0
+local twoHandedBonusSkill = 0
+
+local bowSkill = 0
+local bowSkillPercent = 0
+local bowBonusSkill = 0
+
+local crossbowSkill = 0
+local crossbowSkillPercent = 0
+local crossbowBonusSkill = 0
+
+
 function init()
     connect(LocalPlayer, {
         onExperienceChange = onExperienceChange,
@@ -38,7 +59,12 @@ function init()
         onCookingSkillChange = onCookingSkillChange,
         onHuntingSkillChange = onHuntingSkillChange,
         onMagicCircleSkillChange = onMagicCircleSkillChange,
-        onAcrobaticSkillChange = onAcrobaticSkillChange
+        onAcrobaticSkillChange = onAcrobaticSkillChange,
+        onMagicLevelBonusChange = onMagicLevelBonusChange,
+        onOneHandedBonusSkillChange = onOneHandedBonusSkillChange,
+        onTwoHandedBonusSkillChange = onTwoHandedBonusSkillChange,
+        onBowBonusSkillChange = onBowBonusSkillChange,
+        onCrossbowBonusSkillChange = onCrossbowBonusSkillChange
     })
     connect(g_game, {
         onGameStart = online,
@@ -101,7 +127,12 @@ function terminate()
         onCookingSkillChange = onCookingSkillChange,
         onHuntingSkillChange = onHuntingSkillChange,
         onMagicCircleSkillChange = onMagicCircleSkillChange,
-        onAcrobaticSkillChange = onAcrobaticSkillChange
+        onAcrobaticSkillChange = onAcrobaticSkillChange,
+        onMagicLevelBonusChange = onMagicLevelBonusChange,
+        onOneHandedBonusSkillChange = onOneHandedBonusSkillChange,
+        onTwoHandedBonusSkillChange = onTwoHandedBonusSkillChange,
+        onBowBonusSkillChange = onBowBonusSkillChange,
+        onCrossbowBonusSkillChange = onCrossbowBonusSkillChange
     })
     disconnect(g_game, {
         onGameStart = online,
@@ -309,10 +340,26 @@ function refresh()
     onHuntingSkillChange(player, player:getHuntingSkill())
     onMagicCircleSkillChange(player, player:getMagicCircleSkill())
     onAcrobaticSkillChange(player, player:getAcrobaticSkill())
+    onMagicLevelBonusChange(player, player:getMagicLevelBonusSkill())
+    onOneHandedBonusSkillChange(player, player:getOneHandedBonusSkill())
+    onTwoHandedBonusSkillChange(player, player:getTwoHandedBonusSkill())
+    onBowBonusSkillChange(player, player:getBowBonusSkill())
+    onCrossbowBonusSkillChange(player, player:getCrossbowBonusSkill())
 
     local hasAdditionalSkills = g_game.getFeature(GameAdditionalSkills)
     for i = Skill.Fist, Skill.Transcendence do
-        onSkillChange(player, i, player:getSkillLevel(i), player:getSkillLevelPercent(i))
+
+        if i == 2 then
+            onOneHandedSkillChange(player, player:getSkillLevel(i), player:getSkillLevelPercent(i))
+        elseif i == 1 then
+            onTwoHandedSkillChange(player, player:getSkillLevel(i), player:getSkillLevelPercent(i))
+        elseif i == 3 then
+            onBowSkillChange(player, player:getSkillLevel(i), player:getSkillLevelPercent(i))
+        elseif i == 4 then
+            onCrossbowSkillChange(player, player:getSkillLevel(i), player:getSkillLevelPercent(i))
+        else
+            onSkillChange(player, i, player:getSkillLevel(i), player:getSkillLevelPercent(i))
+        end
 
         if i > Skill.Hunting then
             local ativedAdditionalSkills = hasAdditionalSkills
@@ -729,11 +776,114 @@ function onBaseSpeedChange(localPlayer, baseSpeed)
     setSkillBase('speed', localPlayer:getSpeed(), baseSpeed)
 end
 
-function onMagicLevelChange(localPlayer, magiclevel, percent)
-    setSkillValue('magiclevel', magiclevel)
-    setSkillPercent('magiclevel', percent, tr('You have %s percent to go', 100 - percent))
+local function createTooltip(skillValue, bonusValue, percent)
+    return string.format(
+        "%-s %s\n%-s %s\n%s\n%s",
+        tr("Base:"), skillValue,
+        tr("Learned:"), bonusValue,
+        string.rep(" ", 25),
+        tr("You have %d%% to go", 100 - percent)
+    )
+end
+
+local function updateMagicLevelWidget(localPlayer)
+    setSkillValue('magiclevel', magicLevelSkill + magicLevelBonusSkill)
+
+    local tooltip = createTooltip(magicLevelSkill, magicLevelBonusSkill, magicLevelSkillPercent)
+    setSkillPercent('magiclevel', magicLevelSkillPercent, tooltip)
 
     onBaseMagicLevelChange(localPlayer, localPlayer:getBaseMagicLevel())
+end
+
+function onMagicLevelChange(localPlayer, magiclevel, percent)
+    magicLevelSkill = magiclevel
+    magicLevelSkillPercent = percent
+    updateMagicLevelWidget(localPlayer)
+end
+
+function onMagicLevelBonusChange(localPlayer, bonusMagicLevelSkill)
+    magicLevelBonusSkill = bonusMagicLevelSkill
+    updateMagicLevelWidget(localPlayer)
+end
+
+local function updateOneHandedWidget(localPlayer)
+    setSkillValue('skillId2', oneHandedSkill + oneHandedBonusSkill)
+    
+    local tooltip = createTooltip(oneHandedSkill, oneHandedBonusSkill, oneHandedSkillPercent)
+    setSkillPercent('skillId2', oneHandedSkillPercent, tooltip)
+
+    onBaseSkillChange(localPlayer, 2, localPlayer:getSkillBaseLevel(2))
+end
+
+function onOneHandedSkillChange(localPlayer, oneHanded, percent)
+    oneHandedSkill = oneHanded
+    oneHandedSkillPercent = percent
+    updateOneHandedWidget(localPlayer)
+end
+
+function onOneHandedBonusSkillChange(localPlayer, bonusOneHandedSkill)
+    oneHandedBonusSkill = bonusOneHandedSkill
+    updateOneHandedWidget(localPlayer)
+end
+
+local function updateTwoHandedWidget(localPlayer)
+    setSkillValue('skillId1', twoHandedSkill + twoHandedBonusSkill)
+    
+    local tooltip = createTooltip(oneHandedSkill, twoHandedBonusSkill, twoHandedSkillPercent)
+    setSkillPercent('skillId1', twoHandedSkillPercent, tooltip)
+
+    onBaseSkillChange(localPlayer, 1, localPlayer:getSkillBaseLevel(1))
+end
+
+function onTwoHandedSkillChange(localPlayer, twoHanded, percent)
+    twoHandedSkill = twoHanded
+    twoHandedSkillPercent = percent
+    updateTwoHandedWidget(localPlayer)
+end
+
+function onTwoHandedBonusSkillChange(localPlayer, bonusTwoHandedSkill)
+    twoHandedBonusSkill = bonusTwoHandedSkill
+    updateTwoHandedWidget(localPlayer)
+end
+
+local function updateBowWidget(localPlayer)
+    setSkillValue('skillId3', bowSkill + bowBonusSkill)
+
+    local tooltip = createTooltip(bowSkill, bowBonusSkill, bowSkillPercent)
+    setSkillPercent('skillId3', bowSkillPercent, tooltip)
+
+    onBaseSkillChange(localPlayer, 3, localPlayer:getSkillBaseLevel(3))
+end
+
+function onBowSkillChange(localPlayer, bow, percent)
+    bowSkill = bow
+    bowSkillPercent = percent
+    updateBowWidget(localPlayer)
+end
+
+function onBowBonusSkillChange(localPlayer, bonusBowSkill)
+    bowBonusSkill = bonusBowSkill
+    updateBowWidget(localPlayer)
+end
+
+local function updateCrossbowWidget(localPlayer)
+    setSkillValue('skillId4', crossbowSkill + crossbowBonusSkill)
+    
+    local tooltip = createTooltip(crossbowSkill, crossbowBonusSkill, crossbowSkillPercent)
+    setSkillPercent('skillId4', crossbowSkillPercent, tooltip)
+
+    onBaseSkillChange(localPlayer, 4, localPlayer:getSkillBaseLevel(4))
+end
+
+function onCrossbowSkillChange(localPlayer, crossbow, percent)
+    crossbowSkill = crossbow
+    crossbowSkillPercent = percent
+    updateCrossbowWidget(localPlayer)
+end
+
+function onCrossbowBonusSkillChange(localPlayer, bonusCrossbowSkill)
+    crossbowBonusSkill = bonusCrossbowSkill
+    updateCrossbowWidget(localPlayer)
 end
 
 function onBaseMagicLevelChange(localPlayer, baseMagicLevel)
@@ -741,10 +891,22 @@ function onBaseMagicLevelChange(localPlayer, baseMagicLevel)
 end
 
 function onSkillChange(localPlayer, id, level, percent)
-    setSkillValue('skillId' .. id, level)
-    setSkillPercent('skillId' .. id, percent, tr('You have %s percent to go', 100 - percent))
 
-    onBaseSkillChange(localPlayer, id, localPlayer:getSkillBaseLevel(id))
+
+    if id == 2 then
+        onOneHandedSkillChange(localPlayer, localPlayer:getSkillLevel(id), localPlayer:getSkillLevelPercent(id))
+    elseif id == 1 then
+        onTwoHandedSkillChange(localPlayer, localPlayer:getSkillLevel(id), localPlayer:getSkillLevelPercent(id))
+    elseif id == 3 then
+        onBowSkillChange(localPlayer, localPlayer:getSkillLevel(id), localPlayer:getSkillLevelPercent(id))
+    elseif id == 4 then
+        onCrossbowSkillChange(localPlayer, localPlayer:getSkillLevel(id), localPlayer:getSkillLevelPercent(id))
+    else
+        setSkillValue('skillId' .. id, level)
+        setSkillPercent('skillId' .. id, percent, tr('You have %s percent to go', 100 - percent))
+
+        onBaseSkillChange(localPlayer, id, localPlayer:getSkillBaseLevel(id))
+    end
 
     if id > Skill.ManaLeechAmount then
 	    toggleSkill('skillId' .. id, level > 0)
