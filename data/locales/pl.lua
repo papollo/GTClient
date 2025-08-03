@@ -506,6 +506,7 @@ locale = {
     ["You are within a protection zone"] = "Jestes w strefie ochronnej",
     ["You can enter new text."] = "Mozesz wprowadzic nowy tekst.",
     ["Base: %s"] = "Baza: %s",
+    ["Bonus: %s"] = "Bonus: %s",
     ["Learned: %s"] = "Nauczone: %s",
     ["You have %s percent to go"] = "Brakuje Ci %s procent",
     ["You have %s percent"] = "Masz %s procent",
