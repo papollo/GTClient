@@ -769,7 +769,7 @@ end
 
 local function createTooltip(skillValue, base, learnedValue, percent)
     return 
-        tr("Base: %s", base) .. '\n' ..
+        tr("Base: %s", base) .. '\n' .. 
         tr("Bonus: %s", skillValue - base) .. '\n' ..
         tr("Learned: %s", learnedValue) .. '\n\n' ..
         tr("You have %s percent to go", 100 - percent)
@@ -797,9 +797,19 @@ function onMagicLevelBonusChange(localPlayer, bonusMagicLevelSkill)
     updateMagicLevelWidget(localPlayer)
 end
 
+local function getBaseValue(player, skillId)
+    local base = player:getSkillBaseLevel(skillId)
+
+    if base == 0 then
+        return 10
+    else
+        return base
+    end
+end
+
 local function updateSkillWidget(localPlayer, skillId, bonus)
     local skillValue = localPlayer:getSkillLevel(skillId)
-    local skillBase = localPlayer:getSkillBaseLevel(skillId)
+    local skillBase = getBaseValue(localPlayer, skillId)
     local percent = localPlayer:getSkillLevelPercent(skillId)
 
     setSkillValue('skillId' .. skillId, skillValue + bonus)

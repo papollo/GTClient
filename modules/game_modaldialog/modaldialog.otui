@@ -4,6 +4,9 @@ ChoiceListLabel < Label
   text-offset: 2 0
   focusable: true
 
+  text-wrap: true
+  text-auto-resize: true
+
   $focus:
     background-color: #00000055
     color: #ffffff
