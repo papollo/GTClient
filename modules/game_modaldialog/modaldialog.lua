@@ -135,7 +135,16 @@ function onModalDialog(id, title, message, buttons, enterButton, escapeButton, c
     end
 
     modalDialog:setWidth(dialogWidth)
-    messageLabel:setWidth(dialogWidth - horizontalPadding)
+
+    local messageAreaWidth = math.max(0, dialogWidth - horizontalPadding)
+    messageLabel:setWidth(messageAreaWidth)
+    if messageLabel:getText():len() > 0 then
+        messageLabel:setText('', true)
+        messageLabel:setText(message)
+    end
+
+    local messageHeight = messageLabel:getTextSize().height + messageLabel:getPaddingTop() + messageLabel:getPaddingBottom()
+    messageLabel:setHeight(messageHeight)
 
     if #choiceLabels > 0 then
         local availableChoiceWidth = dialogWidth - horizontalPadding - choiceListPadding - scrollbarWidth
