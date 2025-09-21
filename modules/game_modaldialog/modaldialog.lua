@@ -50,7 +50,7 @@ function onModalDialog(id, title, message, buttons, enterButton, escapeButton, c
     messageLabel:setText(message)
 
     local choiceLabels = {}
-    local baseChoiceLabelHeight
+    local baseChoiceLabelHeight = 0
     for i = 1, #choices do
         local choiceId = choices[i][1]
         local choiceName = choices[i][2]
@@ -59,7 +59,7 @@ function onModalDialog(id, title, message, buttons, enterButton, escapeButton, c
         label.choiceId = choiceId
         label:setText(choiceName)
         label:setPhantom(false)
-        if not baseChoiceLabelHeight then
+        if baseChoiceLabelHeight == 0 or math.min(baseChoiceLabelHeight, label:getHeight()) == label:getHeight() then
             baseChoiceLabelHeight = label:getHeight()
         end
         table.insert(choiceLabels, label)
@@ -162,7 +162,7 @@ function onModalDialog(id, title, message, buttons, enterButton, escapeButton, c
                 heightForMaxChoices = heightForMaxChoices + height
             end
         end
-
+        
         local choiceContentHeight = totalChoiceHeight
         if #choiceLabels > modalDialog.maximumChoices then
             choiceContentHeight = heightForMaxChoices
@@ -171,7 +171,7 @@ function onModalDialog(id, title, message, buttons, enterButton, escapeButton, c
         if baseChoiceLabelHeight and baseChoiceLabelHeight > 0 then
             choiceContentHeight = math.max(choiceContentHeight, modalDialog.minimumChoices * baseChoiceLabelHeight)
         end
-
+        
         local listInnerHeight = choiceContentHeight + choiceList:getPaddingTop() + choiceList:getPaddingBottom()
         choiceList:setHeight(listInnerHeight)
 
