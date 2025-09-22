@@ -696,6 +696,7 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<ThingType>("getMarketData", &ThingType::getMarketData);
     g_lua.bindClassMemberFunction<ThingType>("getNpcSaleData", &ThingType::getNpcSaleData);
     g_lua.bindClassMemberFunction<ThingType>("getMeanPrice", &ThingType::getMeanPrice);
+    g_lua.bindClassMemberFunction<ThingType>("getRarity", &ThingType::getRarity);
     g_lua.bindClassMemberFunction<ThingType>("isUsable", &ThingType::isUsable);
     g_lua.bindClassMemberFunction<ThingType>("isWrapable", &ThingType::isWrapable);
     g_lua.bindClassMemberFunction<ThingType>("isUnwrapable", &ThingType::isUnwrapable);
@@ -738,6 +739,7 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<Item>("getMarketData", &Item::getMarketData);
     g_lua.bindClassMemberFunction<Item>("getNpcSaleData", &Item::getNpcSaleData);
     g_lua.bindClassMemberFunction<Item>("getMeanPrice", &Item::getMeanPrice);
+    g_lua.bindClassMemberFunction<Item>("getRarity", &Item::getRarity);
     g_lua.bindClassMemberFunction<Item>("getClothSlot", &Item::getClothSlot);
     g_lua.bindClassMemberFunction<Item>("hasWearOut", &ThingType::hasWearOut);
     g_lua.bindClassMemberFunction<Item>("hasClockExpire", &ThingType::hasClockExpire);

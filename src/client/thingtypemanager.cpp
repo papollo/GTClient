@@ -34,6 +34,15 @@
 #include <framework/core/filestream.h>
 #include <framework/core/resourcemanager.h>
 #include <framework/otml/otml.h>
+#include <framework/stdext/string.h>
+
+#include <pugixml.hpp>
+
+#include <filesystem>
+#include <algorithm>
+#include <cstdlib>
+#include <limits>
+#include <unordered_set>
 
 #include <client/spriteappearances.h>
 
@@ -79,6 +88,8 @@ bool ThingTypeManager::loadDat(std::string file)
     try {
         file = g_resources.guessFilePath(file, "dat");
 
+        const std::string resolvedDatPath = g_resources.resolvePath(file);
+
         const auto& fin = g_resources.openFile(file);
         fin->cache(true);
 
@@ -103,6 +114,7 @@ bool ThingTypeManager::loadDat(std::string file)
 
         m_datLoaded = true;
         g_lua.callGlobalField("g_things", "onLoadDat", file);
+        loadItemRarities(resolvedDatPath);
         return true;
     } catch (const stdext::exception& e) {
         g_logger.error("Failed to read dat '{}': {}'", file, e.what());
@@ -138,6 +150,7 @@ bool ThingTypeManager::loadOtml(std::string file)
                 type->unserializeOtml(node2);
             }
         }
+        loadItemRarities(file);
         return true;
     } catch (const std::exception& e) {
         g_logger.error("Failed to read dat otml '{}': {}'", file, e.what());
@@ -212,6 +225,7 @@ bool ThingTypeManager::loadAppearances(const std::string& file)
                 }
             }
         }
+        loadItemRarities(file);
         return true;
     } catch (const std::exception& e) {
         g_logger.error("Failed to load '{}' (Appearances): {}", file, e.what());
@@ -293,6 +307,217 @@ bool ThingTypeManager::loadStaticData(const std::string& file)
     }
 
     return false;
+}
+
+void ThingTypeManager::applyRarityToItem(const uint16_t serverId, const uint8_t rarity)
+{
+    if (serverId == 0)
+        return;
+
+    auto& items = m_thingTypes[ThingCategoryItem];
+    if (serverId >= items.size())
+        return;
+
+    const auto& type = items[serverId];
+    if (!type || type == m_nullThingType)
+        return;
+
+    type->setRarity(rarity);
+}
+
+bool ThingTypeManager::loadItemRaritiesFromXml(const std::string& filePath)
+{
+    pugi::xml_document doc;
+    const pugi::xml_parse_result result = doc.load_file(filePath.c_str());
+    if (!result) {
+        g_logger.warning("Failed to parse item rarity data '{}': {}", filePath, result.description());
+        return false;
+    }
+
+    const pugi::xml_node root = doc.child("items");
+    if (!root) {
+        g_logger.warning("Item rarity data '{}' does not contain an <items> root node.", filePath);
+        return false;
+    }
+
+    bool appliedAny = false;
+
+    const auto clampRarity = [](const int value) {
+        return static_cast<uint8_t>(std::clamp(value, 1, 5));
+    };
+
+    const auto applyList = [&](const std::string& value, const auto& fn) {
+        for (const auto& token : stdext::split(value, ";")) {
+            if (token.empty())
+                continue;
+
+            const auto range = stdext::split<int32_t>(token, "-");
+            if (range.size() == 2) {
+                int32_t first = range[0];
+                int32_t last = range[1];
+                if (first > last)
+                    std::swap(first, last);
+                for (int32_t id = first; id <= last; ++id) {
+                    if (id > 0 && id <= std::numeric_limits<uint16_t>::max())
+                        fn(static_cast<uint16_t>(id));
+                }
+            } else {
+                const int32_t id = std::atoi(token.c_str());
+                if (id > 0 && id <= std::numeric_limits<uint16_t>::max())
+                    fn(static_cast<uint16_t>(id));
+            }
+        }
+    };
+
+    const auto applyFromAttributeNodes = [&](const pugi::xml_node& node, const std::string& key, const auto& fn) {
+        for (pugi::xml_node attributeNode = node.child("attribute"); attributeNode; attributeNode = attributeNode.next_sibling("attribute")) {
+            const auto keyAttr = attributeNode.attribute("key");
+            if (!keyAttr)
+                continue;
+
+            std::string attributeKey = keyAttr.as_string();
+            stdext::tolower(attributeKey);
+            if (attributeKey != key)
+                continue;
+
+            if (const auto valueAttr = attributeNode.attribute("value"))
+                applyList(valueAttr.as_string(), fn);
+        }
+    };
+
+    for (pugi::xml_node element = root.child("item"); element; element = element.next_sibling("item")) {
+        bool hasRarity = false;
+        uint8_t rarity = 1;
+
+        if (const auto rarityAttr = element.attribute("rarity")) {
+            rarity = clampRarity(rarityAttr.as_int(1));
+            hasRarity = true;
+        } else {
+            for (pugi::xml_node attributeNode = element.child("attribute"); attributeNode; attributeNode = attributeNode.next_sibling("attribute")) {
+                const auto keyAttr = attributeNode.attribute("key");
+                if (!keyAttr)
+                    continue;
+
+                std::string attributeKey = keyAttr.as_string();
+                stdext::tolower(attributeKey);
+                if (attributeKey != "rarity")
+                    continue;
+
+                const auto valueAttr = attributeNode.attribute("value");
+                rarity = clampRarity(valueAttr ? valueAttr.as_int(1) : 1);
+                hasRarity = true;
+                break;
+            }
+        }
+
+        if (!hasRarity)
+            continue;
+
+        bool appliedEntry = false;
+
+        if (const auto clientIdAttr = element.attribute("clientid")) {
+            applyList(clientIdAttr.as_string(), [&](const uint16_t id) {
+                applyRarityToItem(id, rarity);
+                appliedEntry = true;
+            });
+        } else {
+            applyFromAttributeNodes(element, "clientid", [&](const uint16_t id) {
+                applyRarityToItem(id, rarity);
+                appliedEntry = true;
+            });
+        }
+
+        if (const auto idAttr = element.attribute("id")) {
+            applyList(idAttr.as_string(), [&](const uint16_t id) {
+                applyRarityToItem(id, rarity);
+                appliedEntry = true;
+            });
+        } else if (element.attribute("fromid") && element.attribute("toid")) {
+            const auto beginList = stdext::split<int32_t>(element.attribute("fromid").as_string(), ";");
+            const auto endList = stdext::split<int32_t>(element.attribute("toid").as_string(), ";");
+            if (!beginList.empty() && beginList.size() == endList.size()) {
+                for (size_t i = 0; i < beginList.size(); ++i) {
+                    int32_t beginId = beginList[i];
+                    int32_t endId = endList[i];
+                    if (beginId > endId)
+                        std::swap(beginId, endId);
+                    for (int32_t id = beginId; id <= endId; ++id) {
+                        if (id > 0 && id <= std::numeric_limits<uint16_t>::max()) {
+                            applyRarityToItem(static_cast<uint16_t>(id), rarity);
+                            appliedEntry = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!appliedEntry) {
+            applyFromAttributeNodes(element, "id", [&](const uint16_t id) {
+                applyRarityToItem(id, rarity);
+                appliedEntry = true;
+            });
+        }
+
+        appliedAny |= appliedEntry;
+    }
+
+    if (appliedAny)
+        g_logger.debug("Loaded item rarity information from '{}'", filePath);
+
+    return appliedAny;
+}
+
+void ThingTypeManager::loadItemRarities(const std::string& basePath)
+{
+    if (!m_datLoaded)
+        return;
+
+    std::unordered_set<std::string> visited;
+    const auto tryLoad = [&](const std::filesystem::path& candidate) {
+        if (candidate.empty())
+            return false;
+
+        std::error_code ec;
+        if (!std::filesystem::is_regular_file(candidate, ec))
+            return false;
+
+        const std::filesystem::path normalized = std::filesystem::weakly_canonical(candidate, ec);
+        const std::string key = ec ? candidate.lexically_normal().string() : normalized.string();
+        if (!visited.insert(key).second)
+            return false;
+
+        return loadItemRaritiesFromXml(candidate.string());
+    };
+
+    if (!basePath.empty()) {
+        std::filesystem::path base(basePath);
+        std::error_code ec;
+        if (std::filesystem::is_regular_file(base, ec))
+            base = base.parent_path();
+
+        if (!base.empty()) {
+            if (tryLoad(base / "items.xml"))
+                return;
+            if (tryLoad(base / "items" / "items.xml"))
+                return;
+        }
+    }
+
+    const std::vector<std::string> resourceCandidates = {
+        "/items/items.xml",
+        "/items.xml",
+        "/data/items/items.xml",
+        "/things/items.xml"
+    };
+
+    for (const auto& candidate : resourceCandidates) {
+        if (!g_resources.fileExists(candidate))
+            continue;
+
+        const std::string resolved = g_resources.resolvePath(candidate);
+        if (tryLoad(resolved))
+            return;
+    }
 }
 
 const ThingTypeList& ThingTypeManager::getThingTypes(const ThingCategory category)

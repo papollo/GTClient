@@ -29,6 +29,7 @@
 #include <framework/graphics/drawpoolmanager.h>
 #include <framework/luaengine/luaobject.h>
 #include <framework/otml/declarations.h>
+#include <algorithm>
 #include <variant>
 
 using namespace otclient::protobuf;
@@ -350,6 +351,9 @@ public:
     const Light& getLight() { return m_light; }
     const MarketData& getMarketData() { return m_market; }
     const std::vector<NPCData>& getNpcSaleData() { return m_npcData; }
+    uint8_t getRarity() const { return m_rarity; }
+    void setRarity(const uint8_t rarity) { m_rarity = std::max<uint8_t>(rarity, 1); }
+
     int getMeanPrice() {
         static constexpr std::array<std::pair<uint32_t, uint32_t>, 3> forcedPrices = { {
             {3043, 10000},
@@ -515,6 +519,7 @@ private:
     uint8_t m_clothSlot{ 0 };
     uint8_t m_lensHelp{ 0 };
     uint8_t m_elevation{ 0 };
+    uint8_t m_rarity{ 1 };
 
     PLAYER_ACTION m_defaultAction{ 0 };
 

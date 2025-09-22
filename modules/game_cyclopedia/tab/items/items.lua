@@ -268,13 +268,8 @@ function Cyclopedia.internalCreateItem(data)
         UI.InfoBase.ResultGoldBase.Value:setText(Cyclopedia.formatGold(item.Value))
         UI.SelectedItem.Sprite:setItemId(data:getId())
 
-        if price > 0 then
-            ItemsDatabase.setRarityItem(UI.SelectedItem.Rarity, price)
-            ItemsDatabase.setRarityItem(UI.InfoBase.ResultGoldBase.Rarity, price)
-        else
-            UI.InfoBase.ResultGoldBase.Rarity:setImageSource("")
-            UI.SelectedItem.Rarity:setImageSource("")
-        end
+        ItemsDatabase.setRarityItem(UI.SelectedItem.Rarity, internalData)
+        ItemsDatabase.setRarityItem(UI.InfoBase.ResultGoldBase.Rarity, internalData)
         widget:setBackgroundColor("#585858")
        
         if modules.game_quickloot.QuickLoot.data.filter == 2 then
