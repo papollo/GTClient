@@ -95,6 +95,10 @@ private:
     uint32_t m_datSignature{ 0 };
     uint16_t m_contentRevision{ 0 };
 
+    void loadItemRarities(const std::string& basePath = "");
+    bool loadItemRaritiesFromXml(const std::string& filePath);
+    void applyRarityToItem(uint16_t serverId, uint8_t rarity);
+
 #ifdef FRAMEWORK_EDITOR
     ItemTypePtr m_nullItemType;
     ItemTypeList m_reverseItemTypes;

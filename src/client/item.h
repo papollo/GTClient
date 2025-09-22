@@ -97,6 +97,10 @@ public:
     uint32_t getDurationTime() { return m_durationTime; }
     uint32_t getCharges() { return m_charges; }
     uint8_t getTier() { return m_tier; }
+    uint8_t getRarity() {
+        const auto* thingType = getThingType();
+        return thingType ? thingType->getRarity() : 1;
+    }
 
     bool isValid() { return getThingType() != nullptr; }
 
