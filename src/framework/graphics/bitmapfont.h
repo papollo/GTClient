@@ -26,6 +26,7 @@
 
 #include <framework/otml/declarations.h>
 
+#include <string>
 #include <utility>
 
 class BitmapFont
@@ -79,6 +80,7 @@ private:
     /// Calculates each font character by inspecting font bitmap
     void calculateGlyphsWidthsAutomatically(const ImagePtr& image, const Size& glyphSize);
     void updateColors(std::vector<std::pair<int, Color>>* colors, int pos, int newTextLen);
+    [[nodiscard]] std::string encodeText(std::string_view text) const;
 
     std::string m_name;
     int m_glyphHeight{ 0 };
@@ -88,4 +90,5 @@ private:
     TexturePtr m_texture;
     Rect m_glyphsTextureCoords[256];
     Size m_glyphsSize[256];
+    std::string m_charset{ "cp1252" };
 };

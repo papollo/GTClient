@@ -25,7 +25,10 @@
 #include "image.h"
 #include "texturemanager.h"
 
+#include <algorithm>
+#include <framework/core/graphicalapplication.h>
 #include <framework/otml/otml.h>
+#include <framework/stdext/string.h>
 
 #include "drawpoolmanager.h"
 
@@ -34,8 +37,40 @@ static std::vector<int> s_lineWidths(1);
 
 void BitmapFont::load(const OTMLNodePtr& fontNode)
 {
-    const auto& textureNode = fontNode->at("texture");
-    const auto& textureFile = stdext::resolve_path(textureNode->value(), textureNode->source());
+    m_charset = fontNode->valueAt("charset", "cp1252");
+    stdext::tolower(m_charset);
+
+    std::string textureName;
+    std::string textureSource;
+    if (const auto& charsetsNode = fontNode->get("charsets")) {
+        std::string desiredCharset = g_app.getCharset();
+        stdext::tolower(desiredCharset);
+
+        if (const auto& charsetNode = charsetsNode->get(desiredCharset)) {
+            textureName = charsetNode->value();
+            m_charset = charsetNode->tag();
+            textureSource = charsetNode->source();
+        } else {
+            for (const auto& child : charsetsNode->children()) {
+                if (!child->value().empty()) {
+                    textureName = child->value();
+                    m_charset = child->tag();
+                    textureSource = child->source();
+                    break;
+                }
+            }
+        }
+    }
+
+    if (textureName.empty()) {
+        const auto& textureNode = fontNode->at("texture");
+        textureName = textureNode->value();
+        textureSource = textureNode->source();
+    }
+
+    stdext::tolower(m_charset);
+
+    const auto& textureFile = stdext::resolve_path(textureName, textureSource.empty() ? fontNode->source() : textureSource);
     const auto& glyphSize = fontNode->valueAt<Size>("glyph-size");
     const int spaceWidth = fontNode->valueAt("space-width", glyphSize.width());
 
@@ -110,10 +145,11 @@ std::vector<std::pair<Rect, Rect>> BitmapFont::getDrawTextCoords(const std::stri
     if (!screenCoords.isValid() || !m_texture)
         return list;
 
-    const int textLenght = text.length();
+    const auto encodedText = encodeText(text);
+    const int textLenght = encodedText.length();
 
     for (int i = 0; i < textLenght; ++i) {
-        const int glyph = static_cast<uint8_t>(text[i]);
+        const int glyph = static_cast<uint8_t>(encodedText[i]);
 
         // skip invalid glyphs
         if (glyph < 32)
@@ -188,10 +224,11 @@ void BitmapFont::fillTextCoords(const CoordsBufferPtr& coords, const std::string
     if (!screenCoords.isValid() || !m_texture)
         return;
 
-    const int textLenght = text.length();
+    const auto encodedText = encodeText(text);
+    const int textLenght = encodedText.length();
 
     for (int i = 0; i < textLenght; ++i) {
-        const int glyph = static_cast<uint8_t>(text[i]);
+        const int glyph = static_cast<uint8_t>(encodedText[i]);
 
         // skip invalid glyphs
         if (glyph < 32)
@@ -265,8 +302,35 @@ void BitmapFont::fillTextColorCoords(std::vector<std::pair<Color, CoordsBufferPt
     if (!screenCoords.isValid() || !m_texture)
         return;
 
-    const int textLenght = text.length();
+    const auto encodedText = encodeText(text);
+    const int textLenght = encodedText.length();
     const int textColorsSize = textColors.size();
+
+    auto nextCharLength = [](const std::string_view str, const size_t index) {
+        const uint8_t lead = static_cast<uint8_t>(str[index]);
+        if (lead < 0x80)
+            return static_cast<size_t>(1);
+        if ((lead & 0xE0) == 0xC0)
+            return static_cast<size_t>(2);
+        if ((lead & 0xF0) == 0xE0)
+            return static_cast<size_t>(3);
+        if ((lead & 0xF8) == 0xF0)
+            return static_cast<size_t>(4);
+        return static_cast<size_t>(1);
+    };
+
+    std::vector<int> colorPositions(textColorsSize);
+    for (int idx = 0; idx < textColorsSize; ++idx) {
+        const int target = textColors[idx].first;
+        size_t utf8Pos = 0;
+        int encodedIndex = 0;
+        while (utf8Pos < text.size() && utf8Pos < static_cast<size_t>(target)) {
+            const size_t charLength = std::min(nextCharLength(text, utf8Pos), static_cast<size_t>(text.size()) - utf8Pos);
+            utf8Pos += charLength;
+            ++encodedIndex;
+        }
+        colorPositions[idx] = encodedIndex;
+    }
 
     std::map<uint32_t, CoordsBufferPtr> colorCoordsMap;
     uint32_t curColorRgba;
@@ -280,7 +344,7 @@ void BitmapFont::fillTextColorCoords(std::vector<std::pair<Color, CoordsBufferPt
                 curColorRgba = textColors[colorIndex].second.rgba();
             }
             if (colorIndex + 1 < textColorsSize) {
-                nextColorIndex = textColors[colorIndex + 1].first;
+                nextColorIndex = colorPositions[colorIndex + 1];
             } else {
                 nextColorIndex = textLenght;
             }
@@ -292,7 +356,7 @@ void BitmapFont::fillTextColorCoords(std::vector<std::pair<Color, CoordsBufferPt
             coords = colorCoordsMap[curColorRgba];
         }
 
-        const int glyph = static_cast<uint8_t>(text[i]);
+        const int glyph = static_cast<uint8_t>(encodedText[i]);
 
         // skip invalid glyphs
         if (glyph < 32)
@@ -361,7 +425,8 @@ void BitmapFont::fillTextColorCoords(std::vector<std::pair<Color, CoordsBufferPt
 
 const std::vector<Point>& BitmapFont::calculateGlyphsPositions(const std::string_view text, const Fw::AlignmentFlag align, Size* textBoxSize) const
 {
-    const int textLength = text.length();
+    const auto encodedText = encodeText(text);
+    const int textLength = encodedText.length();
     int maxLineWidth = 0;
     int lines = 0;
     int glyph;
@@ -381,7 +446,7 @@ const std::vector<Point>& BitmapFont::calculateGlyphsPositions(const std::string
     if ((align & Fw::AlignRight || align & Fw::AlignHorizontalCenter) || textBoxSize) {
         s_lineWidths[0] = 0;
         for (int i = 0; i < textLength; ++i) {
-            glyph = static_cast<uint8_t>(text[i]);
+            glyph = static_cast<uint8_t>(encodedText[i]);
 
             if (glyph == static_cast<uint8_t>('\n')) {
                 ++lines;
@@ -392,7 +457,7 @@ const std::vector<Point>& BitmapFont::calculateGlyphsPositions(const std::string
             } else if (glyph >= 32) {
                 s_lineWidths[lines] += m_glyphsSize[glyph].width();
                 // only add space if letter is not the last or before a \n
-                if ((i + 1 != textLength && text[i + 1] != '\n'))
+                if ((i + 1 != textLength && encodedText[i + 1] != '\n'))
                     s_lineWidths[lines] += m_glyphSpacing.width();
                 maxLineWidth = std::max<int>(maxLineWidth, s_lineWidths[lines]);
             }
@@ -402,7 +467,7 @@ const std::vector<Point>& BitmapFont::calculateGlyphsPositions(const std::string
     Point virtualPos(0, m_yOffset);
     lines = 0;
     for (int i = 0; i < textLength; ++i) {
-        glyph = static_cast<uint8_t>(text[i]);
+        glyph = static_cast<uint8_t>(encodedText[i]);
 
         // new line or first glyph
         if (glyph == static_cast<uint8_t>('\n') || i == 0) {
@@ -487,13 +552,28 @@ std::string BitmapFont::wrapText(const std::string_view text, const int maxWidth
 
     auto currentSize = 0;
     // break huge words into small ones
+    auto nextCharLength = [](const std::string& str, const size_t index) {
+        const uint8_t lead = static_cast<uint8_t>(str[index]);
+        if (lead < 0x80)
+            return static_cast<size_t>(1);
+        if ((lead & 0xE0) == 0xC0)
+            return static_cast<size_t>(2);
+        if ((lead & 0xF0) == 0xE0)
+            return static_cast<size_t>(3);
+        if ((lead & 0xF8) == 0xF0)
+            return static_cast<size_t>(4);
+        return static_cast<size_t>(1);
+    };
+
     for (const auto& word : wordsSplit) {
         const int wordWidth = calculateTextRectSize(word).width();
         if (wordWidth > maxWidth) {
             std::string newWord;
-            for (uint32_t j = 0; j < word.length(); ++j) {
-                std::string candidate = newWord + word[j];
-                if (j != word.length() - 1)
+            for (size_t j = 0; j < word.length();) {
+                const size_t charLength = std::min(nextCharLength(word, j), word.length() - j);
+                std::string candidate = newWord;
+                candidate.append(word, j, charLength);
+                if (j + charLength < word.length())
                     candidate += '-';
 
                 const int candidateWidth = calculateTextRectSize(candidate).width();
@@ -506,7 +586,8 @@ std::string BitmapFont::wrapText(const std::string_view text, const int maxWidth
                     updateColors(colors, currentSize - 2, 2);
                 }
 
-                newWord += word[j];
+                newWord.append(word, j, charLength);
+                j += charLength;
             }
 
             words.push_back(newWord);
@@ -546,4 +627,12 @@ void BitmapFont::updateColors(std::vector<std::pair<int, Color>>* colors, const 
             it.first += newTextLen;
         }
     }
+}
+
+std::string BitmapFont::encodeText(const std::string_view text) const
+{
+    if (m_charset.empty() || m_charset == "utf-8" || m_charset == "utf8")
+        return std::string(text);
+
+    return stdext::utf8_to_charset(text, m_charset);
 }

@@ -129,6 +129,7 @@ void Application::registerLuaFunctions()
     // Application
     g_lua.registerSingletonClass("g_app");
     g_lua.bindSingletonFunction("g_app", "setName", &Application::setName, static_cast<Application*>(&g_app));
+    g_lua.bindSingletonFunction("g_app", "setCharset", &Application::setCharset, static_cast<Application*>(&g_app));
     g_lua.bindSingletonFunction("g_app", "setCompactName", &Application::setCompactName, static_cast<Application*>(&g_app));
     g_lua.bindSingletonFunction("g_app", "setOrganizationName", &Application::setOrganizationName, static_cast<Application*>(&g_app));
     g_lua.bindSingletonFunction("g_app", "isRunning", &Application::isRunning, static_cast<Application*>(&g_app));
