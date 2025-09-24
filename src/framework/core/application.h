@@ -51,6 +51,7 @@ public:
         m_appName += " (DEBUG MODE)";
 #endif
     }
+    void setCharset(const std::string_view charset);
     void setCompactName(const std::string_view name) { m_appCompactName = name; }
     void setOrganizationName(const std::string_view name) { m_organizationName = name; }
 
