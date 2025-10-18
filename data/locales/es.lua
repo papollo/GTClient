@@ -409,6 +409,7 @@ locale = {
     ["HuntingSkill"] = "Hunting",
     ["MagicCircleSkill"] = "Magic cirlce",
     ["AcrobaticSkill"] = "Acrobatic",
+    ["AlchemySkill"] = "Alchemy",
     ["Show all items"] = "Mostrar todos los objetos",
     ["Show an extra right panel"] = "Mostrar un panel derecho extra",
     ["Show connection ping"] = "Mostrar ping de conexión",

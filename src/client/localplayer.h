@@ -83,6 +83,7 @@ public:
     void setHuntingSkill(uint8_t huntingSkill);
     void setMagicCircleSkill(uint8_t magicCircleSkill);
     void setAcrobaticSkill(uint8_t acrobaticSkill);
+    void setAlchemySkill(uint8_t alchemySkill);
 
     uint16_t getLearningPoints() { return m_learningPoints; };
 
@@ -101,6 +102,7 @@ public:
 	uint8_t getHuntingSkill() { return m_huntingSkill; };
 	uint8_t getMagicCircleSkill() { return m_magicCircleSkill; };
 	uint8_t getAcrobaticSkill() { return m_acrobaticSkill; };
+	uint8_t getAlchemySkill() { return m_alchemySkill; };
 
     uint32_t getFreeCapacity() { return m_freeCapacity; }
     uint32_t getTotalCapacity() { return m_totalCapacity; }
@@ -252,6 +254,7 @@ private:
 	uint8_t m_huntingSkill{ 0 };
 	uint8_t m_magicCircleSkill{ 0 };
 	uint8_t m_acrobaticSkill{ 0 };
+	uint8_t m_alchemySkill{ 0 };
 
     friend class Game;
 };

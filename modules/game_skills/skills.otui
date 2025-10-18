@@ -373,6 +373,13 @@ MiniWindow
         !text: tr('AcrobaticSkill')
       SkillValueLabel
 
+    SkillButton
+      id: alchemySkill
+      height: 15
+      SkillNameLabel
+        !text: tr('AlchemySkill')
+      SkillValueLabel
+
     HorizontalSeparator
       margin-top: 5
       margin-bottom: 5

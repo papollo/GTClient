@@ -545,6 +545,17 @@ void LocalPlayer::setAcrobaticSkill(uint8_t acrobaticSkill)
     callLuaField("onAcrobaticSkillChange", acrobaticSkill, oldAcrobaticSkill);
 }
 
+void LocalPlayer::setAlchemySkill(uint8_t alchemySkill)
+{
+    if (m_alchemySkill == alchemySkill)
+        return;
+
+    const uint8_t oldAlchemySkill = m_alchemySkill;
+    m_alchemySkill = alchemySkill;
+
+    callLuaField("onAlchemySkillChange", alchemySkill, oldAlchemySkill);
+}
+
 void LocalPlayer::setLevel(const uint16_t level, const uint8_t levelPercent)
 {
     if (m_level == level && m_levelPercent == levelPercent)

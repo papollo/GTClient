@@ -45,6 +45,7 @@ function init()
         onHuntingSkillChange = onHuntingSkillChange,
         onMagicCircleSkillChange = onMagicCircleSkillChange,
         onAcrobaticSkillChange = onAcrobaticSkillChange,
+        onAlchemySkillChange = onAlchemySkillChange ,
         onMagicLevelBonusChange = onMagicLevelBonusChange,
         onOneHandedBonusSkillChange = onOneHandedBonusSkillChange,
         onTwoHandedBonusSkillChange = onTwoHandedBonusSkillChange,
@@ -113,6 +114,7 @@ function terminate()
         onHuntingSkillChange = onHuntingSkillChange,
         onMagicCircleSkillChange = onMagicCircleSkillChange,
         onAcrobaticSkillChange = onAcrobaticSkillChange,
+        onAlchemySkillChange = onAlchemySkillChange ,
         onMagicLevelBonusChange = onMagicLevelBonusChange,
         onOneHandedBonusSkillChange = onOneHandedBonusSkillChange,
         onTwoHandedBonusSkillChange = onTwoHandedBonusSkillChange,
@@ -331,6 +333,7 @@ function refresh()
     onHuntingSkillChange(player, player:getHuntingSkill())
     onMagicCircleSkillChange(player, player:getMagicCircleSkill())
     onAcrobaticSkillChange(player, player:getAcrobaticSkill())
+    onAlchemySkillChange(player, player:getAlchemySkill())
     onMagicLevelBonusChange(player, player:getMagicLevelBonusSkill())
     onOneHandedBonusSkillChange(player, player:getOneHandedBonusSkill())
     onTwoHandedBonusSkillChange(player, player:getTwoHandedBonusSkill())
@@ -649,6 +652,15 @@ function onAcrobaticSkillChange(localPlayer, acrobaticSkill)
         local widget = skillWidget:getChildById('value')
         widget:setText(acrobaticSkill .. "/1")
         skillWidget:setTooltip(tr("AcrobaticSkillFull"))
+    end
+end
+
+function onAlchemySkillChange(localPlayer, alchemySkill)
+    local skillWidget = skillsWindow:recursiveGetChildById('alchemySkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(alchemySkill .. "/3")
+        skillWidget:setTooltip(tr("AlchemySkillFull"))
     end
 end
 

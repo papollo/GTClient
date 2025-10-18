@@ -860,6 +860,7 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<LocalPlayer>("setHuntingSkill", &LocalPlayer::setHuntingSkill);
     g_lua.bindClassMemberFunction<LocalPlayer>("setMagicCircleSkill", &LocalPlayer::setMagicCircleSkill);
     g_lua.bindClassMemberFunction<LocalPlayer>("setAcrobaticSkill", &LocalPlayer::setAcrobaticSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("setAlchemySkill", &LocalPlayer::setAlchemySkill);
 
     g_lua.bindClassMemberFunction<LocalPlayer>("setLevel", &LocalPlayer::setLevel);
     g_lua.bindClassMemberFunction<LocalPlayer>("setMana", &LocalPlayer::setMana);
@@ -898,6 +899,7 @@ void Client::registerLuaFunctions()
     g_lua.bindClassMemberFunction<LocalPlayer>("getHuntingSkill", &LocalPlayer::getHuntingSkill);
     g_lua.bindClassMemberFunction<LocalPlayer>("getMagicCircleSkill", &LocalPlayer::getMagicCircleSkill);
     g_lua.bindClassMemberFunction<LocalPlayer>("getAcrobaticSkill", &LocalPlayer::getAcrobaticSkill);
+    g_lua.bindClassMemberFunction<LocalPlayer>("getAlchemySkill", &LocalPlayer::getAlchemySkill);
 
     g_lua.bindClassMemberFunction<LocalPlayer>("getLevel", &LocalPlayer::getLevel);
     g_lua.bindClassMemberFunction<LocalPlayer>("getLevelPercent", &LocalPlayer::getLevelPercent);

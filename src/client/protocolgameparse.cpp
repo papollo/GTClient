@@ -2275,6 +2275,7 @@ void ProtocolGame::parseGothicTalesPlayerSkills(const InputMessagePtr& msg) cons
     const uint8_t huntingSkill = msg->getU8();
     const uint8_t magicCircleSkill = msg->getU8();
     const uint8_t acrobaticSkill = msg->getU8();
+    const uint8_t alchemySkill = msg->getU8();
 
 	m_localPlayer->setLockPickSkill(lockPickSkill);
 	m_localPlayer->setBreakLockSkill(breakLockSkill);
@@ -2285,6 +2286,7 @@ void ProtocolGame::parseGothicTalesPlayerSkills(const InputMessagePtr& msg) cons
 	m_localPlayer->setHuntingSkill(huntingSkill);
 	m_localPlayer->setMagicCircleSkill(magicCircleSkill);
 	m_localPlayer->setAcrobaticSkill(acrobaticSkill);
+	m_localPlayer->setAlchemySkill(alchemySkill);
 }
 
 void ProtocolGame::parseGothicTalesPlayerBonusSkills(const InputMessagePtr& msg) const
