@@ -185,6 +185,11 @@ function setLocale(name)
         sendLocale(locale.name)
     end
     currentLocale = locale
+    if locale.charset then
+        g_app.setCharset(locale.charset)
+    else
+        g_app.setCharset('cp1252')
+    end
     g_settings.set('locale', name)
     if onLocaleChanged then
         onLocaleChanged(name)

@@ -40,6 +40,7 @@
 #define ADD_QUOTES(s) ADD_QUOTES_HELPER(s)
 
 #include <locale>
+#include <framework/stdext/string.h>
 
 #ifdef FRAMEWORK_NET
 #ifdef __EMSCRIPTEN__
@@ -108,6 +109,12 @@ void Application::init(std::vector<std::string>& args, ApplicationContext* conte
 
     // initalize proxy
     g_proxy.init();
+}
+
+void Application::setCharset(const std::string_view charset)
+{
+    m_charset = charset;
+    stdext::tolower(m_charset);
 }
 
 void Application::deinit()

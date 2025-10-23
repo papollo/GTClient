@@ -28,6 +28,7 @@
 #include <framework/core/resourcemanager.h>
 #include <framework/graphics/image.h>
 #include "framework/core/graphicalapplication.h"
+#include <framework/stdext/string.h>
 
 #ifdef NDEBUG
 #include <timeapi.h>
@@ -607,11 +608,15 @@ LRESULT WIN32Window::windowProc(const HWND hWnd, const uint32_t uMsg, const WPAR
         }
         case WM_CHAR:
         {
-            if (wParam >= 32 && wParam <= 255) {
+            if (wParam >= 32) {
                 m_inputEvent.reset(Fw::KeyTextInputEvent);
-                m_inputEvent.keyText = wParam;
-                if (m_onInputEvent)
-                    m_onInputEvent(m_inputEvent);
+                const std::wstring utf16Char(1, static_cast<wchar_t>(wParam));
+                const std::string utf8Char = stdext::utf16_to_utf8(utf16Char);
+                if (!utf8Char.empty()) {
+                    m_inputEvent.keyText = utf8Char;
+                    if (m_onInputEvent)
+                        m_onInputEvent(m_inputEvent);
+                }
             }
             break;
         }
@@ -1007,15 +1012,14 @@ void WIN32Window::setClipboardText(const std::string_view text)
         if (!OpenClipboard(m_window))
             return;
 
-        const HGLOBAL hglb = GlobalAlloc(GMEM_MOVEABLE, (text.length() + 1) * sizeof(WCHAR));
+        const std::wstring wtext = stdext::utf8_to_utf16(text);
+        const HGLOBAL hglb = GlobalAlloc(GMEM_MOVEABLE, (wtext.length() + 1) * sizeof(WCHAR));
         if (!hglb)
             return;
 
-        const std::wstring wtext = stdext::latin1_to_utf16(text);
-
         auto* lpwstr = static_cast<LPWSTR>(GlobalLock(hglb));
         memcpy(lpwstr, &wtext[0], wtext.length() * sizeof(WCHAR));
-        lpwstr[text.length()] = static_cast<WCHAR>(0);
+        lpwstr[wtext.length()] = static_cast<WCHAR>(0);
         GlobalUnlock(hglb);
 
         EmptyClipboard();
@@ -1040,7 +1044,7 @@ std::string WIN32Window::getClipboardText()
     if (hglb) {
         const auto* const lpwstr = static_cast<LPWSTR>(GlobalLock(hglb));
         if (lpwstr) {
-            text = stdext::utf16_to_latin1(lpwstr);
+            text = stdext::utf16_to_utf8(lpwstr);
             GlobalUnlock(hglb);
         }
     }
