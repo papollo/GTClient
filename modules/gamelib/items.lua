@@ -1,87 +1,137 @@
 ItemsDatabase = {}
 
 ItemsDatabase.rarityColors = {
-    ["yellow"] = TextColors.yellow,
-    ["purple"] = TextColors.purple,
-    ["blue"] = TextColors.blue,
-    ["green"] = TextColors.green,
-    ["grey"] = TextColors.grey,
+    [1] = TextColors.white,
+    [2] = TextColors.green,
+    [3] = TextColors.blue,
+    [4] = TextColors.purple,
+    [5] = TextColors.yellow
 }
 
-local function getColorForValue(value)
-    if value >= 1000000 then
-        return "yellow"
-    elseif value >= 100000 then
-        return "purple"
-    elseif value >= 10000 then
-        return "blue"
-    elseif value >= 1000 then
-        return "green"
-    elseif value >= 50 then
-        return "grey"
-    else
-        return "white"
+ItemsDatabase.rarityImages = {
+    [1] = "/images/ui/rarity_white.png",
+    [2] = "/images/ui/rarity_green.png",
+    [3] = "/images/ui/rarity_blue.png",
+    [4] = "/images/ui/rarity_purple.png",
+    [5] = "/images/ui/rarity_yellow.png"
+}
+
+ItemsDatabase.cornerClips = {
+    [1] = "0 0 32 32",
+    [2] = "32 0 32 32",
+    [3] = "64 0 32 32",
+    [4] = "96 0 32 32",
+    [5] = "128 0 32 32"
+}
+
+local function clampRarity(rarity)
+    rarity = math.floor(rarity or 1)
+    if rarity < 1 then
+        return 1
+    elseif rarity > 5 then
+        return 5
     end
+    return rarity
 end
 
-local function clipfunction(value)
-    if value >= 1000000 then
-        return "128 0 32 32"
-    elseif value >= 100000 then
-        return "96 0 32 32"
-    elseif value >= 10000 then
-        return "64 0 32 32"
-    elseif value >= 1000 then
-        return "32 0 32 32"
-    elseif value >= 50 then
-        return "0 0 32 32"
+local function resolveItemRarity(item)
+    if not item then
+        return 1
     end
-    return ""
+
+    local valueType = type(item)
+    if valueType == "number" then
+        if item <= 5 then
+            return clampRarity(item)
+        end
+
+        local thing = g_things.getThingType(item, ThingCategoryItem)
+        if thing and thing.getRarity then
+            local ok, rarity = pcall(function() return thing:getRarity() end)
+            if ok and type(rarity) == "number" then
+                return clampRarity(rarity)
+            end
+        end
+        return 1
+    end
+
+    local ok, rarity = pcall(function()
+        if item.getRarity then
+            return item:getRarity()
+        end
+
+        if item.getThingType then
+            local thingType = item:getThingType()
+            if thingType and thingType.getRarity then
+                return thingType:getRarity()
+            end
+        end
+
+        if item.getItemId then
+            local itemId = item:getItemId()
+            if itemId then
+                local thingType = g_things.getThingType(itemId, ThingCategoryItem)
+                if thingType and thingType.getRarity then
+                    return thingType:getRarity()
+                end
+            end
+        end
+
+        return 1
+    end)
+
+    if ok and type(rarity) == "number" then
+        return clampRarity(rarity)
+    end
+
+    return 1
 end
 
 function ItemsDatabase.setRarityItem(widget, item, style)
     if not g_game.getFeature(GameColorizedLootValue) or not widget then
         return
     end
-    local frameOption = modules.client_options.getOption('framesRarity')
+    local frameOption = modules.client_options.getOption('framesRarity') or 'frames'
     if frameOption == "none" then
+        widget:setImageClip(nil)
+        widget:setImageSource("")
         return
     end
-    local imagePath = '/images/ui/item'
-    local clip = nil
-    if item then
-        local price = type(item) == "number" and item or (item and item:getMeanPrice()) or 0
-        local itemRarity = getColorForValue(price)
-        if itemRarity then
-            clip = clipfunction(price)
-            if clip ~= "" then
-                if frameOption == "frames" then
-                    imagePath = "/images/ui/rarity_frames"
-                elseif frameOption == "corners" then
-                    imagePath = "/images/ui/containerslot-coloredges"
-                end
-            else
-                clip = nil
-            end
+    local rarity = resolveItemRarity(item)
+    local imageSource = ItemsDatabase.rarityImages[rarity] or ""
+
+    if frameOption == "corners" then
+        widget:setImageSource("/images/ui/containerslot-coloredges")
+        local clip = ItemsDatabase.cornerClips[rarity]
+        if clip and clip ~= "" then
+            widget:setImageClip(clip)
+        else
+            widget:setImageClip(nil)
         end
+    else
+        widget:setImageClip(nil)
+        widget:setImageSource(imageSource)
     end
-    widget:setImageClip(clip)
-    widget:setImageSource(imagePath)
+
     if style then
         widget:setStyle(style)
     end
 end
 
 function ItemsDatabase.getColorForRarity(rarity)
-    return ItemsDatabase.rarityColors[rarity] or TextColors.white
+    return ItemsDatabase.rarityColors[clampRarity(rarity)] or TextColors.white
 end
 
 function ItemsDatabase.setColorLootMessage(text)
     local function coloringLootName(match)
         local id, itemName = match:match("(%d+)|(.+)")
-        local itemInfo = g_things.getThingType(tonumber(id), ThingCategoryItem):getMeanPrice()
-        if itemInfo then
-            local color = ItemsDatabase.getColorForRarity(getColorForValue(itemInfo))
+        if not id then
+            return match
+        end
+
+        local thingType = g_things.getThingType(tonumber(id), ThingCategoryItem)
+        if thingType and thingType.getRarity then
+            local color = ItemsDatabase.getColorForRarity(thingType:getRarity())
             return "{" .. itemName .. ", " .. color .. "}"
         else
             return itemName
