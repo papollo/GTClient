@@ -1445,6 +1445,12 @@ void ProtocolGame::parseOpenContainer(const InputMessagePtr& msg)
 {
     const uint8_t containerId = msg->getU8();
     const auto& containerItem = getItem(msg);
+    if (g_game.getOs() >= Otc::CLIENTOS_OTCLIENT_LINUX) {
+        const uint8_t tier = msg->getU8();
+        if (containerItem) {
+            containerItem->setTier(tier);
+        }
+    }
     const auto& name = msg->getString();
     const uint8_t capacity = msg->getU8();
     const bool hasParent = static_cast<bool>(msg->getU8());
@@ -1470,7 +1476,14 @@ void ProtocolGame::parseOpenContainer(const InputMessagePtr& msg)
     items.reserve(itemCount);
 
     for (auto i = 0; i < itemCount; i++) {
-        items.push_back(getItem(msg));
+        const auto& item = getItem(msg);
+        if (g_game.getOs() >= Otc::CLIENTOS_OTCLIENT_LINUX) {
+            const uint8_t tier = msg->getU8();
+            if (item) {
+                item->setTier(tier);
+            }
+        }
+        items.push_back(item);
     }
 
     if (g_game.getFeature(Otc::GameContainerFilter)) {
@@ -1501,6 +1514,12 @@ void ProtocolGame::parseContainerAddItem(const InputMessagePtr& msg)
     const uint8_t containerId = msg->getU8();
     const uint16_t slot = g_game.getFeature(Otc::GameContainerPagination) ? msg->getU16() : 0;
     const auto& item = getItem(msg);
+    if (g_game.getOs() >= Otc::CLIENTOS_OTCLIENT_LINUX) {
+        const uint8_t tier = msg->getU8();
+        if (item) {
+            item->setTier(tier);
+        }
+    }
 
     g_game.processContainerAddItem(containerId, item, slot);
 }
@@ -1510,6 +1529,12 @@ void ProtocolGame::parseContainerUpdateItem(const InputMessagePtr& msg)
     const uint8_t containerId = msg->getU8();
     const uint16_t slot = g_game.getFeature(Otc::GameContainerPagination) ? msg->getU16() : msg->getU8();
     const auto& item = getItem(msg);
+    if (g_game.getOs() >= Otc::CLIENTOS_OTCLIENT_LINUX) {
+        const uint8_t tier = msg->getU8();
+        if (item) {
+            item->setTier(tier);
+        }
+    }
 
     g_game.processContainerUpdateItem(containerId, slot, item);
 }
@@ -1526,6 +1551,12 @@ void ProtocolGame::parseContainerRemoveItem(const InputMessagePtr& msg)
         const uint16_t itemId = msg->getU16();
         if (itemId != 0) {
             lastItem = getItem(msg, itemId);
+            if (g_game.getOs() >= Otc::CLIENTOS_OTCLIENT_LINUX) {
+                const uint8_t tier = msg->getU8();
+                if (lastItem) {
+                    lastItem->setTier(tier);
+                }
+            }
         }
     } else {
         slot = msg->getU8();

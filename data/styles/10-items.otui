@@ -243,3 +243,23 @@ MainInventoryItem < UIWidget
       image-smooth: true
 
       
+ContainerItemSlot < UIWidget
+  size: 34 34
+  image-source: /images/ui/item
+
+  UIWidget
+    id: tierFrame
+    anchors.fill: parent
+    image-source: ""
+    phantom: true
+    focusable: false
+    enabled: false
+    visible: false
+    image-smooth: true
+
+  Item
+    id: item
+    anchors.centerIn: parent
+    size: 34 34
+    padding: 1
+    image-source: ""

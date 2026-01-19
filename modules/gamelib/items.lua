@@ -8,6 +8,13 @@ ItemsDatabase.rarityColors = {
     ["grey"] = TextColors.grey,
 }
 
+ItemsDatabase.tierFrameImages = {
+    [2] = '/images/ui/rarity_grey',
+    [3] = '/images/ui/rarity_blue',
+    [4] = '/images/ui/rarity_purple',
+    [5] = '/images/ui/rarity_yellow'
+}
+
 local function getColorForValue(value)
     if value >= 1000000 then
         return "yellow"
@@ -106,6 +113,31 @@ function ItemsDatabase.setTier(widget, item)
         widget.tier:setVisible(true)
     else
         widget.tier:setVisible(false)
+    end
+end
+
+function ItemsDatabase.setTierFrame(widget, item)
+    if not widget or not widget.tierFrame then
+        return
+    end
+
+    if widget.tierFrame then
+        widget:lowerChild(widget.tierFrame)
+    end
+
+    local tier = type(item) == "number" and item or (item and item:getTier()) or 0
+    tier = math.floor(tonumber(tier) or 0)
+    local image = nil
+    if tier and tier > 1 then
+        image = ItemsDatabase.tierFrameImages[math.floor(tier)]
+    end
+
+    if image then
+        widget.tierFrame:setImageSource(image)
+        widget.tierFrame:setVisible(true)
+    else
+        widget.tierFrame:setImageSource('')
+        widget.tierFrame:setVisible(false)
     end
 end
 

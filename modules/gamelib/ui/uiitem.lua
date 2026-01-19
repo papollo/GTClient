@@ -34,8 +34,12 @@ function UIItem:onDrop(widget, mousePos, forced)
   end
 
   local toPos = self.position
+  if not toPos and self:getParent() and self:getParent().slotPosition then
+    toPos = self:getParent().slotPosition
+  end
 
   local itemPos = item:getPosition()
+  if not itemPos or not toPos then return false end
   if itemPos.x == toPos.x and itemPos.y == toPos.y and itemPos.z == toPos.z then return false end
 
   if item:getCount() > 1 then

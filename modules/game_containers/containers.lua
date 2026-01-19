@@ -49,13 +49,17 @@ end
 
 function refreshContainerItems(container)
     for slot = 0, container:getCapacity() - 1 do
-        local itemWidget = container.itemsPanel:getChildById('item' .. slot)
-        itemWidget:setItem(container:getItem(slot))
-        ItemsDatabase.setRarityItem(itemWidget, container:getItem(slot))
-        ItemsDatabase.setTier(itemWidget, container:getItem(slot))
+        local slotWidget = container.itemsPanel:getChildById('item' .. slot)
+        local itemWidget = slotWidget:getChildById('item')
+        local item = container:getItem(slot)
+        itemWidget:setItem(item)
+        itemWidget.position = container:getSlotPosition(slot)
+        ItemsDatabase.setRarityItem(slotWidget, item)
+        ItemsDatabase.setTier(itemWidget, item)
+        ItemsDatabase.setTierFrame(slotWidget, item)
         if modules.client_options.getOption('showExpiryInContainers') then
-            ItemsDatabase.setCharges(itemWidget, container:getItem(slot))
-            ItemsDatabase.setDuration(itemWidget, container:getItem(slot))
+            ItemsDatabase.setCharges(itemWidget, item)
+            ItemsDatabase.setDuration(itemWidget, item)
         end
     end
 
@@ -139,16 +143,19 @@ function onContainerOpen(container, previousContainer)
 
     containerPanel:destroyChildren()
     for slot = 0, container:getCapacity() - 1 do
-        local itemWidget = g_ui.createWidget('Item', containerPanel)
-        itemWidget:setId('item' .. slot)
-        itemWidget:setItem(container:getItem(slot))
-        ItemsDatabase.setRarityItem(itemWidget, container:getItem(slot))
-        ItemsDatabase.setTier(itemWidget, container:getItem(slot))
+        local slotWidget = g_ui.createWidget('ContainerItemSlot', containerPanel)
+        slotWidget:setId('item' .. slot)
+        local itemWidget = slotWidget:getChildById('item')
+        local item = container:getItem(slot)
+        itemWidget:setItem(item)
+        ItemsDatabase.setRarityItem(slotWidget, item)
+        ItemsDatabase.setTier(itemWidget, item)
+        ItemsDatabase.setTierFrame(slotWidget, item)
         if modules.client_options.getOption('showExpiryInContainers') then
-            ItemsDatabase.setCharges(itemWidget, container:getItem(slot))
-            ItemsDatabase.setDuration(itemWidget, container:getItem(slot))
+            ItemsDatabase.setCharges(itemWidget, item)
+            ItemsDatabase.setDuration(itemWidget, item)
         end
-        itemWidget:setMargin(0)
+        slotWidget:setMargin(0)
         itemWidget.position = container:getSlotPosition(slot)
 
         if not container:isUnlocked() then
@@ -197,8 +204,13 @@ function onContainerUpdateItem(container, slot, item, oldItem)
     if not container.window then
         return
     end
-    local itemWidget = container.itemsPanel:getChildById('item' .. slot)
+    local slotWidget = container.itemsPanel:getChildById('item' .. slot)
+    local itemWidget = slotWidget:getChildById('item')
     itemWidget:setItem(item)
+    itemWidget.position = container:getSlotPosition(slot)
+    ItemsDatabase.setRarityItem(slotWidget, item)
+    ItemsDatabase.setTier(itemWidget, item)
+    ItemsDatabase.setTierFrame(slotWidget, item)
     if modules.client_options.getOption('showExpiryInContainers') then
         ItemsDatabase.setCharges(itemWidget, container:getItem(slot))
         ItemsDatabase.setDuration(itemWidget, container:getItem(slot))
