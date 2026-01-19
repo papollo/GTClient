@@ -5,6 +5,15 @@ local itemSlotsWithDuration = {}
 local updateSlotsDurationEvent = nil
 local DURATION_UPDATE_INTERVAL = 1000
 local pvpModeRadioGroup = nil 
+local INVENTORY_TIER_OPCODE = 200
+local inventoryTierBySlot = {}
+local tierOpcodeRegistered = false
+local tierFrameImages = {
+    [2] = '/images/ui/rarity_grey',
+    [3] = '/images/ui/rarity_blue',
+    [4] = '/images/ui/rarity_purple',
+    [5] = '/images/ui/rarity_yellow'
+}
 
 local function getInventoryUi()
     if inventoryShrink then
@@ -29,6 +38,133 @@ local getSlotPanelBySlot = {
 
 local function formatDuration(duration)
     return string.format("%dm%02d", duration / 60, duration % 60)
+end
+
+local function normalizeTier(tier)
+    tier = tonumber(tier)
+    if not tier then
+        return nil
+    end
+    tier = math.floor(tier)
+    if tier < 1 or tier > 5 then
+        return nil
+    end
+    return tier
+end
+
+local function applyTierFrame(slotPanel, slot, item)
+    if not slotPanel or not slotPanel.tierFrame then
+        return
+    end
+    if slotPanel.item then
+        slotPanel:lowerChild(slotPanel.tierFrame)
+        slotPanel:raiseChild(slotPanel.item)
+    end
+    if not item then
+        slotPanel.tierFrame:setImageSource('')
+        slotPanel.tierFrame:setVisible(false)
+        return
+    end
+    local image = tierFrameImages[inventoryTierBySlot[slot]]
+    
+    if image then
+        slotPanel.tierFrame:setImageSource(image)
+        slotPanel.tierFrame:setVisible(true)
+    else
+        slotPanel.tierFrame:setImageSource('')
+        slotPanel.tierFrame:setVisible(false)
+    end
+end
+
+local function updateSlotTierFrame(slot, item)
+    if inventoryShrink then
+        return
+    end
+
+    local ui = getInventoryUi()
+    local getSlotInfo = getSlotPanelBySlot[slot]
+    if not getSlotInfo then
+        return
+    end
+
+    local slotPanel = getSlotInfo(ui)
+    if not slotPanel then
+        return
+    end
+
+    if item == nil then
+        local player = g_game.getLocalPlayer()
+        if player then
+            item = player:getInventoryItem(slot)
+        end
+    end
+
+    applyTierFrame(slotPanel, slot, item)
+end
+
+local function refreshTierFrames()
+    if inventoryShrink then
+        return
+    end
+
+    for slot = InventorySlotFirst, InventorySlotLast do
+        updateSlotTierFrame(slot)
+    end
+end
+
+local function clearTierFrames()
+    inventoryTierBySlot = {}
+    refreshTierFrames()
+end
+
+local function onInventoryTierOpcode(protocol, opcode, data)
+    if type(data) ~= 'table' then
+        return
+    end
+
+    local msgType = data.type
+    if msgType == 'full' then
+        inventoryTierBySlot = {}
+        if type(data.inv) == 'table' then
+            for _, entry in ipairs(data.inv) do
+                local slot = tonumber(entry.slot)
+                if slot and slot >= InventorySlotFirst and slot <= InventorySlotLast then
+                    local tier = normalizeTier(entry.tier)
+                    if tier and tier > 1 then
+                        inventoryTierBySlot[slot] = tier
+                    end
+                end
+            end
+        end
+        refreshTierFrames()
+        return
+    end
+
+    if msgType == 'set' then
+        local slot = tonumber(data.slot)
+        if not slot or slot < InventorySlotFirst or slot > InventorySlotLast then
+            return
+        end
+
+        local tier = normalizeTier(data.tier)
+
+        if not tier or tier == 1 then
+            inventoryTierBySlot[slot] = nil
+        else
+            inventoryTierBySlot[slot] = tier
+        end
+        updateSlotTierFrame(slot)
+        return
+    end
+
+    if msgType == 'clear' then
+        local slot = tonumber(data.slot)
+        if slot and slot >= InventorySlotFirst and slot <= InventorySlotLast then
+            inventoryTierBySlot[slot] = nil
+            updateSlotTierFrame(slot)
+        end
+        return
+    end
 end
 
 local function stopEvent()
@@ -152,6 +288,7 @@ local function inventoryEvent(player, slot, item, oldItem)
         ItemsDatabase.setCharges(slotPanel.item, item)
     end
     ItemsDatabase.setTier(slotPanel.item, item)
+    applyTierFrame(slotPanel, slot, item)
 end
 
 local function onSoulChange(localPlayer, soul)
@@ -281,6 +418,12 @@ function inventoryController:onInit()
 end
 
 function inventoryController:onGameStart()
+    inventoryTierBySlot = {}
+    if not tierOpcodeRegistered then
+        ProtocolGame.registerExtendedJSONOpcode(INVENTORY_TIER_OPCODE, onInventoryTierOpcode)
+        tierOpcodeRegistered = true
+    end
+
     local player = g_game.getLocalPlayer()
     if player then
         local char = g_game.getCharacterName()
@@ -342,6 +485,11 @@ end
 
 function inventoryController:onGameEnd()
     stopEvent()
+    clearTierFrames()
+    if tierOpcodeRegistered then
+        pcall(ProtocolGame.unregisterExtendedJSONOpcode, INVENTORY_TIER_OPCODE)
+        tierOpcodeRegistered = false
+    end
 
     local lastCombatControls = g_settings.getNode('LastCombatControls')
     if not lastCombatControls then
@@ -366,6 +514,10 @@ function inventoryController:onTerminate()
     if iconTopMenu then
         iconTopMenu:destroy()
         iconTopMenu = nil
+    end
+    if tierOpcodeRegistered then
+        pcall(ProtocolGame.unregisterExtendedJSONOpcode, INVENTORY_TIER_OPCODE)
+        tierOpcodeRegistered = false
     end
     if pvpModeRadioGroup then
         disconnect(pvpModeRadioGroup, {

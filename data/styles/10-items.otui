@@ -197,6 +197,16 @@ MainInventoryItem < UIWidget
     $!disabled:
       opacity: 1
 
+  UIWidget
+    id: tierFrame
+    anchors.fill: parent
+    image-source: ""
+    phantom: true
+    focusable: false
+    enabled: false
+    visible: false
+    image-smooth: true
+
   UIItem
     id: item
     anchors.centerIn: parent
@@ -231,4 +241,5 @@ MainInventoryItem < UIWidget
       focusable: false
       visible: false
       image-smooth: true
+
       
