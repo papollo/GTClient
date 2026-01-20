@@ -12,6 +12,12 @@ local oneHandedBonusSkill = 0
 local twoHandedBonusSkill = 0
 local bowBonusSkill = 0
 local crossbowBonusSkill = 0
+local RESIST_OPCODE = 201
+local resistValues = {
+    fire = 0,
+    ice = 0,
+    physical = 0
+}
 
 function init()
     connect(LocalPlayer, {
@@ -61,6 +67,7 @@ function init()
                                                                    '/images/options/button_skills', toggle, false, 1)
     skillsButton:setOn(true)
     skillsWindow = g_ui.loadUI('skills')
+    ProtocolGame.registerExtendedJSONOpcode(RESIST_OPCODE, onResistsOpcode)
 
     Keybind.new("Windows", "Show/hide skills windows", "Alt+S", "")
     Keybind.bind("Windows", "Show/hide skills windows", {
@@ -132,6 +139,8 @@ function terminate()
 
     skillsWindow = nil
     skillsButton = nil
+
+    pcall(ProtocolGame.unregisterExtendedJSONOpcode, RESIST_OPCODE)
 end
 
 function expForLevel(level)
@@ -191,6 +200,43 @@ function setSkillValue(id, value)
             widget:setText(value)
         end
     end
+end
+
+local function setResistValue(id, value)
+    local skill = skillsWindow:recursiveGetChildById(id)
+    if skill then
+        local widget = skill:getChildById('value')
+        widget:setText(value .. "%")
+    end
+end
+
+local function updateResistWidgets()
+    setResistValue('resistFire', resistValues.fire)
+    setResistValue('resistIce', resistValues.ice)
+    setResistValue('resistPhysical', resistValues.physical)
+end
+
+function onResistsOpcode(protocol, opcode, data)
+    if type(data) ~= 'table' or data.type ~= 'resists' then
+        return
+    end
+
+    local res = data.res
+    if type(res) ~= 'table' then
+        return
+    end
+
+    if type(res.fire) == 'number' then
+        resistValues.fire = res.fire
+    end
+    if type(res.ice) == 'number' then
+        resistValues.ice = res.ice
+    end
+    if type(res.physical) == 'number' then
+        resistValues.physical = res.physical
+    end
+
+    updateResistWidgets()
 end
 
 function setSkillColor(id, value)
@@ -339,6 +385,7 @@ function refresh()
     onTwoHandedBonusSkillChange(player, player:getTwoHandedBonusSkill())
     onBowBonusSkillChange(player, player:getBowBonusSkill())
     onCrossbowBonusSkillChange(player, player:getCrossbowBonusSkill())
+    updateResistWidgets()
 
     local hasAdditionalSkills = g_game.getFeature(GameAdditionalSkills)
     for i = Skill.Fist, Skill.Transcendence do
@@ -358,10 +405,10 @@ function refresh()
         if i > Skill.Hunting then
             local ativedAdditionalSkills = hasAdditionalSkills
             if ativedAdditionalSkills then
-                if g_game.getClientVersion() >= 1281 then
-	                if i == Skill.LifeLeechAmount or i == Skill.ManaLeechAmount then
-                        ativedAdditionalSkills = false
-                    elseif g_game.getClientVersion() < 1332 and Skill.Transcendence then
+                if i >= Skill.LifeLeechChance and i <= Skill.ManaLeechAmount then
+                    ativedAdditionalSkills = false
+                elseif g_game.getClientVersion() >= 1281 then
+	                if g_game.getClientVersion() < 1332 and Skill.Transcendence then
                         ativedAdditionalSkills = false
                     elseif i >= Skill.Fatal and player:getSkillLevel(i) <= 0 then
                         ativedAdditionalSkills = false
@@ -417,6 +464,7 @@ function offline()
         expSpeedEvent = nil
     end
     g_settings.setNode('skills-hide', skillSettings)
+    resistValues = { fire = 0, ice = 0, physical = 0 }
 end
 
 function toggle()

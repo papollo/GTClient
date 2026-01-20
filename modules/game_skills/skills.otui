@@ -155,6 +155,88 @@ MiniWindow
       margin-bottom: 5
 
     Label
+      !text: tr('Critical Damage:')
+      font: verdana-11px-bold
+      margin-top: 3
+      margin-bottom: 3
+      color: #FFFFFF
+      text-align: center
+
+    SmallSkillButton
+      id: skillId14
+      SkillNameLabel
+        !text: tr('Chance:')
+      SkillValueLabel
+
+    SmallSkillButton
+      id: skillId15
+      SkillNameLabel
+        !text: tr('Damage:')
+      SkillValueLabel
+
+    HorizontalSeparator
+      margin-top: 5
+      margin-bottom: 5
+
+    Label
+      !text: tr('Resistance:')
+      font: verdana-11px-bold
+      margin-top: 3
+      margin-bottom: 3
+      color: #FFFFFF
+      text-align: center
+
+    SmallSkillButton
+      id: resistFire
+      SkillNameLabel
+        !text: tr('Fire:')
+      SkillValueLabel
+
+    SmallSkillButton
+      id: resistIce
+      SkillNameLabel
+        !text: tr('Ice:')
+      SkillValueLabel
+
+    SmallSkillButton
+      id: resistPhysical
+      SkillNameLabel
+        !text: tr('Damage:')
+      SkillValueLabel
+
+    SmallSkillButton
+      id: skillId16
+      visible: false
+      SkillNameLabel
+        !text: tr('Life Leech Chance')
+      SkillValueLabel
+
+    SmallSkillButton
+      id: skillId17
+      visible: false
+      SkillNameLabel
+        !text: tr('Life Leech Amount')
+      SkillValueLabel
+
+    SmallSkillButton
+      id: skillId18
+      visible: false
+      SkillNameLabel
+        !text: tr('Mana Leech Chance')
+      SkillValueLabel
+
+    SmallSkillButton
+      id: skillId19
+      visible: false
+      SkillNameLabel
+        !text: tr('Mana Leech Amount')
+      SkillValueLabel
+
+    HorizontalSeparator
+      margin-top: 5
+      margin-bottom: 5
+
+    Label
       !text: tr('MagicLabel')
       font: verdana-11px-bold
       margin-top: 3
@@ -464,42 +546,9 @@ MiniWindow
         image-size: 9 9
       SkillPercentPanel
 
-    HorizontalSeparator
-      margin-top: 5
-      margin-bottom: 5
-
-    SmallSkillButton
-      id: skillId14
-      SkillNameLabel
-        !text: tr('Critical Hit Chance')
-      SkillValueLabel
-
-    SmallSkillButton
-      id: skillId15
-      SkillNameLabel
-        !text: tr('Critical Hit Damage')
-      SkillValueLabel
-
-    SmallSkillButton
-      id: skillId16
-      SkillNameLabel
-        !text: tr('Life Leech Chance')
-      SkillValueLabel
-
-    SmallSkillButton
-      id: skillId17
-      SkillNameLabel
-        !text: tr('Life Leech Amount')
-      SkillValueLabel
-
-    SmallSkillButton
-      id: skillId18
-      SkillNameLabel
-        !text: tr('Mana Leech Chance')
-      SkillValueLabel
-
     SmallSkillButton
       id: skillId19
+      visible: false
       SkillNameLabel
         !text: tr('Mana Leech Amount')
       SkillValueLabel
