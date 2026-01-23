@@ -34,6 +34,7 @@
 #include "thingtypemanager.h"
 #include "tile.h"
 #include <ctime>
+#include <iostream>
 #include <framework/core/eventdispatcher.h>
 
 void ProtocolGame::parseMessage(const InputMessagePtr& msg)
@@ -2013,6 +2014,13 @@ void ProtocolGame::parseCreatureData(const InputMessagePtr& msg)
         case 14: // creature icons
             addCreatureIcon(msg, creatureId);
             break;
+        case 15: { // creature icon (single)
+            const uint8_t iconId = msg->getU8();
+            if (creature) {
+                creature->setIcon(iconId);
+            }
+            break;
+        }
     }
 }
 
@@ -2601,8 +2609,6 @@ void ProtocolGame::parseTextMessage(const InputMessagePtr& msg)
     const uint8_t code = msg->getU8();
     const Otc::MessageMode mode = Proto::translateMessageModeFromServer(code);
     std::string text;
-
-    g_logger.debug("[ProtocolGame::parseTextMessage] code: {}, mode: {}", code, code);
 
     switch (mode) {
         case Otc::MessageChannelManagement:
