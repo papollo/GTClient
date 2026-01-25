@@ -23,6 +23,7 @@
 #include "protocolgame.h"
 
 #include "effect.h"
+#include "overlaymanager.h"
 #include "framework/net/inputmessage.h"
 
 #include "attachedeffectmanager.h"
@@ -35,6 +36,8 @@
 #include "tile.h"
 #include <ctime>
 #include <iostream>
+#include <charconv>
+#include <limits>
 #include <framework/core/eventdispatcher.h>
 
 void ProtocolGame::parseMessage(const InputMessagePtr& msg)
@@ -551,7 +554,7 @@ void ProtocolGame::parseMessage(const InputMessagePtr& msg)
                     parseError(msg);
                     break;
                 case Proto::GameServerResourceBalance:
-                    parseResourceBalance(msg);
+                    parseOverlayMessage(msg);
                     break;
                 case Proto::GameServerWorldTime:
                     parseWorldTime(msg);
@@ -752,6 +755,49 @@ void ProtocolGame::parseResourceBalance(const InputMessagePtr& msg) const
     const auto type = static_cast<Otc::ResourceTypes_t>(msg->getU8());
     const uint64_t value = msg->getU64();
     m_localPlayer->setResourceBalance(type, value);
+}
+
+void ProtocolGame::parseOverlayMessage(const InputMessagePtr& msg)
+{
+    const uint8_t action = msg->getU8();
+    const std::string id = msg->getString();
+
+    switch (action) {
+        case 0: { // add
+            const uint16_t x = msg->getU16();
+            const uint16_t y = msg->getU16();
+            const uint8_t z = msg->getU8();
+            const uint16_t typeId = msg->getU16();
+            const uint32_t durationMs = msg->getU32();
+            const uint16_t radius = msg->getU16();
+            const uint16_t payloadCount = msg->getU16();
+            uint16_t effectId = 0;
+
+            for (uint16_t i = 0; i < payloadCount; ++i) {
+                const std::string key = msg->getString();
+                const std::string value = msg->getString();
+                if (key == "effectId" && !value.empty()) {
+                    uint32_t parsed = 0;
+                    const auto* begin = value.data();
+                    const auto* end = value.data() + value.size();
+                    const auto result = std::from_chars(begin, end, parsed);
+                    if (result.ec == std::errc() && parsed <= (std::numeric_limits<uint16_t>::max)())
+                        effectId = static_cast<uint16_t>(parsed);
+                }
+            }
+
+            g_overlayManager.addOverlay(id, Position(x, y, z), typeId, effectId, durationMs, radius);
+            break;
+        }
+        case 1: // remove
+            g_overlayManager.removeOverlay(id);
+            break;
+        case 2: // clear
+            g_overlayManager.clear();
+            break;
+        default:
+            break;
+    }
 }
 
 void ProtocolGame::parseWorldTime(const InputMessagePtr& msg)

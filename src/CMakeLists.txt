@@ -327,6 +327,7 @@ set(SOURCE_FILES
         client/mapview.cpp
         client/minimap.cpp
         client/missile.cpp
+        client/overlaymanager.cpp
         client/outfit.cpp
         client/player.cpp
         client/position.cpp

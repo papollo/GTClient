@@ -184,6 +184,7 @@ private:
     void parseStoreOffers(const InputMessagePtr& msg);
     void parseCompleteStorePurchase(const InputMessagePtr& msg) const;
     void parseRequestPurchaseData(const InputMessagePtr& msg);
+    void parseOverlayMessage(const InputMessagePtr& msg);
     void parseResourceBalance(const InputMessagePtr& msg) const;
     void parseWorldTime(const InputMessagePtr& msg);
     void parseCoinBalance(const InputMessagePtr& msg) const;

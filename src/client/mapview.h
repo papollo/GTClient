@@ -246,6 +246,7 @@ private:
 
     void drawFloor();
     void drawLights();
+    void drawOverlays(const Rect& rect);
 
     bool canFloorFade() const { return m_floorViewMode == FADE && m_floorFading; }
 

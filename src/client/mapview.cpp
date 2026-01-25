@@ -29,10 +29,13 @@
 #include "lightview.h"
 #include "map.h"
 #include "missile.h"
+#include "overlaymanager.h"
 #include "statictext.h"
 #include "tile.h"
 
 #include "framework/graphics/texturemanager.h"
+#include <cmath>
+#include <framework/core/clock.h>
 #include <framework/core/eventdispatcher.h>
 #include <framework/core/resourcemanager.h>
 #include <framework/graphics/drawpoolmanager.h>
@@ -239,6 +242,8 @@ void MapView::drawCreatureInformation() {
 
 void MapView::drawForeground(const Rect& rect)
 {
+    drawOverlays(rect);
+
     g_drawPool.scale(g_app.getStaticTextScale());
     for (const auto& staticText : g_map.getStaticTexts()) {
         if (staticText->getMessageMode() == Otc::MessageNone)
@@ -280,6 +285,102 @@ void MapView::drawForeground(const Rect& rect)
         p.y += 5;
 
         tile->drawTexts(p);
+    }
+}
+
+void MapView::drawOverlays(const Rect& rect)
+{
+    g_overlayManager.pruneExpired();
+
+    const auto& overlays = g_overlayManager.getOverlays();
+    if (overlays.empty())
+        return;
+
+    const auto& player = g_game.getLocalPlayer();
+    if (!player)
+        return;
+
+    const Position playerPos = player->getPosition();
+    const uint64_t nowMs = g_clock.millis();
+
+    const Size tileSizeScaled(
+        static_cast<int>(m_tileSize * m_posInfo.horizontalStretchFactor),
+        static_cast<int>(m_tileSize * m_posInfo.verticalStretchFactor));
+
+    for (const auto& [id, overlay] : overlays) {
+        (void)id;
+        if (!overlay.pos.isValid())
+            continue;
+
+        if (overlay.pos.z != m_posInfo.camera.z)
+            continue;
+
+        if (!m_posInfo.isInRange(overlay.pos, true))
+            continue;
+
+        if (overlay.radius > 0 && !playerPos.isInRange(overlay.pos, overlay.radius, overlay.radius, true))
+            continue;
+
+        auto p = transformPositionTo2D(overlay.pos) - m_posInfo.drawOffset;
+        p.x = static_cast<int>(p.x * m_posInfo.horizontalStretchFactor);
+        p.y = static_cast<int>(p.y * m_posInfo.verticalStretchFactor);
+        p += rect.topLeft();
+
+        if (overlay.effectId > 0 && overlay.effect) {
+            overlay.effect->setPosition(overlay.pos);
+            overlay.effect->draw(p, true, nullptr);
+            continue;
+        }
+
+        const float pulse = std::sin(static_cast<float>(nowMs) / 350.0f);
+        int bobOffset = static_cast<int>(pulse * (tileSizeScaled.height() * 0.08f));
+
+        float scale = 0.9f;
+        int baseOffsetY = 0;
+        Color tint = Color::white;
+
+        switch (overlay.typeId) {
+            case 1: { // GLOW
+                scale = 1.0f;
+                baseOffsetY = 0;
+                const int glowAlpha = std::clamp(static_cast<int>(140 + 60 * pulse), 0, 255);
+                tint = Color(80, 160, 255, glowAlpha);
+                bobOffset = 0;
+                break;
+            }
+            case 2: // ARROW
+                scale = 0.9f;
+                baseOffsetY = -(tileSizeScaled.height() / 2);
+                break;
+            case 3: // SPARKS
+                scale = 0.8f;
+                baseOffsetY = -(tileSizeScaled.height() / 4);
+                break;
+            case 4: // QUEST
+                scale = 0.8f;
+                baseOffsetY = -(tileSizeScaled.height() / 2);
+                break;
+            default:
+                break;
+        }
+
+        int overlayWidth = static_cast<int>(tileSizeScaled.width() * scale);
+        int overlayHeight = static_cast<int>(tileSizeScaled.height() * scale);
+        if (overlayWidth < 1)
+            overlayWidth = 1;
+        if (overlayHeight < 1)
+            overlayHeight = 1;
+        const Size overlaySize(overlayWidth, overlayHeight);
+
+        Point center = p + Point(tileSizeScaled.width() / 2, tileSizeScaled.height() / 2);
+        Rect dest(center - Point(overlaySize.width() / 2, overlaySize.height() / 2), overlaySize);
+        dest.translate(0, baseOffsetY + bobOffset);
+
+        const auto texture = g_overlayManager.getTexture(overlay.typeId);
+        if (texture)
+            g_drawPool.addTexturedRect(dest, texture, tint);
+        else
+            g_drawPool.addFilledRect(dest, Color(255, 255, 255, 110));
     }
 }
 

@@ -26,6 +26,7 @@
 #include "localplayer.h"
 #include "luavaluecasts_client.h"
 #include "map.h"
+#include "overlaymanager.h"
 #include "protocolcodes.h"
 #include "protocolgame.h"
 #include <framework/core/application.h>
@@ -91,6 +92,7 @@ void Game::resetGameStates()
     m_containers.clear();
     m_vips.clear();
     m_gmActions.clear();
+    g_overlayManager.clear();
     g_map.resetAwareRange();
 }
 
