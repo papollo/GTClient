@@ -28,35 +28,36 @@
 #include <framework/graphics/declarations.h>
 
 #include <cstdint>
+#include <vector>
 #include <string>
 #include <unordered_map>
 
 struct OverlayEntry
 {
     Position pos;
-    uint16_t typeId{ 0 };
+    uint16_t intervalMs{ 0 };
     uint16_t effectId{ 0 };
     uint32_t durationMs{ 0 };
     uint16_t radius{ 0 };
     uint64_t expiresAtMs{ 0 };
-    EffectPtr effect;
+    uint64_t nextTriggerMs{ 0 };
+    std::vector<EffectPtr> activeEffects;
 };
 
 class OverlayManager
 {
 public:
-    void addOverlay(const std::string& id, const Position& pos, uint16_t typeId, uint16_t effectId, uint32_t durationMs, uint16_t radius);
+    void addOverlay(const std::string& id, const Position& pos, uint16_t intervalMs, uint16_t effectId, uint32_t durationMs, uint16_t radius);
     void removeOverlay(const std::string& id);
     void clear();
 
     void pruneExpired();
 
     const std::unordered_map<std::string, OverlayEntry>& getOverlays() const { return m_overlays; }
-    TexturePtr getTexture(uint16_t typeId);
+    std::unordered_map<std::string, OverlayEntry>& getOverlaysMutable() { return m_overlays; }
 
 private:
     std::unordered_map<std::string, OverlayEntry> m_overlays;
-    std::unordered_map<uint16_t, TexturePtr> m_textures;
 };
 
 extern OverlayManager g_overlayManager;

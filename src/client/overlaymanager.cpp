@@ -22,49 +22,29 @@
 
 #include "overlaymanager.h"
 
-#include "effect.h"
-#include "thingtypemanager.h"
+#include "map.h"
+#include "thing.h"
 
 #include <framework/core/clock.h>
-#include <framework/graphics/texturemanager.h>
 
 OverlayManager g_overlayManager;
 
-namespace {
-constexpr const char* kGlowTexture = "/images/icons/icon_magic_circle";
-constexpr const char* kArrowTexture = "/images/ui/arrow_vertical";
-constexpr const char* kSparksTexture = "/images/icons/icon_magic";
-constexpr const char* kQuestTexture = "/images/game/npcicons/icon_quest";
-}
-
-void OverlayManager::addOverlay(const std::string& id, const Position& pos, const uint16_t typeId, const uint16_t effectId, const uint32_t durationMs, const uint16_t radius)
+void OverlayManager::addOverlay(const std::string& id, const Position& pos, const uint16_t intervalMs, const uint16_t effectId, const uint32_t durationMs, const uint16_t radius)
 {
     OverlayEntry entry;
     if (const auto it = m_overlays.find(id); it != m_overlays.end())
         entry = it->second;
 
     entry.pos = pos;
-    entry.typeId = typeId;
+    entry.intervalMs = intervalMs;
     entry.effectId = effectId;
     entry.durationMs = durationMs;
     entry.radius = radius;
+    entry.nextTriggerMs = g_clock.millis();
     if (durationMs > 0) {
         entry.expiresAtMs = g_clock.millis() + durationMs;
     } else {
         entry.expiresAtMs = 0;
-    }
-
-    if (effectId > 0 && g_things.isValidDatId(effectId, ThingCategoryEffect)) {
-        if (!entry.effect || entry.effectId != effectId) {
-            entry.effect = std::make_shared<Effect>();
-            entry.effect->setId(effectId);
-        }
-
-        if (entry.effect)
-            entry.effect->setPosition(pos);
-    } else {
-        entry.effect.reset();
-        entry.effectId = 0;
     }
 
     m_overlays[id] = entry;
@@ -72,11 +52,27 @@ void OverlayManager::addOverlay(const std::string& id, const Position& pos, cons
 
 void OverlayManager::removeOverlay(const std::string& id)
 {
-    m_overlays.erase(id);
+    const auto it = m_overlays.find(id);
+    if (it == m_overlays.end())
+        return;
+
+    for (const auto& effect : it->second.activeEffects) {
+        if (effect)
+            g_map.removeThing(std::static_pointer_cast<Thing>(effect));
+    }
+
+    m_overlays.erase(it);
 }
 
 void OverlayManager::clear()
 {
+    for (const auto& [id, overlay] : m_overlays) {
+        (void)id;
+        for (const auto& effect : overlay.activeEffects) {
+            if (effect)
+                g_map.removeThing(std::static_pointer_cast<Thing>(effect));
+        }
+    }
     m_overlays.clear();
 }
 
@@ -93,26 +89,4 @@ void OverlayManager::pruneExpired()
             ++it;
         }
     }
-}
-
-TexturePtr OverlayManager::getTexture(const uint16_t typeId)
-{
-    if (const auto it = m_textures.find(typeId); it != m_textures.end())
-        return it->second;
-
-    const char* path = nullptr;
-    switch (typeId) {
-        case 1: path = kGlowTexture; break;
-        case 2: path = kArrowTexture; break;
-        case 3: path = kSparksTexture; break;
-        case 4: path = kQuestTexture; break;
-        default: break;
-    }
-
-    TexturePtr texture;
-    if (path)
-        texture = g_textures.getTexture(path);
-
-    m_textures[typeId] = texture;
-    return texture;
 }

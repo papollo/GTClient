@@ -767,7 +767,7 @@ void ProtocolGame::parseOverlayMessage(const InputMessagePtr& msg)
             const uint16_t x = msg->getU16();
             const uint16_t y = msg->getU16();
             const uint8_t z = msg->getU8();
-            const uint16_t typeId = msg->getU16();
+            const uint16_t intervalMs = msg->getU16();
             const uint32_t durationMs = msg->getU32();
             const uint16_t radius = msg->getU16();
             const uint16_t payloadCount = msg->getU16();
@@ -786,7 +786,7 @@ void ProtocolGame::parseOverlayMessage(const InputMessagePtr& msg)
                 }
             }
 
-            g_overlayManager.addOverlay(id, Position(x, y, z), typeId, effectId, durationMs, radius);
+            g_overlayManager.addOverlay(id, Position(x, y, z), intervalMs, effectId, durationMs, radius);
             break;
         }
         case 1: // remove

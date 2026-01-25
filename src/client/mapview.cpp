@@ -30,6 +30,7 @@
 #include "map.h"
 #include "missile.h"
 #include "overlaymanager.h"
+#include "effect.h"
 #include "statictext.h"
 #include "tile.h"
 
@@ -172,6 +173,8 @@ void MapView::drawFloor()
         g_drawPool.flush();
     }
 
+    drawOverlayEffects();
+
     if (m_posInfo.rect.contains(g_window.getMousePosition() * g_window.getDisplayDensity())) {
         if (m_crosshairTexture && m_mousePosition.isValid()) {
             const auto& point = transformPositionTo2D(m_mousePosition);
@@ -242,8 +245,6 @@ void MapView::drawCreatureInformation() {
 
 void MapView::drawForeground(const Rect& rect)
 {
-    drawOverlays(rect);
-
     g_drawPool.scale(g_app.getStaticTextScale());
     for (const auto& staticText : g_map.getStaticTexts()) {
         if (staticText->getMessageMode() == Otc::MessageNone)
@@ -288,11 +289,11 @@ void MapView::drawForeground(const Rect& rect)
     }
 }
 
-void MapView::drawOverlays(const Rect& rect)
+void MapView::drawOverlayEffects()
 {
     g_overlayManager.pruneExpired();
 
-    const auto& overlays = g_overlayManager.getOverlays();
+    auto& overlays = g_overlayManager.getOverlaysMutable();
     if (overlays.empty())
         return;
 
@@ -301,14 +302,31 @@ void MapView::drawOverlays(const Rect& rect)
         return;
 
     const Position playerPos = player->getPosition();
+
     const uint64_t nowMs = g_clock.millis();
+    const auto getEffectDurationMs = [](const uint16_t effectId) -> uint32_t {
+        auto* thingType = g_things.getRawThingType(effectId, ThingCategoryEffect);
+        if (!thingType)
+            return 0;
 
-    const Size tileSizeScaled(
-        static_cast<int>(m_tileSize * m_posInfo.horizontalStretchFactor),
-        static_cast<int>(m_tileSize * m_posInfo.verticalStretchFactor));
+        if (g_game.getFeature(Otc::GameEnhancedAnimations)) {
+            if (const auto* animator = thingType->getIdleAnimator())
+                return animator->getTotalDuration();
+            return 0;
+        }
 
-    for (const auto& [id, overlay] : overlays) {
+        uint32_t ticks = g_gameConfig.getEffectTicksPerFrame();
+        if (effectId == 33)
+            ticks <<= 2;
+
+        return ticks * std::max<uint8_t>(thingType->getAnimationPhases(), 1);
+    };
+
+    for (auto& [id, overlay] : overlays) {
         (void)id;
+        if (!overlay.effectId)
+            continue;
+
         if (!overlay.pos.isValid())
             continue;
 
@@ -321,66 +339,26 @@ void MapView::drawOverlays(const Rect& rect)
         if (overlay.radius > 0 && !playerPos.isInRange(overlay.pos, overlay.radius, overlay.radius, true))
             continue;
 
-        auto p = transformPositionTo2D(overlay.pos) - m_posInfo.drawOffset;
-        p.x = static_cast<int>(p.x * m_posInfo.horizontalStretchFactor);
-        p.y = static_cast<int>(p.y * m_posInfo.verticalStretchFactor);
-        p += rect.topLeft();
+        bool shouldSpawn = false;
+        if (overlay.intervalMs == 0) {
+            const auto& tile = g_map.getTile(overlay.pos);
+            if (!tile || !tile->getEffect(overlay.effectId))
+                shouldSpawn = true;
+        } else if (nowMs >= overlay.nextTriggerMs) {
+            shouldSpawn = true;
+            overlay.nextTriggerMs = nowMs + overlay.intervalMs;
+        }
 
-        if (overlay.effectId > 0 && overlay.effect) {
-            overlay.effect->setPosition(overlay.pos);
-            overlay.effect->draw(p, true, nullptr);
+        if (!shouldSpawn)
             continue;
-        }
 
-        const float pulse = std::sin(static_cast<float>(nowMs) / 350.0f);
-        int bobOffset = static_cast<int>(pulse * (tileSizeScaled.height() * 0.08f));
+        if (!g_things.isValidDatId(overlay.effectId, ThingCategoryEffect))
+            continue;
 
-        float scale = 0.9f;
-        int baseOffsetY = 0;
-        Color tint = Color::white;
-
-        switch (overlay.typeId) {
-            case 1: { // GLOW
-                scale = 1.0f;
-                baseOffsetY = 0;
-                const int glowAlpha = std::clamp(static_cast<int>(140 + 60 * pulse), 0, 255);
-                tint = Color(80, 160, 255, glowAlpha);
-                bobOffset = 0;
-                break;
-            }
-            case 2: // ARROW
-                scale = 0.9f;
-                baseOffsetY = -(tileSizeScaled.height() / 2);
-                break;
-            case 3: // SPARKS
-                scale = 0.8f;
-                baseOffsetY = -(tileSizeScaled.height() / 4);
-                break;
-            case 4: // QUEST
-                scale = 0.8f;
-                baseOffsetY = -(tileSizeScaled.height() / 2);
-                break;
-            default:
-                break;
-        }
-
-        int overlayWidth = static_cast<int>(tileSizeScaled.width() * scale);
-        int overlayHeight = static_cast<int>(tileSizeScaled.height() * scale);
-        if (overlayWidth < 1)
-            overlayWidth = 1;
-        if (overlayHeight < 1)
-            overlayHeight = 1;
-        const Size overlaySize(overlayWidth, overlayHeight);
-
-        Point center = p + Point(tileSizeScaled.width() / 2, tileSizeScaled.height() / 2);
-        Rect dest(center - Point(overlaySize.width() / 2, overlaySize.height() / 2), overlaySize);
-        dest.translate(0, baseOffsetY + bobOffset);
-
-        const auto texture = g_overlayManager.getTexture(overlay.typeId);
-        if (texture)
-            g_drawPool.addTexturedRect(dest, texture, tint);
-        else
-            g_drawPool.addFilledRect(dest, Color(255, 255, 255, 110));
+        const auto effect = std::make_shared<Effect>();
+        effect->setId(overlay.effectId);
+        g_map.addThing(std::static_pointer_cast<Thing>(effect), overlay.pos);
+        overlay.activeEffects.emplace_back(effect);
     }
 }
 
