@@ -84,6 +84,12 @@ void Tile::draw(const Point& dest, const int flags, const LightViewPtr& lightVie
         }
     }
 
+    if (!m_localItems.empty()) {
+        for (const auto& item : m_localItems) {
+            drawThing(item, dest, flags, drawElevation);
+        }
+    }
+
     // after we render 2x2 lying corpses, we must redraw previous creatures/ontop above them
     if (m_tilesRedraw) {
         for (const auto& tile : *m_tilesRedraw) {
@@ -106,6 +112,11 @@ void Tile::drawLight(const Point& dest, const LightViewPtr& lightView) {
 
         thing->drawLight(dest - drawElevation * g_drawPool.getScaleFactor(), lightView);
         updateElevation(thing, drawElevation);
+    }
+
+    for (const auto& item : m_localItems) {
+        item->drawLight(dest - drawElevation * g_drawPool.getScaleFactor(), lightView);
+        updateElevation(item, drawElevation);
     }
 
     drawCreature(dest, Otc::DrawLights, true, drawElevation, lightView);
@@ -382,6 +393,39 @@ ThingPtr Tile::getThing(const int stackPos)
         return m_things[stackPos];
 
     return nullptr;
+}
+
+void Tile::addLocalItem(const ItemPtr& item)
+{
+    if (!item)
+        return;
+
+    m_localItems.emplace_back(item);
+    item->setPosition(m_position);
+    item->onAppear();
+}
+
+bool Tile::removeLocalItem(const ItemPtr& item)
+{
+    if (!item)
+        return false;
+
+    const auto it = std::ranges::find(m_localItems, item);
+    if (it == m_localItems.end())
+        return false;
+
+    (*it)->onDisappear();
+    m_localItems.erase(it);
+    return true;
+}
+
+void Tile::clearLocalItems()
+{
+    for (const auto& item : m_localItems) {
+        if (item)
+            item->onDisappear();
+    }
+    m_localItems.clear();
 }
 
 std::vector<CreaturePtr> Tile::getCreatures()

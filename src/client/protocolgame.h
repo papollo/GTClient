@@ -338,6 +338,7 @@ private:
     void parsePreyTimeLeft(const InputMessagePtr& msg);
     void parsePreyData(const InputMessagePtr& msg);
     void parsePreyRerollPrice(const InputMessagePtr& msg);
+    void parseLocalTileItem(const InputMessagePtr& msg);
     void parseImbuementWindow(const InputMessagePtr& msg);
     void parseCloseImbuementWindow(const InputMessagePtr& msg);
     void parseError(const InputMessagePtr& msg);

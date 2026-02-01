@@ -114,6 +114,9 @@ public:
     bool hasThing(const ThingPtr& thing) { return std::ranges::find(m_things, thing) != m_things.end(); }
     int getThingStackPos(const ThingPtr& thing);
     ThingPtr getTopThing();
+    void addLocalItem(const ItemPtr& item);
+    bool removeLocalItem(const ItemPtr& item);
+    void clearLocalItems();
 
     ThingPtr getTopLookThing();
     ThingPtr getTopUseThing();
@@ -125,6 +128,7 @@ public:
     const Position& getPosition() { return m_position; }
     const std::vector<CreaturePtr>& getWalkingCreatures() { return m_walkingCreatures; }
     const std::vector<ThingPtr>& getThings() { return m_things; }
+    const std::vector<ItemPtr>& getLocalItems() const { return m_localItems; }
     std::vector<CreaturePtr> getCreatures();
 
     std::vector<ItemPtr> getItems();
@@ -141,7 +145,7 @@ public:
     bool isSingleDimension() { return (m_thingTypeFlag & NOT_SINGLE_DIMENSION) == 0 && m_walkingCreatures.empty(); }
     bool isLookPossible() { return (m_thingTypeFlag & BLOCK_PROJECTTILE) == 0; }
     bool isEmpty() { return m_things.empty(); }
-    bool isDrawable() { return !isEmpty() || !m_walkingCreatures.empty() || hasEffect() || hasAttachedEffects(); }
+    bool isDrawable() { return !isEmpty() || !m_localItems.empty() || !m_walkingCreatures.empty() || hasEffect() || hasAttachedEffects(); }
     bool isCovered(int8_t firstFloor);
     bool isCompletelyCovered(uint8_t firstFloor, bool resetCache);
 
@@ -238,6 +242,7 @@ private:
 
     std::vector<CreaturePtr> m_walkingCreatures;
     std::vector<ThingPtr> m_things;
+    std::vector<ItemPtr> m_localItems;
 
     std::unique_ptr<std::vector<EffectPtr>> m_effects;
     std::unique_ptr<std::vector<TilePtr>> m_tilesRedraw;

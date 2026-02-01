@@ -83,6 +83,7 @@ namespace Proto
         //Gothania Custom Opcodes
         GothicTalesPlayerSkills = 80,
         GothicTalesPlayerBonusSkills = 81,
+        GameServerLocalTileItem = 0xE8,
         
         // original tibia ONLY
         GameServerImbuementDurations = 93,

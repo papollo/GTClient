@@ -210,6 +210,9 @@ public:
     void addThing(const ThingPtr& thing, const Position& pos, int16_t stackPos = -1);
     bool removeThing(const ThingPtr& thing);
     bool removeThingByPos(const Position& pos, int16_t stackPos);
+    void addLocalTileItem(uint32_t id, const Position& pos, const ItemPtr& item);
+    bool removeLocalTileItem(uint32_t id);
+    void clearLocalTileItems();
 
     void addStaticText(const StaticTextPtr& txt, const Position& pos);
     bool removeStaticText(const StaticTextPtr& txt);
@@ -311,6 +314,12 @@ private:
         std::unordered_map<uint32_t, TileBlock > tileBlocks;
     };
 
+    struct LocalTileItemEntry
+    {
+        Position pos;
+        ItemPtr item;
+    };
+
     void removeUnawareThings();
 
     uint16_t getBlockIndex(const Position& pos) { return ((pos.y / BLOCK_SIZE) * (65536 / BLOCK_SIZE)) + (pos.x / BLOCK_SIZE); }
@@ -322,6 +331,7 @@ private:
     std::vector<MapViewPtr> m_mapViews;
 
     std::unordered_map<uint32_t, CreaturePtr> m_knownCreatures;
+    std::unordered_map<uint32_t, LocalTileItemEntry> m_localTileItems;
 
     std::unordered_map<UIWidgetPtr, AttachableObjectPtr> m_attachedObjectWidgetMap;
 

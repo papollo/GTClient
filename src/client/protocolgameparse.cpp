@@ -535,8 +535,8 @@ void ProtocolGame::parseMessage(const InputMessagePtr& msg)
                 case Proto::GameServerSendPreyTimeLeft:
                     parsePreyTimeLeft(msg);
                     break;
-                case Proto::GameServerSendPreyData:
-                    parsePreyData(msg);
+                case Proto::GameServerLocalTileItem:
+                    parseLocalTileItem(msg);
                     break;
                 case Proto::GameServerSendPreyRerollPrice:
                     parsePreyRerollPrice(msg);
@@ -5167,6 +5167,48 @@ void ProtocolGame::parsePreyRerollPrice(const InputMessagePtr& msg)
     }
 
     g_lua.callGlobalField("g_game", "onPreyRerollPrice", price, wildcard, directly);
+}
+
+void ProtocolGame::parseLocalTileItem(const InputMessagePtr& msg)
+{
+    const uint8_t action = msg->getU8();
+
+    switch (action) {
+        case 0x01: { // ADD (upsert)
+            const uint32_t id = msg->getU32();
+            const Position pos = getPosition(msg);
+            const uint16_t itemId = msg->getU16();
+            const uint16_t subType = msg->getU16();
+            const uint8_t count = msg->getU8();
+
+            const auto& item = Item::create(itemId);
+            if (!item) {
+                g_logger.traceError("ProtocolGame::parseLocalTileItem: invalid item id {}", itemId);
+                return;
+            }
+
+            if (item->isStackable()) {
+                item->setCount(count);
+            } else {
+                item->setSubType(subType);
+            }
+
+            g_map.addLocalTileItem(id, pos, item);
+            break;
+        }
+        case 0x02: { // REMOVE
+            const uint32_t id = msg->getU32();
+            g_map.removeLocalTileItem(id);
+            break;
+        }
+        case 0x03: { // CLEAR
+            g_map.clearLocalTileItems();
+            break;
+        }
+        default:
+            g_logger.traceError("ProtocolGame::parseLocalTileItem: unknown action {}", action);
+            break;
+    }
 }
 
 Imbuement ProtocolGame::getImbuementInfo(const InputMessagePtr& msg)

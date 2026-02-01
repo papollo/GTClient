@@ -147,6 +147,8 @@ void Map::cleanDynamicThings()
     for (auto i = -1; ++i <= g_gameConfig.getMapMaxZ();)
         m_floors[i].missiles.clear();
 
+    clearLocalTileItems();
+
     cleanTexts();
 
     g_lua.collectGarbage();
@@ -269,6 +271,54 @@ bool Map::removeThingByPos(const Position& pos, const int16_t stackPos)
         return removeThing(tile->getThing(stackPos));
 
     return false;
+}
+
+void Map::addLocalTileItem(const uint32_t id, const Position& pos, const ItemPtr& item)
+{
+    if (!item || !pos.isMapPosition())
+        return;
+
+    if (const auto it = m_localTileItems.find(id); it != m_localTileItems.end()) {
+        if (const auto& oldTile = getTile(it->second.pos)) {
+            oldTile->removeLocalItem(it->second.item);
+            notificateTileUpdate(it->second.pos, nullptr, Otc::OPERATION_REMOVE);
+        }
+    }
+
+    if (const auto& tile = getOrCreateTile(pos)) {
+        tile->addLocalItem(item);
+        notificateTileUpdate(pos, nullptr, Otc::OPERATION_ADD);
+    }
+
+    m_localTileItems[id] = { pos, item };
+}
+
+bool Map::removeLocalTileItem(const uint32_t id)
+{
+    const auto it = m_localTileItems.find(id);
+    if (it == m_localTileItems.end())
+        return false;
+
+    if (const auto& tile = getTile(it->second.pos)) {
+        tile->removeLocalItem(it->second.item);
+        notificateTileUpdate(it->second.pos, nullptr, Otc::OPERATION_REMOVE);
+    }
+
+    m_localTileItems.erase(it);
+    return true;
+}
+
+void Map::clearLocalTileItems()
+{
+    for (const auto& [id, entry] : m_localTileItems) {
+        (void)id;
+        if (const auto& tile = getTile(entry.pos)) {
+            tile->removeLocalItem(entry.item);
+            notificateTileUpdate(entry.pos, nullptr, Otc::OPERATION_REMOVE);
+        }
+    }
+
+    m_localTileItems.clear();
 }
 
 bool Map::removeStaticText(const StaticTextPtr& txt) {
