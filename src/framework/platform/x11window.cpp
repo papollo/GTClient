@@ -23,9 +23,11 @@
 #if !defined WIN32 && !defined ANDROID && !defined __EMSCRIPTEN__
 
 #include "x11window.h"
-#include <framework/core/resourcemanager.h>
 #include <framework/core/eventdispatcher.h>
+#include <framework/core/graphicalapplication.h>
+#include <framework/core/resourcemanager.h>
 #include <framework/graphics/image.h>
+#include <framework/stdext/string.h>
 #include <unistd.h>
 
 #define LSB_BIT_SET(p, n) (p[(n)/8] |= (1 <<((n)%8)))
@@ -718,7 +720,7 @@ void X11Window::poll()
                         sizeof(typeList));
                     respond.xselection.property = req->property;
                 } else {
-                    std::string clipboardText = stdext::latin1_to_utf8(m_clipboardText);
+                    std::string clipboardText = m_clipboardText;
                     XChangeProperty(m_display,
                         req->requestor,
                         req->property, req->target,
@@ -1096,9 +1098,9 @@ std::string X11Window::getClipboardText()
             (uint8_t**)&data);
         if (len > 0) {
             if (stdext::is_valid_utf8(data))
-                clipboardText = stdext::utf8_to_latin1(data);
-            else
                 clipboardText = data;
+            else
+                clipboardText = stdext::charset_to_utf8(data, g_app.getCharset());
         }
     }
 
