@@ -22,6 +22,77 @@
 
 #include "inputmessage.h"
 #include <framework/util/crypt.h>
+#include <framework/stdext/string.h>
+
+namespace {
+bool looksLikeMojibake(std::string_view text)
+{
+    // Typical broken UTF-8 markers visible as Latin-1 glyphs.
+    return text.find("Ã") != std::string_view::npos
+        || text.find("Å") != std::string_view::npos
+        || text.find("Ä") != std::string_view::npos
+        || text.find("Ë") != std::string_view::npos
+        || text.find("Â") != std::string_view::npos;
+}
+
+std::string utf8ToCp1250Polish(std::string_view text)
+{
+    std::string out;
+    out.reserve(text.size());
+
+    for (size_t i = 0; i < text.size(); ++i) {
+        const uint8_t c = static_cast<uint8_t>(text[i]);
+        if (c < 0x80) {
+            out.push_back(static_cast<char>(c));
+            continue;
+        }
+
+        if (i + 1 >= text.size()) {
+            break;
+        }
+
+        const uint8_t c2 = static_cast<uint8_t>(text[i + 1]);
+        if (c == 0xC3) {
+            out.push_back(static_cast<char>(c2 + 64));
+            ++i;
+            continue;
+        }
+
+        if (c == 0xC4) {
+            switch (c2) {
+                case 0x84: out.push_back(static_cast<char>(0xA5)); ++i; continue; // Ą
+                case 0x85: out.push_back(static_cast<char>(0xB9)); ++i; continue; // ą
+                case 0x86: out.push_back(static_cast<char>(0xC6)); ++i; continue; // Ć
+                case 0x87: out.push_back(static_cast<char>(0xE6)); ++i; continue; // ć
+                case 0x98: out.push_back(static_cast<char>(0xCA)); ++i; continue; // Ę
+                case 0x99: out.push_back(static_cast<char>(0xEA)); ++i; continue; // ę
+                default: break;
+            }
+        } else if (c == 0xC5) {
+            switch (c2) {
+                case 0x81: out.push_back(static_cast<char>(0xA3)); ++i; continue; // Ł
+                case 0x82: out.push_back(static_cast<char>(0xB3)); ++i; continue; // ł
+                case 0x83: out.push_back(static_cast<char>(0xD1)); ++i; continue; // Ń
+                case 0x84: out.push_back(static_cast<char>(0xF1)); ++i; continue; // ń
+                case 0x9A: out.push_back(static_cast<char>(0x8C)); ++i; continue; // Ś
+                case 0x9B: out.push_back(static_cast<char>(0x9C)); ++i; continue; // ś
+                case 0xB9: out.push_back(static_cast<char>(0x8F)); ++i; continue; // Ź
+                case 0xBA: out.push_back(static_cast<char>(0x9F)); ++i; continue; // ź
+                case 0xBB: out.push_back(static_cast<char>(0xAF)); ++i; continue; // Ż
+                case 0xBC: out.push_back(static_cast<char>(0xBF)); ++i; continue; // ż
+                default: break;
+            }
+        }
+
+        out.push_back('?');
+        while (i + 1 < text.size() && (static_cast<uint8_t>(text[i + 1]) & 0xC0) == 0x80) {
+            ++i;
+        }
+    }
+
+    return out;
+}
+}
 
 void InputMessage::reset()
 {
@@ -86,7 +157,19 @@ std::string InputMessage::getString()
     checkRead(stringLength);
     const char* v = (char*)(m_buffer + m_readPos);
     m_readPos += stringLength;
-    return std::string(v, stringLength);
+    std::string text(v, stringLength);
+    if (stdext::is_valid_utf8(text)) {
+        // Fix common mojibake case where UTF-8 bytes were re-encoded once more
+        // (e.g. "którym" -> "ktÃ³rym").
+        if (looksLikeMojibake(text)) {
+            auto maybeDoubleEncoded = stdext::utf8_to_latin1(text);
+            if (stdext::is_valid_utf8(maybeDoubleEncoded)) {
+                text = maybeDoubleEncoded;
+            }
+        }
+        text = utf8ToCp1250Polish(text);
+    }
+    return text;
 }
 
 double InputMessage::getDouble()
