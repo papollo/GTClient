@@ -252,6 +252,7 @@ locale = {
     ["Resistance:"] = "Odpornosc:",
     ["Fire:"] = "Ogien:",
     ["Ice:"] = "Lod:",
+    ["Poison:"] = "Trucizna:",
     ["Lifetime Premium Account"] = "Konto Premium na Stale",
     ["Light Version"] = "Light Version",
     ["Limits FPS to 60"] = "Ogranicz FPS do 60",

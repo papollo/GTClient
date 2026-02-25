@@ -16,7 +16,8 @@ local RESIST_OPCODE = 201
 local resistValues = {
     fire = 0,
     ice = 0,
-    physical = 0
+    physical = 0,
+    poison = 0
 }
 
 function init()
@@ -213,6 +214,7 @@ end
 local function updateResistWidgets()
     setResistValue('resistFire', resistValues.fire)
     setResistValue('resistIce', resistValues.ice)
+    setResistValue('resistPoison', resistValues.poison)
     setResistValue('resistPhysical', resistValues.physical)
 end
 
@@ -235,6 +237,7 @@ function onResistsOpcode(protocol, opcode, data)
     if type(res.physical) == 'number' then
         resistValues.physical = res.physical
     end
+    resistValues.poison = type(res.poison) == 'number' and res.poison or 0
 
     updateResistWidgets()
 end
@@ -464,7 +467,7 @@ function offline()
         expSpeedEvent = nil
     end
     g_settings.setNode('skills-hide', skillSettings)
-    resistValues = { fire = 0, ice = 0, physical = 0 }
+    resistValues = { fire = 0, ice = 0, physical = 0, poison = 0 }
 end
 
 function toggle()

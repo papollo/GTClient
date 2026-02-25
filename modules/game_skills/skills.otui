@@ -199,6 +199,12 @@ MiniWindow
       SkillValueLabel
 
     SmallSkillButton
+      id: resistPoison
+      SkillNameLabel
+        !text: tr('Poison:')
+      SkillValueLabel
+
+    SmallSkillButton
       id: resistPhysical
       SkillNameLabel
         !text: tr('Damage:')
