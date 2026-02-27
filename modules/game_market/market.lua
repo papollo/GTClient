@@ -1216,10 +1216,12 @@ function Market.close(notify)
     end
     if not marketWindow:isHidden() then
         marketWindow:hide()
-        marketWindow:unlock()
         modules.game_interface.getRootPanel():focus()
         Market.clearSelectedItem()
         Market.reset()
+        if modules.game_inventory and modules.game_inventory.reloadInventory then
+            modules.game_inventory.reloadInventory()
+        end
         if notify then
             g_game.leaveMarket()
         end
@@ -1516,9 +1518,14 @@ function Market.onMarketEnter(depotItems, offers, balance, vocation)
         Market.loadMarketItems(MarketCategory.First)
     end
 
+    if modules.game_inventory and modules.game_inventory.reloadInventory then
+        modules.game_inventory.reloadInventory()
+    end
+
     if g_game.isOnline() then
-        marketWindow:lock()
         marketWindow:show()
+        marketWindow:raise()
+        marketWindow:focus()
     end
 end
 
