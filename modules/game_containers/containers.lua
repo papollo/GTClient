@@ -100,6 +100,45 @@ function refreshContainerPages(container)
     end
 end
 
+local function isLockerContainer(container)
+    local name = container:getName()
+    if not name or name:len() == 0 then
+        return false
+    end
+
+    return name:lower():find('locker', 1, true) ~= nil
+end
+
+local function setupLockerBankSlot(containerPanel)
+    if containerPanel:getChildById('bankItem') then
+        return
+    end
+
+    local bankItem = g_ui.createWidget('ContainerItemSlot', containerPanel)
+    bankItem:setId('bankItem')
+    bankItem:setTooltip(tr('Bank'))
+
+    local itemWidget = bankItem:getChildById('item')
+    if itemWidget then
+        itemWidget:hide()
+    end
+
+    local icon = g_ui.createWidget('UIWidget', bankItem)
+    icon:setImageSource('/images/game/npcicons/icon_trade')
+    icon:setImageSize(tosize('16 16'))
+    icon:addAnchor(AnchorHorizontalCenter, 'parent', AnchorHorizontalCenter)
+    icon:addAnchor(AnchorVerticalCenter, 'parent', AnchorVerticalCenter)
+
+    g_mouse.bindPress(bankItem, function()
+        local protocol = g_game.getProtocolGame()
+        if protocol then
+            protocol:sendExtendedJSONOpcode(215, { action = 'open' })
+        else
+            g_logger.warning('Cannot open bank modal: no protocol game available.')
+        end
+    end, MouseLeftButton)
+end
+
 function onContainerOpen(container, previousContainer)
     local containerWindow
     if previousContainer then
@@ -160,6 +199,15 @@ function onContainerOpen(container, previousContainer)
 
         if not container:isUnlocked() then
             itemWidget:setBorderColor('red')
+        end
+    end
+
+    if isLockerContainer(container) then
+        setupLockerBankSlot(containerPanel)
+        local bankItem = containerPanel:getChildById('bankItem')
+        if bankItem then
+            local insertIndex = math.min(3, containerPanel:getChildCount())
+            containerPanel:insertChild(insertIndex, bankItem)
         end
     end
 
