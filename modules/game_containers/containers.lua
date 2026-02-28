@@ -120,14 +120,9 @@ local function setupLockerBankSlot(containerPanel)
 
     local itemWidget = bankItem:getChildById('item')
     if itemWidget then
-        itemWidget:hide()
+        itemWidget:setItemId(23721)
+        itemWidget:setItemCount(1)
     end
-
-    local icon = g_ui.createWidget('UIWidget', bankItem)
-    icon:setImageSource('/images/game/npcicons/icon_trade')
-    icon:setImageSize(tosize('16 16'))
-    icon:addAnchor(AnchorHorizontalCenter, 'parent', AnchorHorizontalCenter)
-    icon:addAnchor(AnchorVerticalCenter, 'parent', AnchorVerticalCenter)
 
     g_mouse.bindPress(bankItem, function()
         local protocol = g_game.getProtocolGame()
