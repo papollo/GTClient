@@ -111,10 +111,10 @@ end
 
 local function setupLockerBankSlot(containerPanel)
     if containerPanel:getChildById('bankItem') then
-        return
+        return containerPanel:getChildById('bankItem')
     end
 
-    local bankItem = g_ui.createWidget('ContainerItemSlot', containerPanel)
+    local bankItem = g_ui.createWidget('ContainerItemSlot')
     bankItem:setId('bankItem')
     bankItem:setTooltip(tr('Bank'))
 
@@ -132,6 +132,8 @@ local function setupLockerBankSlot(containerPanel)
             g_logger.warning('Cannot open bank modal: no protocol game available.')
         end
     end, MouseLeftButton)
+
+    return bankItem
 end
 
 function onContainerOpen(container, previousContainer)
@@ -198,8 +200,7 @@ function onContainerOpen(container, previousContainer)
     end
 
     if isLockerContainer(container) then
-        setupLockerBankSlot(containerPanel)
-        local bankItem = containerPanel:getChildById('bankItem')
+        local bankItem = setupLockerBankSlot(containerPanel)
         if bankItem then
             local insertIndex = math.min(3, containerPanel:getChildCount())
             containerPanel:insertChild(insertIndex, bankItem)
