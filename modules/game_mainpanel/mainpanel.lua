@@ -66,6 +66,9 @@ function reloadMainPanelSizes()
                             PANEL_CONSTANTS.MAX_ICONS_PER_ROW.STORE)
                         if store_count > 0 then
                             store_height = store_count * PANEL_CONSTANTS.MULTI_STORE_HEIGHT + (store_count - 1) * 2
+                        else
+                            -- keep top spacing even when Store button is removed
+                            store_height = PANEL_CONSTANTS.MULTI_STORE_HEIGHT
                         end
                         local combined_height = store_height + math.max(options_height, specials_height)
                         local extra_height = PANEL_CONSTANTS.HEIGHT_EXTRA_ONPANEL
@@ -171,9 +174,6 @@ optionsController = Controller:new()
 optionsController:setUI('mainoptionspanel', modules.game_interface.getMainRightPanel())
 
 function optionsController:onInit()
-    createButton_large('Store shop', tr('Store shop'), '/images/options/store_large', toggleStore,
-    false, 8)
-
     if not optionPanel then
         optionPanel = g_ui.loadUI('option_control_buttons', modules.client_options:getPanel())
         modules.client_options.addButton("Interface", "Control Buttons", optionPanel, function() initControlButtons() end)
