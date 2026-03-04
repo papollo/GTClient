@@ -9,6 +9,7 @@ local currentDayTime = {
     h = 12,
     m = 0
 }
+local cameraSyncEvent = nil
 
 local function refreshVirtualFloors()
     mapController.ui.layersPanel.layersMark:setMarginTop(((virtualFloor + 1) * 4) - 3)
@@ -26,7 +27,7 @@ local function onPositionChange()
         return
     end
 
-    local minimapWidget = mapController.ui.minimapBorder.minimap
+    local minimapWidget = mapController.ui and mapController.ui.minimapBorder and mapController.ui.minimapBorder.minimap
     if not (minimapWidget) or minimapWidget:isDragging() then
         return
     end
@@ -38,6 +39,10 @@ local function onPositionChange()
     minimapWidget:setCrossPosition(pos)
     virtualFloor = pos.z
     refreshVirtualFloors()
+end
+
+local function onWalk()
+    onPositionChange()
 end
 
 mapController = Controller:new()
@@ -109,8 +114,15 @@ function mapController:onGameStart()
     })
 
     mapController:registerEvents(LocalPlayer, {
-        onPositionChange = onPositionChange
+        onPositionChange = onPositionChange,
+        onWalk = onWalk
     }):execute()
+
+    if cameraSyncEvent then
+        mapController:removeEvent(cameraSyncEvent)
+        cameraSyncEvent = nil
+    end
+    cameraSyncEvent = mapController:cycleEvent(onPositionChange, 100)
 
     -- Load Map
     g_minimap.clean()
@@ -142,6 +154,11 @@ function mapController:onGameEnd()
     end
 
     self.ui.minimapBorder.minimap:save()
+
+    if cameraSyncEvent then
+        mapController:removeEvent(cameraSyncEvent)
+        cameraSyncEvent = nil
+    end
 end
 
 function mapController:onTerminate()

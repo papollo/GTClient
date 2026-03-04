@@ -30,20 +30,16 @@ PhantomMiniWindow
 
     UIWidget
       id: store
-      image-clip: 0 0 108 20
       anchors.top: parent.top
       anchors.left: parent.left
       margin-left: 8
       size: 108 20
       phantom: true
       layout:
-        type: verticalBox
-        cell-size: 108 20
+        type: grid
+        cell-size: 20 20
         cell-spacing: 2
         flow: true
-		
-      $pressed !disabled:
-        image-clip: 0 20 108 20
 
     Button
       id: resizer

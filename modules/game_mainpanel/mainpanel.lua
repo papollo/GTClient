@@ -20,7 +20,7 @@ local PANEL_CONSTANTS = {
     MAX_ICONS_PER_ROW = {
         OPTIONS = 5,
         SPECIALS = 2,
-        STORE = 1
+        STORE = 3
     },
     MULTI_STORE_HEIGHT = 20,
     HEIGHT_EXTRA_ONPANEL = -5,
@@ -28,6 +28,12 @@ local PANEL_CONSTANTS = {
 }
 
 local optionsShrink = false
+
+local STORE_REPLACEMENT_BUTTONS = {
+    skillsButton = 1,
+    questLogButton = 2,
+    battleButton = 3
+}
 
 local function calculatePanelHeight(panel, max_icons_per_row)
     local icon_count = 0
@@ -65,15 +71,19 @@ function reloadMainPanelSizes()
                         local store_height, store_count = calculatePanelHeight(store_panel,
                             PANEL_CONSTANTS.MAX_ICONS_PER_ROW.STORE)
                         if store_count > 0 then
-                            store_height = store_count * PANEL_CONSTANTS.MULTI_STORE_HEIGHT + (store_count - 1) * 2
+                            local store_rows = math.ceil(store_count / PANEL_CONSTANTS.MAX_ICONS_PER_ROW.STORE)
+                            store_height = store_rows * PANEL_CONSTANTS.MULTI_STORE_HEIGHT + (store_rows - 1) * 2
                         else
                             -- keep top spacing even when Store button is removed
                             store_height = PANEL_CONSTANTS.MULTI_STORE_HEIGHT
                         end
                         local combined_height = store_height + math.max(options_height, specials_height)
                         local extra_height = PANEL_CONSTANTS.HEIGHT_EXTRA_ONPANEL
-                        if store_count >= 2 then
-                            extra_height = extra_height - (store_count - 1) * 5
+                        if store_count > 0 then
+                            local store_rows = math.ceil(store_count / PANEL_CONSTANTS.MAX_ICONS_PER_ROW.STORE)
+                            if store_rows >= 2 then
+                                extra_height = extra_height - (store_rows - 1) * 5
+                            end
                         end
                         combined_height = combined_height + extra_height
                         store_panel:setHeight(store_height)
@@ -133,7 +143,11 @@ end
 
 local function createButton(id, description, image, callback, special, front, index)
     local panel
-    if special then
+    local useStoreReplacement = STORE_REPLACEMENT_BUTTONS[id] ~= nil
+    if useStoreReplacement then
+        panel = optionsController.ui.onPanel.store
+        storeAmount = storeAmount + 1
+    elseif special then
         panel = optionsController.ui.onPanel.specials
         specialsAmount = specialsAmount + 1
     else
@@ -156,6 +170,9 @@ local function createButton(id, description, image, callback, special, front, in
     button:setSize('20 20')
     button:setImageSource(image)
     button:setImageClip('0 0 20 20')
+    if useStoreReplacement then
+        button.index = STORE_REPLACEMENT_BUTTONS[id]
+    end
     button.onMouseRelease = function(widget, mousePos, mouseButton)
         if widget:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
             callback()
@@ -164,6 +181,14 @@ local function createButton(id, description, image, callback, special, front, in
     end
     if not button.index and type(index) == 'number' then
         button.index = index or 1000
+    end
+
+    if useStoreReplacement then
+        local children = panel:getChildren()
+        table.sort(children, function(a, b)
+            return (a.index or 1000) < (b.index or 1000)
+        end)
+        panel:reorderChildren(children)
     end
 
     refreshOptionsSizes()
