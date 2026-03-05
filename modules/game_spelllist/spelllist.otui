@@ -88,8 +88,8 @@ MainWindow
 
   FilterButton
     id: buttonFilterVocation
-    !text: tr('Vocation')
-    !tooltip: tr('Hide spells for other vocations')
+    !text: tr('Weapon type')
+    !tooltip: tr('Hide spells for other weapon types')
 
   SpellInfoLabel
     id: labelFormula
@@ -102,7 +102,7 @@ MainWindow
     id: labelVocation
     anchors.left: spellList.right
     anchors.top: labelFormula.bottom
-    !text: tr('Vocation') .. ':'
+    !text: tr('Weapon type') .. ':'
 
   SpellInfoLabel
     id: labelGroup
@@ -198,12 +198,12 @@ MainWindow
 
   Label
     id: labelVocationFilter
-    anchors.top: labelPremium.bottom
+    anchors.top: premiumBoxAny.bottom
     anchors.left: spellList.right
-    width: 70
+    width: 120
     font: verdana-11px-monochrome
-    !text: tr('Vocation')
-    margin-top: 30
+    !text: tr('Weapon type')
+    margin-top: 14
     margin-left: 20
 
   CheckBox
@@ -213,48 +213,48 @@ MainWindow
     margin-top: 3
     margin-left: 3
     !text: tr('Any')
-    width: 75
+    width: 120
 
   CheckBox
-    id: vocationBoxSorcerer
+    id: vocationBoxOneHanded
     anchors.left: prev.left
     anchors.top: prev.bottom
     margin-top: 3
-    !text: tr('Sorcerer')
-    width: 75
+    !text: tr('One handed')
+    width: 120
 
   CheckBox
-    id: vocationBoxDruid
+    id: vocationBoxTwoHanded
     anchors.left: prev.left
     anchors.top: prev.bottom
     margin-top: 3
-    !text: tr('Druid')
-    width: 75
+    !text: tr('Two handed')
+    width: 120
 
   CheckBox
-    id: vocationBoxPaladin
+    id: vocationBoxCrossbow
     anchors.left: prev.left
     anchors.top: prev.bottom
     margin-top: 3
-    !text: tr('Paladin')
-    width: 75
+    !text: tr('Crossbow')
+    width: 120
 
   CheckBox
-    id: vocationBoxKnight
+    id: vocationBoxBow
     anchors.left: prev.left
     anchors.top: prev.bottom
     margin-top: 3
-    !text: tr('Knight')
-    width: 75
+    !text: tr('Bow')
+    width: 120
 
   Label
     id: labelGroupFilter
-    anchors.top: labelPremium.bottom
+    anchors.top: labelVocationFilter.top
     anchors.left: labelVocationFilter.right
     width: 70
     font: verdana-11px-monochrome
     !text: tr('Group')
-    margin-top: 30
+    margin-top: 0
     margin-left: 20
 
   CheckBox
@@ -292,35 +292,37 @@ MainWindow
 
   Label
     id: labelPremiumFilter
-    anchors.top: labelPremium.bottom
-    anchors.left: labelGroupFilter.right
+    anchors.top: labelDescriptionValue.bottom
+    anchors.left: spellList.right
     width: 70
     font: verdana-11px-monochrome
     !text: tr('Premium')
-    margin-top: 30
+    margin-top: 10
     margin-left: 20
 
   CheckBox
     id: premiumBoxAny
-    anchors.left: prev.left
-    anchors.top: prev.bottom
+    anchors.left: labelPremiumFilter.left
+    anchors.top: labelPremiumFilter.bottom
     margin-top: 3
     margin-left: 3
     !text: tr('Any')
     width: 75
 
   CheckBox
-    id: premiumBoxNo
-    anchors.left: prev.left
-    anchors.top: prev.bottom
-    margin-top: 3
-    !text: tr('No')
+    id: premiumBoxYes
+    anchors.left: premiumBoxAny.right
+    anchors.top: premiumBoxAny.top
+    margin-left: 12
+    margin-top: 0
+    !text: tr('Yes')
     width: 75
 
   CheckBox
-    id: premiumBoxYes
-    anchors.left: prev.left
-    anchors.top: prev.bottom
-    margin-top: 3
-    !text: tr('Yes')
+    id: premiumBoxNo
+    anchors.left: premiumBoxYes.right
+    anchors.top: premiumBoxAny.top
+    margin-left: 12
+    margin-top: 0
+    !text: tr('No')
     width: 75

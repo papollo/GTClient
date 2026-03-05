@@ -1,4 +1,7 @@
-local SpelllistProfile = 'Default'
+local SpelllistProfile = 'Gothic'
+local CUSTOM_SPELL_ORDER = {}
+local CUSTOM_SPELL_INFO = {}
+local ACTIVE_SPELL_PROFILE = 'Gothic'
 
 spelllistWindow = nil
 spelllistButton = nil
@@ -15,10 +18,10 @@ premiumValueLabel = nil
 descriptionValueLabel = nil
 
 vocationBoxAny = nil
-vocationBoxSorcerer = nil
-vocationBoxDruid = nil
-vocationBoxPaladin = nil
-vocationBoxKnight = nil
+vocationBoxOneHanded = nil
+vocationBoxTwoHanded = nil
+vocationBoxCrossbow = nil
+vocationBoxBow = nil
 
 groupBoxAny = nil
 groupBoxAttack = nil
@@ -39,15 +42,26 @@ FILTER_PREMIUM_NO = 1
 FILTER_PREMIUM_YES = 2
 
 FILTER_VOCATION_ANY = 0
-FILTER_VOCATION_SORCERER = 1
-FILTER_VOCATION_DRUID = 2
-FILTER_VOCATION_PALADIN = 3
-FILTER_VOCATION_KNIGHT = 4
+FILTER_VOCATION_ONE_HANDED = 1
+FILTER_VOCATION_TWO_HANDED = 2
+FILTER_VOCATION_CROSSBOW = 3
+FILTER_VOCATION_BOW = 4
 
 FILTER_GROUP_ANY = 0
 FILTER_GROUP_ATTACK = 1
 FILTER_GROUP_HEALING = 2
 FILTER_GROUP_SUPPORT = 3
+
+local WEAPON_TYPE_NAMES = {
+    [1] = 'One handed',
+    [2] = 'Two handed',
+    [3] = 'Crossbow',
+    [4] = 'Bow',
+    [5] = 'One handed',
+    [6] = 'Two handed',
+    [7] = 'Crossbow',
+    [8] = 'Bow'
+}
 
 -- Filter Settings
 local filters = {
@@ -58,6 +72,23 @@ local filters = {
     premium = FILTER_PREMIUM_ANY,
     groupId = FILTER_GROUP_ANY
 }
+
+local function loadCustomSpells()
+    SpelllistProfile = ACTIVE_SPELL_PROFILE
+    if not SpelllistSettings[SpelllistProfile] or not SpellInfo[SpelllistProfile] then
+        SpelllistProfile = 'Default'
+    end
+
+    CUSTOM_SPELL_INFO = SpellInfo[SpelllistProfile]
+    CUSTOM_SPELL_ORDER = {}
+
+    for _, spellName in ipairs(SpelllistSettings[SpelllistProfile].spellOrder) do
+        local info = CUSTOM_SPELL_INFO[spellName]
+        if info and info.words and info.words ~= '' then
+            table.insert(CUSTOM_SPELL_ORDER, spellName)
+        end
+    end
+end
 
 function getSpelllistProfile()
     return SpelllistProfile
@@ -117,10 +148,10 @@ function init()
     descriptionValueLabel = spelllistWindow:getChildById('labelDescriptionValue')
 
     vocationBoxAny = spelllistWindow:getChildById('vocationBoxAny')
-    vocationBoxSorcerer = spelllistWindow:getChildById('vocationBoxSorcerer')
-    vocationBoxDruid = spelllistWindow:getChildById('vocationBoxDruid')
-    vocationBoxPaladin = spelllistWindow:getChildById('vocationBoxPaladin')
-    vocationBoxKnight = spelllistWindow:getChildById('vocationBoxKnight')
+    vocationBoxOneHanded = spelllistWindow:getChildById('vocationBoxOneHanded')
+    vocationBoxTwoHanded = spelllistWindow:getChildById('vocationBoxTwoHanded')
+    vocationBoxCrossbow = spelllistWindow:getChildById('vocationBoxCrossbow')
+    vocationBoxBow = spelllistWindow:getChildById('vocationBoxBow')
 
     groupBoxAny = spelllistWindow:getChildById('groupBoxAny')
     groupBoxAttack = spelllistWindow:getChildById('groupBoxAttack')
@@ -133,10 +164,10 @@ function init()
 
     vocationRadioGroup = UIRadioGroup.create()
     vocationRadioGroup:addWidget(vocationBoxAny)
-    vocationRadioGroup:addWidget(vocationBoxSorcerer)
-    vocationRadioGroup:addWidget(vocationBoxDruid)
-    vocationRadioGroup:addWidget(vocationBoxPaladin)
-    vocationRadioGroup:addWidget(vocationBoxKnight)
+    vocationRadioGroup:addWidget(vocationBoxOneHanded)
+    vocationRadioGroup:addWidget(vocationBoxTwoHanded)
+    vocationRadioGroup:addWidget(vocationBoxCrossbow)
+    vocationRadioGroup:addWidget(vocationBoxBow)
 
     groupRadioGroup = UIRadioGroup.create()
     groupRadioGroup:addWidget(groupBoxAny)
@@ -166,6 +197,7 @@ function init()
         spellList:focusPreviousChild(KeyboardFocusReason)
     end, spelllistWindow)
 
+    loadCustomSpells()
     initializeSpelllist()
     resizeWindow()
 
@@ -199,13 +231,14 @@ function terminate()
 end
 
 function initializeSpelllist()
-    for i = 1, #SpelllistSettings[SpelllistProfile].spellOrder do
-        local spell = SpelllistSettings[SpelllistProfile].spellOrder[i]
-        local info = SpellInfo[SpelllistProfile][spell]
+    for i = 1, #CUSTOM_SPELL_ORDER do
+        local spell = CUSTOM_SPELL_ORDER[i]
+        local info = CUSTOM_SPELL_INFO[spell]
 
         local tmpLabel = g_ui.createWidget('SpellListLabel', spellList)
         tmpLabel:setId(spell)
-        tmpLabel:setText(spell .. '\n\'' .. info.words .. '\'')
+        local formulaText = info.words and info.words ~= '' and ('\n\'' .. info.words .. '\'') or ''
+        tmpLabel:setText(spell .. formulaText)
         tmpLabel:setPhantom(false)
 
         local iconId = tonumber(info.icon)
@@ -214,7 +247,7 @@ function initializeSpelllist()
         end
 
         if not (iconId) then
-            perror('Spell icon \'' .. info.icon .. '\' not found.')
+            iconId = 1
         end
 
         tmpLabel:setHeight(SpelllistSettings[SpelllistProfile].iconSize.height + 4)
@@ -239,11 +272,13 @@ end
 
 function changeSpelllistProfile(oldProfile)
     -- Delete old labels
-    for i = 1, #SpelllistSettings[oldProfile].spellOrder do
-        local spell = SpelllistSettings[oldProfile].spellOrder[i]
+    for i = 1, #CUSTOM_SPELL_ORDER do
+        local spell = CUSTOM_SPELL_ORDER[i]
         local tmpLabel = spellList:getChildById(spell)
 
-        tmpLabel:destroy()
+        if tmpLabel then
+            tmpLabel:destroy()
+        end
     end
 
     -- Create new spelllist and ajust window
@@ -253,9 +288,9 @@ function changeSpelllistProfile(oldProfile)
 end
 
 function updateSpelllist()
-    for i = 1, #SpelllistSettings[SpelllistProfile].spellOrder do
-        local spell = SpelllistSettings[SpelllistProfile].spellOrder[i]
-        local info = SpellInfo[SpelllistProfile][spell]
+    for i = 1, #CUSTOM_SPELL_ORDER do
+        local spell = CUSTOM_SPELL_ORDER[i]
+        local info = CUSTOM_SPELL_INFO[spell]
         local tmpLabel = spellList:getChildById(spell)
 
         local localPlayer = g_game.getLocalPlayer()
@@ -287,8 +322,8 @@ function updateSpellInformation(widget)
     local premium = ''
     local description = ''
 
-    if SpellInfo[SpelllistProfile][spell] then
-        local info = SpellInfo[SpelllistProfile][spell]
+    if CUSTOM_SPELL_INFO[spell] then
+        local info = CUSTOM_SPELL_INFO[spell]
 
         name = spell
         formula = info.words
@@ -296,7 +331,8 @@ function updateSpellInformation(widget)
         for i = 1, #info.vocations do
             local vocationId = info.vocations[i]
             if vocationId <= 4 or not (table.find(info.vocations, (vocationId - 4))) then
-                vocation = vocation .. (vocation:len() == 0 and '' or ', ') .. VocationNames[vocationId]
+                local weaponTypeName = WEAPON_TYPE_NAMES[vocationId] or VocationNames[vocationId]
+                vocation = vocation .. (vocation:len() == 0 and '' or ', ') .. tr(weaponTypeName)
             end
         end
 
@@ -344,14 +380,14 @@ function toggleFilter(widget, selectedWidget)
         local boxId = selectedWidget:getId()
         if boxId == 'vocationBoxAny' then
             filters.vocationId = FILTER_VOCATION_ANY
-        elseif boxId == 'vocationBoxSorcerer' then
-            filters.vocationId = FILTER_VOCATION_SORCERER
-        elseif boxId == 'vocationBoxDruid' then
-            filters.vocationId = FILTER_VOCATION_DRUID
-        elseif boxId == 'vocationBoxPaladin' then
-            filters.vocationId = FILTER_VOCATION_PALADIN
-        elseif boxId == 'vocationBoxKnight' then
-            filters.vocationId = FILTER_VOCATION_KNIGHT
+        elseif boxId == 'vocationBoxOneHanded' then
+            filters.vocationId = FILTER_VOCATION_ONE_HANDED
+        elseif boxId == 'vocationBoxTwoHanded' then
+            filters.vocationId = FILTER_VOCATION_TWO_HANDED
+        elseif boxId == 'vocationBoxCrossbow' then
+            filters.vocationId = FILTER_VOCATION_CROSSBOW
+        elseif boxId == 'vocationBoxBow' then
+            filters.vocationId = FILTER_VOCATION_BOW
         end
     elseif widget == groupRadioGroup then
         local boxId = selectedWidget:getId()
@@ -388,10 +424,10 @@ function toggleFilter(widget, selectedWidget)
 end
 
 function resizeWindow()
-    spelllistWindow:setWidth(SpelllistSettings['Default'].spellWindowWidth +
+    spelllistWindow:setWidth(SpelllistSettings[SpelllistProfile].spellWindowWidth +
                                  SpelllistSettings[SpelllistProfile].iconSize.width - 32)
     spellList:setWidth(
-        SpelllistSettings['Default'].spellListWidth + SpelllistSettings[SpelllistProfile].iconSize.width - 32)
+        SpelllistSettings[SpelllistProfile].spellListWidth + SpelllistSettings[SpelllistProfile].iconSize.width - 32)
 end
 
 function resetWindow()
