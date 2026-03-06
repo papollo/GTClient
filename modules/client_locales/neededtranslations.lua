@@ -51,6 +51,7 @@ neededTranslations = {'1a) Offensive Name', '1b) Invalid Name Format', '1c) Unsu
                       'Invalid authentification token.', 'Inventory', 'Invite to Party', 'Invite to private chat',
                       'IP Address Banishment', 'Item Name', 'Item Offers', 'It is empty.', 'Join %s\'s Party', 'Knight',
                       'Leave Party', 'Level', 'Life Leech Amount', 'Life Leech Chance', 'Lifetime Premium Account',
+                      'Dodge Chance:',
                       'Limits FPS to 60', 'List of items that you\'re able to buy',
                       'List of items that you\'re able to sell', 'Load', 'Login', 'Login Error', 'Login Error',
                       'Logout', 'Look', 'Magic Level',

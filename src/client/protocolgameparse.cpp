@@ -2392,6 +2392,62 @@ void ProtocolGame::parseGothicTalesPlayerBonusSkills(const InputMessagePtr& msg)
 
 void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const
 {
+    const auto unreadBefore = msg->getUnreadSize();
+    int_fast32_t regularSkillsCount = 0;
+    int_fast32_t additionalSkillsCount = 0;
+    int_fast32_t forgeSkillsCount = 0;
+    uint16_t dodgeLevel = 0;
+    uint16_t dodgeBaseLevel = 0;
+
+    if (g_game.getProtocolVersion() == 1098) {
+        static constexpr Otc::Skill specialSkills1098[] = {
+            Otc::CriticalChance,
+            Otc::CriticalDamage,
+            Otc::LifeLeechChance,
+            Otc::LifeLeechAmount,
+            Otc::ManaLeechChance,
+            Otc::ManaLeechAmount,
+            Otc::Dodge
+        };
+
+        for (int_fast32_t skill = Otc::Fist; skill <= Otc::Hunting; ++skill) {
+            const uint16_t level = msg->getU16();
+            const uint16_t baseLevel = msg->getU16();
+            const uint8_t levelPercent = msg->getU8();
+
+            m_localPlayer->setSkill(static_cast<Otc::Skill>(skill), level, levelPercent);
+            m_localPlayer->setBaseSkill(static_cast<Otc::Skill>(skill), baseLevel);
+            ++regularSkillsCount;
+        }
+
+        for (const auto skill : specialSkills1098) {
+            const uint16_t level = msg->getU16();
+            const uint16_t baseLevel = msg->getU16();
+
+            m_localPlayer->setSkill(skill, level, 0);
+            m_localPlayer->setBaseSkill(skill, baseLevel);
+            ++additionalSkillsCount;
+
+            if (skill == Otc::Dodge) {
+                dodgeLevel = level;
+                dodgeBaseLevel = baseLevel;
+            }
+        }
+        g_logger.debug(
+            "parsePlayerSkills(0xA1): proto={}, version={}, unreadBefore={}, unreadAfter={}, regularSkills={}, additionalSkills={}, forgeSkills={}, dodge=({}/{})",
+            g_game.getProtocolVersion(),
+            g_game.getClientVersion(),
+            unreadBefore,
+            msg->getUnreadSize(),
+            regularSkillsCount,
+            additionalSkillsCount,
+            forgeSkillsCount,
+            dodgeLevel,
+            dodgeBaseLevel
+        );
+        return;
+    }
+
     if (g_game.getClientVersion() >= 1281) {
         // magic level
         const uint16_t magicLevel = msg->getU16();
@@ -2424,11 +2480,12 @@ void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const
 
         m_localPlayer->setSkill(static_cast<Otc::Skill>(skill), level, levelPercent);
         m_localPlayer->setBaseSkill(static_cast<Otc::Skill>(skill), baseLevel);
+        ++regularSkillsCount;
     }
 
     if (g_game.getFeature(Otc::GameAdditionalSkills)) {
-        // Critical, Life Leech, Mana Leech
-        for (int_fast32_t skill = Otc::CriticalChance; skill <= Otc::ManaLeechAmount; ++skill) {
+        // Critical, Life Leech, Mana Leech, Dodge
+        for (int_fast32_t skill = Otc::CriticalChance; skill <= Otc::Dodge; ++skill) {
             if (!g_game.getFeature(Otc::GameLeechAmount)) {
                 if (skill == Otc::LifeLeechAmount || skill == Otc::ManaLeechAmount) {
                     continue;
@@ -2439,6 +2496,12 @@ void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const
             const uint16_t baseLevel = msg->getU16();
             m_localPlayer->setSkill(static_cast<Otc::Skill>(skill), level, 0);
             m_localPlayer->setBaseSkill(static_cast<Otc::Skill>(skill), baseLevel);
+            ++additionalSkillsCount;
+
+            if (skill == Otc::Dodge) {
+                dodgeLevel = level;
+                dodgeBaseLevel = baseLevel;
+            }
         }
     }
 
@@ -2450,10 +2513,15 @@ void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const
         // forge skill stats
         const uint8_t lastSkill = g_game.getClientVersion() >= 1332 ? Otc::LastSkill : Otc::Momentum + 1;
         for (int_fast32_t skill = Otc::Fatal; skill < lastSkill; ++skill) {
+            if (skill == Otc::Dodge) {
+                continue;
+            }
+
             const uint16_t level = msg->getU16();
             const uint16_t baseLevel = msg->getU16();
             m_localPlayer->setSkill(static_cast<Otc::Skill>(skill), level, 0);
             m_localPlayer->setBaseSkill(static_cast<Otc::Skill>(skill), baseLevel);
+            ++forgeSkillsCount;
         }
 
         // bonus cap
@@ -2462,6 +2530,19 @@ void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const
 
         m_localPlayer->setTotalCapacity(capacity);
     }
+
+    g_logger.debug(
+        "parsePlayerSkills(0xA1): proto={}, version={}, unreadBefore={}, unreadAfter={}, regularSkills={}, additionalSkills={}, forgeSkills={}, dodge=({}/{})",
+        g_game.getProtocolVersion(),
+        g_game.getClientVersion(),
+        unreadBefore,
+        msg->getUnreadSize(),
+        regularSkillsCount,
+        additionalSkillsCount,
+        forgeSkillsCount,
+        dodgeLevel,
+        dodgeBaseLevel
+    );
 }
 
 void ProtocolGame::parsePlayerState(const InputMessagePtr& msg) const

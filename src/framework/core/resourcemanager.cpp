@@ -21,6 +21,7 @@
  */
 
 #include <algorithm>
+#include <ctime>
 #include <filesystem>
 #include <ranges>
 
@@ -706,7 +707,7 @@ void ResourceManager::updateExecutable(std::string fileName)
     const auto& oldWriteDir = getWriteDir();
     setWriteDir(getWorkDir());
     const std::filesystem::path path(m_binaryPath);
-    const auto newBinary = std::string("gothic_tales") + path.extension().string();
+    const auto newBinary = path.stem().string() + "-" + std::to_string(time(nullptr)) + path.extension().string();
     g_logger.info("Updating binary file: {}", newBinary);
     PHYSFS_file* file = PHYSFS_openWrite(newBinary.c_str());
     if (!file) {
@@ -729,9 +730,10 @@ bool ResourceManager::launchCorrect(const std::vector<std::string>& args) { // c
 #if (defined(ANDROID) || defined(FREE_VERSION))
     return false;
 #else
-    auto fileName2 = m_binaryPath.stem().string();
-    fileName2 = stdext::split(fileName2, "-")[0];
-    stdext::tolower(fileName2);
+    const auto currentStem = m_binaryPath.stem().string();
+    const auto baseBinaryName = stdext::split(currentStem, "-")[0];
+    auto normalizedBaseBinaryName = baseBinaryName;
+    stdext::tolower(normalizedBaseBinaryName);
 
     const std::filesystem::path path(m_binaryPath.parent_path());
     std::error_code ec;
@@ -744,7 +746,7 @@ bool ResourceManager::launchCorrect(const std::vector<std::string>& args) { // c
         auto fileName1 = entry.path().stem().string();
         fileName1 = stdext::split(fileName1, "-")[0];
         stdext::tolower(fileName1);
-        if (fileName1 != fileName2)
+        if (fileName1 != normalizedBaseBinaryName)
             continue;
 
         if (entry.path().extension() == m_binaryPath.extension()) {
@@ -764,7 +766,7 @@ bool ResourceManager::launchCorrect(const std::vector<std::string>& args) { // c
         auto fileName1 = entry.path().stem().string();
         fileName1 = stdext::split(fileName1, "-")[0];
         stdext::tolower(fileName1);
-        if (fileName1 != fileName2)
+        if (fileName1 != normalizedBaseBinaryName)
             continue;
 
         if (entry.path().extension() == m_binaryPath.extension()) {

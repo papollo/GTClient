@@ -211,31 +211,10 @@ MiniWindow
       SkillValueLabel
 
     SmallSkillButton
-      id: skillId16
-      visible: false
+      id: skillId21
+      visible: true
       SkillNameLabel
-        !text: tr('Life Leech Chance')
-      SkillValueLabel
-
-    SmallSkillButton
-      id: skillId17
-      visible: false
-      SkillNameLabel
-        !text: tr('Life Leech Amount')
-      SkillValueLabel
-
-    SmallSkillButton
-      id: skillId18
-      visible: false
-      SkillNameLabel
-        !text: tr('Mana Leech Chance')
-      SkillValueLabel
-
-    SmallSkillButton
-      id: skillId19
-      visible: false
-      SkillNameLabel
-        !text: tr('Mana Leech Amount')
+        !text: tr('Dodge Chance:')
       SkillValueLabel
 
     HorizontalSeparator
@@ -553,6 +532,27 @@ MiniWindow
       SkillPercentPanel
 
     SmallSkillButton
+      id: skillId16
+      visible: false
+      SkillNameLabel
+        !text: tr('Life Leech Chance')
+      SkillValueLabel
+
+    SmallSkillButton
+      id: skillId17
+      visible: false
+      SkillNameLabel
+        !text: tr('Life Leech Amount')
+      SkillValueLabel
+
+    SmallSkillButton
+      id: skillId18
+      visible: false
+      SkillNameLabel
+        !text: tr('Mana Leech Chance')
+      SkillValueLabel
+
+    SmallSkillButton
       id: skillId19
       visible: false
       SkillNameLabel
@@ -563,12 +563,6 @@ MiniWindow
       id: skillId20
       SkillNameLabel
         !text: tr('Fatal')
-      SkillValueLabel
-
-    SmallSkillButton
-      id: skillId21
-      SkillNameLabel
-        !text: tr('Dodge')
       SkillValueLabel
 
     SmallSkillButton

@@ -154,12 +154,21 @@ end
 
 function resetSkillColor(id)
     local skill = skillsWindow:recursiveGetChildById(id)
+    if not skill then
+        return
+    end
     local widget = skill:getChildById('value')
+    if not widget then
+        return
+    end
     widget:setColor('#bbbbbb')
 end
 
 function toggleSkill(id, state)
     local skill = skillsWindow:recursiveGetChildById(id)
+    if not skill then
+        return
+    end
     skill:setVisible(state)
 end
 
@@ -168,7 +177,13 @@ function setSkillBase(id, value, baseValue, bonus)
         return
     end
     local skill = skillsWindow:recursiveGetChildById(id)
+    if not skill then
+        return
+    end
     local widget = skill:getChildById('value')
+    if not widget then
+        return
+    end
 
     if value > baseValue then
         widget:setColor('#008b00') -- green
@@ -410,8 +425,10 @@ function refresh()
             if ativedAdditionalSkills then
                 if i >= Skill.LifeLeechChance and i <= Skill.ManaLeechAmount then
                     ativedAdditionalSkills = false
+                elseif i == Skill.Dodge then
+                    ativedAdditionalSkills = true
                 elseif g_game.getClientVersion() >= 1281 then
-	                if g_game.getClientVersion() < 1332 and Skill.Transcendence then
+	                if g_game.getClientVersion() < 1332 and i >= Skill.Fatal then
                         ativedAdditionalSkills = false
                     elseif i >= Skill.Fatal and player:getSkillLevel(i) <= 0 then
                         ativedAdditionalSkills = false
@@ -941,7 +958,7 @@ function onSkillChange(localPlayer, id, level, percent)
         onBaseSkillChange(localPlayer, id, localPlayer:getSkillBaseLevel(id), 0)
     end
 
-    if id > Skill.ManaLeechAmount then
+    if id > Skill.Dodge then
 	    toggleSkill('skillId' .. id, level > 0)
     end
 end

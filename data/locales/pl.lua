@@ -248,6 +248,7 @@ locale = {
     ["Life Leech Amount"] = false,
     ["Life Leech Chance"] = false,
     ["Critical Damage:"] = "Obrazenia krytyczne:",
+    ["Dodge Chance:"] = "Unik:",
     ["Chance:"] = "Szansa:",
     ["Damage:"] = "Obrazenia:",
     ["Resistance:"] = "Odpornosc:",
