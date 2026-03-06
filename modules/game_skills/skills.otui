@@ -156,7 +156,7 @@ MiniWindow
 
     Label
       !text: tr('Critical Damage:')
-      font: verdana-11px-bold
+      font: verdana-11px-antialised
       margin-top: 3
       margin-bottom: 3
       color: #FFFFFF
@@ -180,7 +180,7 @@ MiniWindow
 
     Label
       !text: tr('Resistance:')
-      font: verdana-11px-bold
+      font: verdana-11px-antialised
       margin-top: 3
       margin-bottom: 3
       color: #FFFFFF
@@ -223,7 +223,7 @@ MiniWindow
 
     Label
       !text: tr('MagicLabel')
-      font: verdana-11px-bold
+      font: verdana-11px-antialised
       margin-top: 3
       margin-bottom: 3
       color: #FFFFFF
@@ -258,7 +258,7 @@ MiniWindow
 
     Label
       !text: tr('AttributesLabel')
-      font: verdana-11px-bold
+      font: verdana-11px-antialised
       margin-top: 3
       margin-bottom: 3
       color: #FFFFFF
@@ -292,7 +292,7 @@ MiniWindow
 
     Label
       !text: tr('FightingLabel')
-      font: verdana-11px-bold
+      font: verdana-11px-antialised
       margin-top: 3
       margin-bottom: 3
       color: #FFFFFF
@@ -377,7 +377,7 @@ MiniWindow
 
     Label
       !text: tr('Specialization')
-      font: verdana-11px-bold
+      font: verdana-11px-antialised
       margin-top: 3
       margin-bottom: 3
       color: #FFFFFF
@@ -453,7 +453,7 @@ MiniWindow
 
     Label
       !text: tr('SkillExperience')
-      font: verdana-11px-bold
+      font: verdana-11px-antialised
       margin-top: 3
       margin-bottom: 3
       color: #FFFFFF
