@@ -2362,6 +2362,7 @@ void ProtocolGame::parseGothicTalesPlayerSkills(const InputMessagePtr& msg) cons
     const uint8_t magicCircleSkill = msg->getU8();
     const uint8_t acrobaticSkill = msg->getU8();
     const uint8_t alchemySkill = msg->getU8();
+    const uint8_t bowmasterSkill = msg->getU8();
 
 	m_localPlayer->setLockPickSkill(lockPickSkill);
 	m_localPlayer->setBreakLockSkill(breakLockSkill);
@@ -2373,6 +2374,7 @@ void ProtocolGame::parseGothicTalesPlayerSkills(const InputMessagePtr& msg) cons
 	m_localPlayer->setMagicCircleSkill(magicCircleSkill);
 	m_localPlayer->setAcrobaticSkill(acrobaticSkill);
 	m_localPlayer->setAlchemySkill(alchemySkill);
+    m_localPlayer->setBowmasterSkill(bowmasterSkill);
 }
 
 void ProtocolGame::parseGothicTalesPlayerBonusSkills(const InputMessagePtr& msg) const
@@ -2410,7 +2412,7 @@ void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const
             Otc::Dodge
         };
 
-        for (int_fast32_t skill = Otc::Fist; skill <= Otc::Hunting; ++skill) {
+        for (int_fast32_t skill = Otc::Fist; skill <= Otc::Bowmastery; ++skill) {
             const uint16_t level = msg->getU16();
             const uint16_t baseLevel = msg->getU16();
             const uint8_t levelPercent = msg->getU8();
@@ -2459,7 +2461,7 @@ void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const
         m_localPlayer->setBaseMagicLevel(baseMagicLevel);
     }
 
-    for (int_fast32_t skill = Otc::Fist; skill <= Otc::Hunting; ++skill) {
+    for (int_fast32_t skill = Otc::Fist; skill <= Otc::Bowmastery; ++skill) {
         const uint16_t level = g_game.getFeature(Otc::GameDoubleSkills) ? msg->getU16() : msg->getU8();
 
         uint16_t baseLevel;
@@ -4566,7 +4568,7 @@ void ProtocolGame::parseCyclopediaCharacterInfo(const InputMessagePtr& msg)
 
             std::vector<std::vector<uint16_t>> skills;
 
-            for (int_fast32_t skill = Otc::Fist; skill <= Otc::Hunting; ++skill) {
+            for (int_fast32_t skill = Otc::Fist; skill <= Otc::Bowmastery; ++skill) {
                 msg->getU8(); // Hardcoded Skill Ids
                 const uint16_t skillLevel = msg->getU16();
                 const uint16_t baseSkill = msg->getU16();

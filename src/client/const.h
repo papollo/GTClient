@@ -142,6 +142,7 @@ namespace Otc
         Alchemy,
 		Smithing,
         Hunting,
+        Bowmastery,
         CriticalChance,
         CriticalDamage,
         LifeLeechChance,

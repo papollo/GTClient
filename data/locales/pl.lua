@@ -415,6 +415,8 @@ locale = {
     ["CookingSkillFull"] = "Gotowanie",
     ["HuntingSkill"] = "Skorowanie zwie.",
     ["HuntingSkillFull"] = "Skorowanie zwierzat",
+    ["BowmasterSkill"] = "Luczarstwo",
+    ["BowmasterSkillFull"] = "Luczarstwo",
     ["MagicCircleSkill"] = "Krag Magiczny",
     ["MagicCircleSkillFull"] = "Krag Magiczny",
     ["AcrobaticSkill"] = "Akrobatyka",
@@ -547,6 +549,7 @@ locale = {
     ["Alchemy"] = "Alchemia",
     ["Smithing"] = "Kowalstwo",
     ["Hunting"] = "Skorowanie",
+    ["Bowmastery"] = "Luczarstwo",
   }
 }
 

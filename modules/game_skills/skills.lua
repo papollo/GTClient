@@ -50,6 +50,7 @@ function init()
         onMiningSkillChange = onMiningSkillChange,
         onCookingSkillChange = onCookingSkillChange,
         onHuntingSkillChange = onHuntingSkillChange,
+        onBowmasterSkillChange = onBowmasterSkillChange,
         onMagicCircleSkillChange = onMagicCircleSkillChange,
         onAcrobaticSkillChange = onAcrobaticSkillChange,
         onAlchemySkillChange = onAlchemySkillChange ,
@@ -120,6 +121,7 @@ function terminate()
         onMiningSkillChange = onMiningSkillChange,
         onCookingSkillChange = onCookingSkillChange,
         onHuntingSkillChange = onHuntingSkillChange,
+        onBowmasterSkillChange = onBowmasterSkillChange,
         onMagicCircleSkillChange = onMagicCircleSkillChange,
         onAcrobaticSkillChange = onAcrobaticSkillChange,
         onAlchemySkillChange = onAlchemySkillChange ,
@@ -207,7 +209,7 @@ function setSkillValue(id, value)
     local skill = skillsWindow:recursiveGetChildById(id)
     if skill then
         local widget = skill:getChildById('value')
-        if id == "skillId14" or id == "skillId15" or id == "skillId16" or id == "skillId18" or id == "skillId20" or id == "skillId21" or id == "skillId22" or id == "skillId23" then
+        if id == "skillId15" or id == "skillId16" or id == "skillId17" or id == "skillId19" or id == "skillId21" or id == "skillId22" or id == "skillId23" or id == "skillId24" then
             if g_game.getFeature(GameEnterGameShowAppearance) then
                 value = value / 100
             end
@@ -395,6 +397,7 @@ function refresh()
     onMiningSkillChange(player, player:getMiningSkill())
     onCookingSkillChange(player, player:getCookingSkill())
     onHuntingSkillChange(player, player:getHuntingSkill())
+    onBowmasterSkillChange(player, player:getBowmasterSkill())
     onMagicCircleSkillChange(player, player:getMagicCircleSkill())
     onAcrobaticSkillChange(player, player:getAcrobaticSkill())
     onAlchemySkillChange(player, player:getAlchemySkill())
@@ -420,7 +423,7 @@ function refresh()
             onSkillChange(player, i, player:getSkillLevel(i), player:getSkillLevelPercent(i))
         end
 
-        if i > Skill.Hunting then
+        if i > Skill.Bowmastery then
             local ativedAdditionalSkills = hasAdditionalSkills
             if ativedAdditionalSkills then
                 if i >= Skill.LifeLeechChance and i <= Skill.ManaLeechAmount then
@@ -702,6 +705,15 @@ function onHuntingSkillChange(localPlayer, huntingSkill)
         local widget = skillWidget:getChildById('value')
         widget:setText(huntingSkill .. "/3")
         skillWidget:setTooltip(tr("HuntingSkillFull"))
+    end
+end
+
+function onBowmasterSkillChange(localPlayer, bowmasterSkill)
+    local skillWidget = skillsWindow:recursiveGetChildById('bowmasterSkill')
+    if skillWidget then
+        local widget = skillWidget:getChildById('value')
+        widget:setText(bowmasterSkill .. "/3")
+        skillWidget:setTooltip(tr("BowmasterSkillFull"))
     end
 end
 

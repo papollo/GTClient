@@ -163,13 +163,13 @@ MiniWindow
       text-align: center
 
     SmallSkillButton
-      id: skillId14
+      id: skillId15
       SkillNameLabel
         !text: tr('Chance:')
       SkillValueLabel
 
     SmallSkillButton
-      id: skillId15
+      id: skillId16
       SkillNameLabel
         !text: tr('Damage:')
       SkillValueLabel
@@ -211,7 +211,7 @@ MiniWindow
       SkillValueLabel
 
     SmallSkillButton
-      id: skillId21
+      id: skillId22
       visible: true
       SkillNameLabel
         !text: tr('Dodge Chance:')
@@ -432,6 +432,13 @@ MiniWindow
         !text: tr('HuntingSkill')
       SkillValueLabel
 
+    SkillButton
+      id: bowmasterSkill
+      height: 15
+      SkillNameLabel
+        !text: tr('BowmasterSkill')
+      SkillValueLabel
+
 
     SkillButton
       id: acrobaticSkill
@@ -531,48 +538,60 @@ MiniWindow
         image-size: 9 9
       SkillPercentPanel
 
+    SkillButton
+      id: skillId14
+      height: 15
+      SkillNameLabel
+        margin-left: 12
+        !text: tr('Bowmastery')
+      SkillValueLabel
+      ImageSkill
+        image-source: /images/icons/icon_bow
+        image-size: 9 9
+      SkillPercentPanel
+
     SmallSkillButton
-      id: skillId16
+      id: skillId17
       visible: false
       SkillNameLabel
         !text: tr('Life Leech Chance')
       SkillValueLabel
 
     SmallSkillButton
-      id: skillId17
+      id: skillId18
       visible: false
       SkillNameLabel
         !text: tr('Life Leech Amount')
       SkillValueLabel
 
     SmallSkillButton
-      id: skillId18
+      id: skillId19
       visible: false
       SkillNameLabel
         !text: tr('Mana Leech Chance')
       SkillValueLabel
 
     SmallSkillButton
-      id: skillId19
+      id: skillId20
       visible: false
       SkillNameLabel
         !text: tr('Mana Leech Amount')
       SkillValueLabel
 
     SmallSkillButton
-      id: skillId20
+      id: skillId21
       SkillNameLabel
         !text: tr('Fatal')
       SkillValueLabel
 
     SmallSkillButton
-      id: skillId22
+      id: skillId23
       SkillNameLabel
         !text: tr('Momentum')
       SkillValueLabel
 
     SmallSkillButton
-      id: skillId23
+      id: skillId24
       SkillNameLabel
         !text: tr('Transcendence')
       SkillValueLabel

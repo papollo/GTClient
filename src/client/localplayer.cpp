@@ -523,6 +523,17 @@ void LocalPlayer::setHuntingSkill(uint8_t huntingSkill)
     callLuaField("onHuntingSkillChange", huntingSkill, oldHuntingSkill);
 }
 
+void LocalPlayer::setBowmasterSkill(uint8_t bowmasterSkill)
+{
+    if (m_bowmasterSkill == bowmasterSkill)
+        return;
+
+    const uint8_t oldBowmasterSkill = m_bowmasterSkill;
+    m_bowmasterSkill = bowmasterSkill;
+
+    callLuaField("onBowmasterSkillChange", bowmasterSkill, oldBowmasterSkill);
+}
+
 void LocalPlayer::setMagicCircleSkill(uint8_t magicCircleSkill)
 {
 	if (m_magicCircleSkill == magicCircleSkill)

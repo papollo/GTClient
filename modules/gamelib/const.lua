@@ -60,16 +60,17 @@ Skill = {
     Alchemy = 11,
 	Smithing = 12,
     Hunting = 13,
-    CriticalChance = 14,
-    CriticalDamage = 15,
-    LifeLeechChance = 16,
-    LifeLeechAmount = 17,
-    ManaLeechChance = 18,
-    ManaLeechAmount = 19,
-    Fatal = 20,
-    Dodge = 21,
-    Momentum = 22,
-    Transcendence = 23
+    Bowmastery = 14,
+    CriticalChance = 15,
+    CriticalDamage = 16,
+    LifeLeechChance = 17,
+    LifeLeechAmount = 18,
+    ManaLeechChance = 19,
+    ManaLeechAmount = 20,
+    Fatal = 21,
+    Dodge = 22,
+    Momentum = 23,
+    Transcendence = 24
 }
 
 North = Directions.North

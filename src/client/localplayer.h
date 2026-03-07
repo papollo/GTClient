@@ -81,6 +81,7 @@ public:
 	void setMiningSkill(uint8_t miningSkill);
     void setCookingSkill(uint8_t cookingSkill);
     void setHuntingSkill(uint8_t huntingSkill);
+    void setBowmasterSkill(uint8_t bowmasterSkill);
     void setMagicCircleSkill(uint8_t magicCircleSkill);
     void setAcrobaticSkill(uint8_t acrobaticSkill);
     void setAlchemySkill(uint8_t alchemySkill);
@@ -100,6 +101,7 @@ public:
 	uint8_t getMiningSkill() { return m_miningSkill; };
 	uint8_t getCookingSkill() { return m_cookingSkill; };
 	uint8_t getHuntingSkill() { return m_huntingSkill; };
+	uint8_t getBowmasterSkill() { return m_bowmasterSkill; };
 	uint8_t getMagicCircleSkill() { return m_magicCircleSkill; };
 	uint8_t getAcrobaticSkill() { return m_acrobaticSkill; };
 	uint8_t getAlchemySkill() { return m_alchemySkill; };
@@ -252,6 +254,7 @@ private:
 	uint8_t m_miningSkill{ 0 };
 	uint8_t m_cookingSkill{ 0 };
 	uint8_t m_huntingSkill{ 0 };
+	uint8_t m_bowmasterSkill{ 0 };
 	uint8_t m_magicCircleSkill{ 0 };
 	uint8_t m_acrobaticSkill{ 0 };
 	uint8_t m_alchemySkill{ 0 };
