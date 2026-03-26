@@ -20,7 +20,7 @@ local PANEL_CONSTANTS = {
     MAX_ICONS_PER_ROW = {
         OPTIONS = 5,
         SPECIALS = 2,
-        STORE = 3
+        STORE = 4
     },
     MULTI_STORE_HEIGHT = 20,
     HEIGHT_EXTRA_ONPANEL = -5,
@@ -32,7 +32,8 @@ local optionsShrink = false
 local STORE_REPLACEMENT_BUTTONS = {
     skillsButton = 1,
     questLogButton = 2,
-    battleButton = 3
+    battleButton = 3,
+    quickLootButton = 4
 }
 
 local function calculatePanelHeight(panel, max_icons_per_row)

@@ -1475,7 +1475,7 @@ void ProtocolGame::requestQuickLootBlackWhiteList(const uint8_t filter, const ui
     const auto msg = std::make_shared<OutputMessage>();
     msg->addU8(Proto::ClientQuickLootBlackWhitelist);
     msg->addU8(filter);
-    msg->addU16(size);
+    msg->addU16(static_cast<uint16_t>(listedItems.size()));
 
     for (const uint16_t item : listedItems) {
         msg->addU16(item);

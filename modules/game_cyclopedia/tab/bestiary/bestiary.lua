@@ -796,22 +796,21 @@ end
 function onAddLootClick(widget, mousePosition, mouseButton)
     local itemId = widget:getItemId()
     local quickLoot = modules.game_quickloot.QuickLoot
-    local lootFilterValue = quickLoot.data.filter
     local menu = g_ui.createWidget("PopupMenu")
+    local filter = quickLoot.data.filter
+    local inList = quickLoot.lootExists(itemId, filter)
 
     menu:setGameMenu(true)
 
-    if not quickLoot.lootExists(itemId, lootFilterValue) then
-        menu:addOption("Add to Loot List",
-        function()
-            quickLoot.addLootList(itemId, lootFilterValue)
-        end)
-    else
-        menu:addOption("Remove from Loot List", 
-        function() 
-            quickLoot.removeLootList(itemId, lootFilterValue)
-        end)
-    end
+    local filterName = filter == 1 and "Skip" or "Accepted"
+    menu:addOption(inList and ("Remove from " .. filterName .. " List") or ("Add to " .. filterName .. " List"),
+    function()
+        if inList then
+            quickLoot.removeLootList(itemId, filter)
+        else
+            quickLoot.addLootList(itemId, filter)
+        end
+    end)
 
     menu:display(menuPosition)
 

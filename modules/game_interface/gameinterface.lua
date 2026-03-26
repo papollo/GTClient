@@ -829,6 +829,7 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
 
     if g_game.getFeature(GameThingQuickLoot) and modules.game_quickloot and lookThing and not lookThing:isCreature() and lookThing:isPickupable() then
         local quickLoot = modules.game_quickloot.QuickLoot
+        local itemId = lookThing:getId()
         menu.addSeparator(menu)
 
         if lookThing:isContainer() then
@@ -837,12 +838,16 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
             end)
         end
 
-        local lootExists = quickLoot.lootExists(lookThing:getId())
-        local optionText = lootExists and "Remove from" or "Add to"
-        local actionFunction = lootExists and quickLoot.removeLootList or quickLoot.addLootList
+        local filter = quickLoot.data.filter
+        local inList = quickLoot.lootExists(itemId, filter)
+        local label = filter == 1 and "Skipped Loot List" or "Accepted Loot List"
 
-        menu.addOption(menu, tr(optionText .. " loot list"), function()
-            actionFunction(lookThing:getId())
+        menu.addOption(menu, tr(inList and ("Remove from " .. label) or ("Add to " .. label)), function()
+            if inList then
+                quickLoot.removeLootList(itemId, filter)
+            else
+                quickLoot.addLootList(itemId, filter)
+            end
         end)
     end
 

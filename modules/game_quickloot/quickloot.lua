@@ -1,11 +1,65 @@
 QuickLoot = {}
 
+local quickLootButton = nil
+
 local function getFilter(id)
     local filter = {
-        [1] = 0,
-        [2] = 1
+        [1] = 0, -- skipped/blacklist = 0
+        [2] = 1  -- accepted/whitelist = 1
     }
     return filter[id]
+end
+
+local function normalizeLootLists(data)
+    data = data or {}
+    data.loots = data.loots or {}
+
+    -- Keep the client-side representation consistent:
+    -- [1] = skipped blacklist, [2] = accepted whitelist
+    -- Handle JSON libraries that may decode arrays as 0-indexed
+    local skipped = data.loots[1]
+    local accepted = data.loots[2]
+
+    if data.loots[0] ~= nil then
+        -- JSON decoded as 0-indexed: [0]=skipped, [1]=accepted
+        skipped = data.loots[0]
+        if accepted == nil then
+            accepted = data.loots[1]
+        end
+    end
+
+    if skipped == nil then
+        skipped = {}
+    end
+
+    if accepted == nil then
+        accepted = {}
+    end
+
+    data.loots = {
+        [1] = skipped,
+        [2] = accepted
+    }
+
+    if data.filter ~= 1 and data.filter ~= 2 then
+        data.filter = 1
+    end
+
+    return data
+end
+
+local function getQuickLootBagWidget(categoryId)
+    if not quickLootController or not quickLootController.ui then
+        return nil
+    end
+
+    for _, child in ipairs(quickLootController.ui.list:getChildren()) do
+        if child:getId() == categoryId then
+            return child
+        end
+    end
+
+    return nil
 end
 
 quickLootController = Controller:new()
@@ -14,24 +68,31 @@ function quickLootController:onInit()
 
     QuickLoot.Define()
 
-    QuickLoot.data = {
+    QuickLoot.data = normalizeLootLists({
         filter = 1,
         loots = {
-            [0] = {},
-            {}
+            [1] = {},
+            [2] = {}
         }
-    }
+    })
 
     quickLootController.ui:hide()
 
     quickLootController:registerEvents(g_game, {
         onQuickLootContainers = QuickLoot.start
     })
+
+    quickLootButton = modules.game_mainpanel.addToggleButton('quickLootButton', tr('Quick Loot'),
+        '/images/options/button_quick_loot', QuickLoot.toggle, false, 4)
+    quickLootButton:setOn(false)
+
     Keybind.new("Loot", "Quick Loot Nearby Corpses", "Alt+Q", "")
     Keybind.bind("Loot", "Quick Loot Nearby Corpses", {
       {
         type = KEY_DOWN,
-        callback = function() g_game.sendQuickLoot(2) end,
+        callback = function()
+            g_game.sendQuickLoot(2)
+        end,
       }
     })
 
@@ -39,6 +100,10 @@ end
 
 function quickLootController:onTerminate()
     Keybind.delete("Loot", "Quick Loot Nearby Corpses")
+    if quickLootButton then
+        quickLootButton:destroy()
+        quickLootButton = nil
+    end
     if QuickLoot.mouseGrabberWidget then
         QuickLoot.mouseGrabberWidget:destroy()
         QuickLoot.mouseGrabberWidget = nil
@@ -48,7 +113,13 @@ function quickLootController:onTerminate()
 end
 
 function quickLootController:onGameStart()
-    if not g_game.getFeature(GameThingQuickLoot) then
+    local hasQuickLoot = g_game.getFeature(GameThingQuickLoot)
+    if quickLootButton then
+        quickLootButton:setVisible(hasQuickLoot)
+        quickLootButton:setOn(false)
+    end
+
+    if not hasQuickLoot then
         return
     end
     if not QuickLoot.mouseGrabberWidget then
@@ -59,16 +130,27 @@ function quickLootController:onGameStart()
 
     QuickLoot.mouseGrabberWidget.onMouseRelease = QuickLoot.onChooseItem
     QuickLoot.lastSelectBag = nil
+    QuickLoot.lastSelectBagCategory = nil
     QuickLoot.ErrorWindow = nil
 
     quickLootController.ui.information.vipPanel.premium:setOn(not g_game.getLocalPlayer():isPremium())
     QuickLoot.load()
 
+    -- Send both lists to the server on login so it has the full state,
+    -- then send the active filter last so the server uses the correct mode
+    local inactiveFilter = (QuickLoot.data.filter == 1) and 2 or 1
+    if #QuickLoot.data.loots[inactiveFilter] > 0 then
+        g_game.requestQuickLootBlackWhiteList(getFilter(inactiveFilter),
+            #QuickLoot.data.loots[inactiveFilter], QuickLoot.data.loots[inactiveFilter])
+    end
     g_game.requestQuickLootBlackWhiteList(getFilter(QuickLoot.data.filter),
         #QuickLoot.data.loots[QuickLoot.data.filter], QuickLoot.data.loots[QuickLoot.data.filter])
 end
 
 function quickLootController:onGameEnd()
+    if quickLootButton then
+        quickLootButton:setOn(false)
+    end
     if not g_game.getFeature(GameThingQuickLoot) then
         return
     end
@@ -173,19 +255,25 @@ function QuickLoot.Define()
             end
 
             if result == nil then
-                QuickLoot.data = {
+                QuickLoot.data = normalizeLootLists({
                     filter = 1,
-                    loots = {{}, {}}
-                }
+                    loots = {
+                        [1] = {},
+                        [2] = {}
+                    }
+                })
             else
-                QuickLoot.data = result
+                QuickLoot.data = normalizeLootLists(result)
             end
 
         else
-            QuickLoot.data = {
+            QuickLoot.data = normalizeLootLists({
                 filter = 1,
-                loots = {{}, {}}
-            }
+                loots = {
+                    [1] = {},
+                    [2] = {}
+                }
+            })
         end
     end
 
@@ -222,6 +310,7 @@ function QuickLoot.Define()
 
         QuickLoot.filter(quickLootController.ui.filters[filter[QuickLoot.data.filter]], true)
         quickLootController.ui.list:getLayout():disableUpdates()
+        QuickLoot.lastSelectBag = nil
         quickLootController.ui.list:destroyChildren()
 
         quickLootController.ui.fallbackPanel.checkbox:setChecked(fallback)
@@ -299,7 +388,19 @@ function QuickLoot.Define()
     end
 
     function QuickLoot.search(text)
-        return
+        if not quickLootController.ui then
+            return
+        end
+
+        local filter = text:lower()
+        for _, child in ipairs(quickLootController.ui.ignoreList:getChildren()) do
+            if filter == "" then
+                child:setVisible(true)
+            else
+                local name = child.label:getText():lower()
+                child:setVisible(name:find(filter, 1, true) ~= nil)
+            end
+        end
     end
 
     function QuickLoot.clearSearch()
@@ -319,7 +420,8 @@ function QuickLoot.Define()
         QuickLoot.mouseGrabberWidget:grabMouse()
         g_mouse.pushCursor("target")
 
-        QuickLoot.lastSelectBag = self:getParent()
+        QuickLoot.lastSelectBag = nil
+        QuickLoot.lastSelectBagCategory = self:getParent():getId()
         QuickLoot.actionsId = self.Select
 
         quickLootController.ui:hide()
@@ -359,7 +461,7 @@ function QuickLoot.Define()
                 elseif clickedWidget:getClassName() == "UIItem" and not clickedWidget:isVirtual() then
                     if clickedWidget:getItem() and clickedWidget:getItem():isContainer() then
                         item = clickedWidget:getItem()
-                        g_game.openContainerQuickLoot(QuickLoot.actionsId, QuickLoot.lastSelectBag:getId(),
+                        g_game.openContainerQuickLoot(QuickLoot.actionsId, QuickLoot.lastSelectBagCategory,
                             item:getPosition(), item:getId(), item:getStackPos())
                     else
                         QuickLoot.ErrorWindow = displayGeneralBox(tr("Invalid Loot Container"), tr(
@@ -376,9 +478,18 @@ function QuickLoot.Define()
         end
 
         if item then
-            QuickLoot.lastSelectBag.item:setItem(item)
+            local bagWidget = getQuickLootBagWidget(QuickLoot.lastSelectBagCategory)
+            if bagWidget then
+                if QuickLoot.actionsId == 0 then
+                    bagWidget.item2:setItem(item)
+                else
+                    bagWidget.item:setItem(item)
+                end
+            end
             quickLootController.ui:show()
         end
+
+        QuickLoot.lastSelectBagCategory = nil
 
         g_mouse.popCursor("target")
         self:ungrabMouse()
@@ -431,6 +542,9 @@ function QuickLoot.Define()
             return
         end
 
+        if quickLootButton then
+            quickLootButton:setOn(true)
+        end
         quickLootController.ui:show()
         quickLootController.ui:raise()
         quickLootController.ui:focus()
@@ -440,6 +554,9 @@ function QuickLoot.Define()
     function QuickLoot.hide()
         if not quickLootController.ui then
             return
+        end
+        if quickLootButton then
+            quickLootButton:setOn(false)
         end
         quickLootController.ui:hide()
     end

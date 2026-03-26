@@ -185,13 +185,16 @@ controller:registerEvents(g_game, {
             g_game.enableFeature(GameLeechAmount)
         end
 
+        if version >= 1098 then
+            g_game.enableFeature(GameThingQuickLoot)
+        end
+
         if version >= 1100 then
             g_game.enableFeature(GamePrey)
         end
 
         if version >= 1200 then
             g_game.enableFeature(GameColorizedLootValue)
-            g_game.enableFeature(GameThingQuickLoot)
             g_game.enableFeature(GameTournamentPackets)
             g_game.enableFeature(GameVipGroups)
             g_game.enableFeature(GameEnterGameShowAppearance)
