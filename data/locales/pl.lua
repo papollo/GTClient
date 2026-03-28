@@ -251,6 +251,7 @@ locale = {
     ["Dodge Chance:"] = "Unik:",
     ["Chance:"] = "Szansa:",
     ["Damage:"] = "Obrazenia:",
+    ["Armor:"] = "Pancerz:",
     ["Resistance:"] = "Odpornosc:",
     ["Fire:"] = "Ogien:",
     ["Ice:"] = "Lod:",

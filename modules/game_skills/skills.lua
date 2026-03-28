@@ -17,7 +17,8 @@ local resistValues = {
     fire = 0,
     ice = 0,
     physical = 0,
-    poison = 0
+    poison = 0,
+    armor = 0
 }
 
 function init()
@@ -228,11 +229,22 @@ local function setResistValue(id, value)
     end
 end
 
+local function setArmorValue(id, value)
+    local widget = skillsWindow:recursiveGetChildById(id)
+    if widget then
+        local label = widget:getChildById('value')
+        if label then
+            label:setText(tostring(value))
+        end
+    end
+end
+
 local function updateResistWidgets()
     setResistValue('resistFire', resistValues.fire)
     setResistValue('resistIce', resistValues.ice)
     setResistValue('resistPoison', resistValues.poison)
     setResistValue('resistPhysical', resistValues.physical)
+    setArmorValue('totalArmor', resistValues.armor)
 end
 
 function onResistsOpcode(protocol, opcode, data)
@@ -255,6 +267,9 @@ function onResistsOpcode(protocol, opcode, data)
         resistValues.physical = res.physical
     end
     resistValues.poison = type(res.poison) == 'number' and res.poison or 0
+    if type(res.armor) == 'number' then
+        resistValues.armor = res.armor
+    end
 
     updateResistWidgets()
 end
@@ -487,7 +502,7 @@ function offline()
         expSpeedEvent = nil
     end
     g_settings.setNode('skills-hide', skillSettings)
-    resistValues = { fire = 0, ice = 0, physical = 0, poison = 0 }
+    resistValues = { fire = 0, ice = 0, physical = 0, poison = 0, armor = 0 }
 end
 
 function toggle()

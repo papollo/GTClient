@@ -185,6 +185,12 @@ MiniWindow
       margin-bottom: 3
       color: #FFFFFF
       text-align: center
+      
+    SmallSkillButton
+      id: totalArmor
+      SkillNameLabel
+        !text: tr('Armor:')
+      SkillValueLabel
 
     SmallSkillButton
       id: resistFire
