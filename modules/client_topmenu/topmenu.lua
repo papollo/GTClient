@@ -121,7 +121,7 @@ function init()
       }
     })
     if Services.websites then
-        managerAccountsButton = modules.client_topmenu.addTopRightRegularButton('hotkeysButton', tr('Manage Account'),
+        managerAccountsButton = modules.client_topmenu.addTopRightRegularButton('managerAccountsButton', tr('Manage Account'),
             nil, openManagerAccounts)
     end
     if g_platform.isMobile() then
@@ -151,14 +151,11 @@ function terminate()
         onFps = updateFps
     })
 
+    managerAccountsButton = nil
     topMenu:destroy()
     if PingWidget and not PingWidget:isDestroyed() then
         PingWidget:destroy()
         PingWidget = nil
-    end
-    if managerAccountsButton then
-        managerAccountsButton:destroy()
-        managerAccountsButton = nil
     end
     if g_platform.isMobile() then
         if zoomInButton and not zoomOutButton:isDestroyed() then

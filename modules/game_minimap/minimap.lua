@@ -10,6 +10,7 @@ local currentDayTime = {
     m = 0
 }
 local cameraSyncEvent = nil
+local lastPlayerPos = nil
 
 local function refreshVirtualFloors()
     mapController.ui.layersPanel.layersMark:setMarginTop(((virtualFloor + 1) * 4) - 3)
@@ -32,13 +33,22 @@ local function onPositionChange()
         return
     end
 
-    if not minimapWidget.fullMapView then
-        minimapWidget:setCameraPosition(pos)
-    end
+    local playerMoved = not lastPlayerPos or lastPlayerPos.x ~= pos.x or lastPlayerPos.y ~= pos.y or lastPlayerPos.z ~= pos.z
+    lastPlayerPos = {x = pos.x, y = pos.y, z = pos.z}
 
-    minimapWidget:setCrossPosition(pos)
-    virtualFloor = pos.z
-    refreshVirtualFloors()
+    if not minimapWidget.fullMapView then
+        if playerMoved or not minimapWidget.userPanned then
+            minimapWidget:setCameraPosition(pos)
+            minimapWidget.userPanned = false
+            minimapWidget:setCrossPosition(pos)
+            virtualFloor = pos.z
+            refreshVirtualFloors()
+        end
+    else
+        minimapWidget:setCrossPosition(pos)
+        virtualFloor = pos.z
+        refreshVirtualFloors()
+    end
 end
 
 local function onWalk()
@@ -217,6 +227,7 @@ function upLayer()
     end
 
     mapController.ui.minimapBorder.minimap:floorUp(1)
+    mapController.ui.minimapBorder.minimap.userPanned = true
     virtualFloor = virtualFloor - 1
     refreshVirtualFloors()
 end
@@ -227,6 +238,7 @@ function downLayer()
     end
 
     mapController.ui.minimapBorder.minimap:floorDown(1)
+    mapController.ui.minimapBorder.minimap.userPanned = true
     virtualFloor = virtualFloor + 1
     refreshVirtualFloors()
 end

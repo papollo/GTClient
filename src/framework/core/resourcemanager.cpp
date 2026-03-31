@@ -707,9 +707,11 @@ void ResourceManager::updateExecutable(std::string fileName)
     const auto& oldWriteDir = getWriteDir();
     setWriteDir(getWorkDir());
     const std::filesystem::path path(m_binaryPath);
-    const auto baseName = stdext::split(path.stem().string(), "-")[0];
+    const auto stem = path.stem().string();
+    const auto baseName = stdext::split(stem, "-")[0];
     const auto newBinary = baseName + "-" + std::to_string(time(nullptr)) + path.extension().string();
-    g_logger.info("Updating binary file: {}", newBinary);
+    g_logger.info("Updating binary file: {} (stem: {}, baseName: {}, binaryPath: {}, workDir: {})",
+        newBinary, stem, baseName, m_binaryPath.string(), getWorkDir());
     PHYSFS_file* file = PHYSFS_openWrite(newBinary.c_str());
     if (!file) {
         return g_logger.fatal(

@@ -326,6 +326,7 @@ function UIMinimap:onDragMove(pos, moved)
 end
 
 function UIMinimap:onDragLeave(widget, pos)
+    self.userPanned = true
     return true
 end
 
