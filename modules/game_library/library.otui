@@ -1,0 +1,348 @@
+LibraryTabButton < UIButton
+  size: 34 34
+  image-source: /images/game/cyclopedia/items_off
+  image-clip: 0 0 34 34
+
+  $on:
+    size: 150 34
+    image-source: /images/game/cyclopedia/items_on
+    image-clip: 0 0 150 34
+
+  $pressed:
+    size: 34 34
+    image-source: /images/game/cyclopedia/items_off
+    image-clip: 0 34 34 34
+
+LibraryCategoryItem < UICheckBox
+  size: 182 18
+  color: #C0C0C0
+  text-align: left
+  background-color: #484848
+  text-offset: 4 0
+  padding-left: 2
+
+  $hover:
+    background-color: #525252
+
+  $checked:
+    color: #F6F6F6
+    background-color: #585858
+
+LibraryResultItem < UIWidget
+  size: 196 35
+  background-color: #484848
+
+  UIWidget
+    id: iconBackground
+    size: 32 32
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 2
+    image-source: /images/ui/item
+
+    UIItem
+      id: Sprite
+      anchors.fill: parent
+
+  Label
+    id: Name
+    anchors.left: iconBackground.right
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 8
+    margin-right: 6
+    color: #CFCFCF
+    text-wrap: true
+
+  $hover:
+    background-color: #525252
+
+  $checked:
+    background-color: #585858
+
+LibrarySectionLabel < Label
+  color: #BEBEBE
+  text-auto-resize: true
+  margin-top: 10
+
+MainWindow
+  id: libraryWindow
+  size: 700 560
+  !text: tr('Library')
+  visible: false
+
+  UIWidget
+    id: buttonSelection
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    size: 668 36
+    background-color: #404040
+    border-width-top: 1
+    border-color-top: black
+    border-width-left: 1
+    border-color-left: black
+    border-width-bottom: 1
+    border-color-bottom: #747474
+    border-width-right: 1
+    border-color-right: #747474
+
+    LibraryTabButton
+      id: itemsTab
+      anchors.top: parent.top
+      anchors.left: parent.left
+      margin-left: 1
+
+  UIWidget
+    id: contentContainer
+    anchors.top: buttonSelection.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: bottomSeparator.top
+    margin-top: 5
+
+    UILabel
+      id: categoryLabel
+      anchors.top: parent.top
+      anchors.left: parent.left
+      margin-top: 10
+      !text: tr('Categories') .. ':'
+      text-auto-resize: true
+      color: #BDBDBD
+
+    TextList
+      id: categoryList
+      vertical-scrollbar: categoryScrollbar
+      anchors.left: parent.left
+      anchors.top: parent.top
+      margin-top: 30
+      image-source: /images/ui/panel_flat
+      image-border: 10
+      size: 200 120
+      padding-left: 2
+      padding-top: 2
+      padding-bottom: 2
+      focusable: false
+
+    VerticalScrollBar
+      id: categoryScrollbar
+      anchors.top: categoryList.top
+      anchors.right: categoryList.right
+      anchors.bottom: categoryList.bottom
+      step: 10
+      pixels-scroll: true
+
+    VerticalSeparator
+      id: middleSeparator
+      anchors.left: parent.left
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      margin-top: 10
+      margin-bottom: 10
+      margin-left: 210
+
+    Label
+      id: itemsLabel
+      anchors.top: categoryList.bottom
+      anchors.left: parent.left
+      margin-top: 12
+      !text: tr('Items') .. ':'
+      text-auto-resize: true
+      color: #BDBDBD
+
+    Panel
+      id: resultListBase
+      anchors.left: parent.left
+      anchors.top: itemsLabel.bottom
+      margin-top: 5
+      size: 200 180
+      background-color: #363636
+
+      UIScrollArea
+        id: resultList
+        anchors.fill: parent
+        vertical-scrollbar: resultScrollbar
+        padding-top: 2
+        padding-bottom: 2
+        layout:
+          type: verticalBox
+          spacing: 1
+
+      VerticalScrollBar
+        id: resultScrollbar
+        anchors.top: resultList.top
+        anchors.right: resultList.right
+        anchors.bottom: resultList.bottom
+        step: 30
+        pixel-scroll: true
+
+      Label
+        id: resultEmptyLabel
+        anchors.centerIn: parent
+        width: 150
+        text-wrap: true
+        text-align: center
+        color: #9A9A9A
+        height: 48
+        !text: tr('Select a category to load items.')
+
+    Label
+      id: searchLabel
+      anchors.top: resultListBase.bottom
+      anchors.left: parent.left
+      margin-top: 10
+      !text: tr('Search') .. ':'
+      text-auto-resize: true
+      color: #BDBDBD
+
+    TextEdit
+      id: searchEdit
+      anchors.top: searchLabel.bottom
+      anchors.left: parent.left
+      anchors.right: resultListBase.right
+      margin-top: 4
+      height: 18
+      padding-top: 2
+      padding-right: 18
+      placeholder: Type to search
+      placeholder-color: #6E706F
+
+    UIWidget
+      id: searchClearButton
+      anchors.right: searchEdit.right
+      anchors.top: searchEdit.top
+      margin-top: 1
+      margin-right: 2
+      image-source: /game_cyclopedia/images/button_clear_search
+      image-color: white
+      opacity: 0.8
+
+      $hover:
+        opacity: 1.0
+        image-color: white
+
+      $pressed:
+        opacity: 1.0
+        image-color: gray
+
+    UIWidget
+      id: paginationPanel
+      anchors.top: searchEdit.bottom
+      anchors.left: parent.left
+      anchors.right: resultListBase.right
+      margin-top: 8
+      height: 20
+
+      PreviousQtButton
+        id: prevPageButton
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+
+      Label
+        id: pageLabel
+        anchors.centerIn: parent
+        !text: tr('Page 1 / 1')
+        color: #BDBDBD
+        text-auto-resize: true
+
+      NextQtButton
+        id: nextPageButton
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+
+    UIWidget
+      id: detailPanel
+      anchors.left: middleSeparator.right
+      anchors.top: parent.top
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin-left: 10
+
+      Label
+        id: detailPlaceholder
+        anchors.top: parent.top
+        anchors.left: parent.left
+        width: 420
+        margin-top: 10
+        text-wrap: true
+        color: #C0C0C0
+        !text: tr('Select a category and choose an item to see its details here.')
+
+      UIWidget
+        id: detailContent
+        anchors.fill: parent
+        visible: false
+
+        UIWidget
+          id: selectedItem
+          size: 32 32
+          anchors.top: parent.top
+          anchors.left: parent.left
+          image-source: /images/ui/item
+
+          UIItem
+            id: sprite
+            anchors.fill: parent
+
+        Label
+          id: itemName
+          anchors.top: selectedItem.top
+          anchors.left: selectedItem.right
+          margin-left: 8
+          color: #D7D7D7
+          text-auto-resize: true
+          !text: tr('Item')
+
+        Label
+          id: itemDescription
+          anchors.top: itemName.bottom
+          anchors.left: itemName.left
+          anchors.right: parent.right
+          margin-top: 4
+          color: #AFAFAF
+          text-wrap: true
+          visible: false
+
+        Panel
+          id: detailListBase
+          anchors.top: selectedItem.bottom
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          margin-top: 12
+          background-color: #363636
+
+          UIScrollArea
+            id: detailList
+            anchors.fill: parent
+            vertical-scrollbar: detailScrollbar
+            padding-left: 6
+            padding-right: 6
+            padding-top: 6
+            padding-bottom: 6
+            layout:
+              type: verticalBox
+              spacing: 2
+
+          VerticalScrollBar
+            id: detailScrollbar
+            anchors.top: detailList.top
+            anchors.right: detailList.right
+            anchors.bottom: detailList.bottom
+            step: 60
+            pixel-scroll: true
+
+  HorizontalSeparator
+    id: bottomSeparator
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: closeButton.top
+    margin-bottom: 10
+
+  Button
+    id: closeButton
+    size: 70 20
+    anchors.bottom: parent.bottom
+    anchors.right: parent.right
+    !text: tr('Close')
+    color: #C0C0C0

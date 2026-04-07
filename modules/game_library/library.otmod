@@ -1,0 +1,9 @@
+Module
+  name: game_library
+  description: Standalone item library window
+  author: OpenAI
+  website: https://openai.com
+  sandboxed: true
+  scripts: [ library ]
+  @onLoad: init()
+  @onUnload: terminate()

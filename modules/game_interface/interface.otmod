@@ -35,6 +35,7 @@ Module
     - game_ruleviolation
     - game_market
     - game_spelllist
+    - game_library
     - game_cooldown
     - game_modaldialog
     - game_unjustifiedpoints
