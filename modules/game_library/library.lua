@@ -12,6 +12,7 @@ local showDetail = nil
 
 local categories = {
     { key = 'ARMORS', label = 'Armors' },
+    { key = 'AMULETS', label = 'Amulets' },
     { key = 'BOOTS', label = 'Boots' },
     { key = 'CONTAINERS', label = 'Containers' },
     { key = 'CREATURE_PRODUCTS', label = 'Creature Products' },
@@ -108,10 +109,10 @@ local fieldMeta = {
     absorbPercentLifeDrain = { label = 'Life Drain Protection', percent = true },
     absorbPercentManaDrain = { label = 'Mana Drain Protection', percent = true },
     absorbPercentDrown = { label = 'Drown Protection', percent = true },
-    skillSword = { label = 'Sword Skill' },
-    skillAxe = { label = 'Axe Skill' },
-    skillClub = { label = 'Club Skill' },
-    skillDist = { label = 'Distance Skill' },
+    skillSword = { label = 'One Handed Fighting' },
+    skillAxe = { label = 'Bow Fighting' },
+    skillClub = { label = 'Two Handed Fighting' },
+    skillDist = { label = 'Crossbow Fighting' },
     skillShield = { label = 'Shielding Skill' },
     skillFish = { label = 'Fishing Skill' },
     magicLevel = { label = 'Magic Level' },

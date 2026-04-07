@@ -315,8 +315,10 @@ MainWindow
           anchors.left: itemName.left
           anchors.right: parent.right
           margin-top: 4
+          height: 36
           color: #AFAFAF
           text-wrap: true
+          text-vertical-auto-resize: true
           visible: false
 
         UIWidget
