@@ -57,7 +57,7 @@ local groupOrder = {
 
 local groupFieldOrder = {
     basic = {
-        'weight', 'armor', 'defense', 'extraDefense', 'attack', 'hitChance', 'attackSpeed',
+        'tier', 'weight', 'armor', 'defense', 'extraDefense', 'attack', 'hitChance', 'attackSpeed',
         'containerSize', 'text'
     },
     combat = {
@@ -76,6 +76,7 @@ local groupFieldOrder = {
 }
 
 local fieldMeta = {
+    tier = { label = 'Tier' },
     weight = { label = 'Weight' },
     armor = { label = 'Armor' },
     defense = { label = 'Defense' },
@@ -154,6 +155,14 @@ local elementNames = {
     [2048] = 'Death'
 }
 
+local tierNames = {
+    [1] = 'Normal',
+    [2] = 'Solid',
+    [3] = 'Superior',
+    [4] = 'Epic',
+    [5] = 'Legendary'
+}
+
 local function getProtocol()
     return g_game.getProtocolGame()
 end
@@ -164,7 +173,11 @@ local function makeRequestId(action)
 end
 
 local function normalizeSearch(text)
-    return text:trim():lower()
+    text = text or ''
+    if text:trim() == '' then
+        return ''
+    end
+    return text:lower()
 end
 
 local function makePageCacheKey(category, search, page)
@@ -253,6 +266,12 @@ local function formatValue(key, value)
     local meta = fieldMeta[key] or {}
     if meta.boolean then
         return value and 'Yes' or 'No'
+    end
+    if key == 'tier' then
+        local numericValue = tonumber(value)
+        if numericValue and tierNames[numericValue] then
+            return tierNames[numericValue]
+        end
     end
     if key == 'elementType' then
         if type(value) == 'number' and elementNames[value] then
@@ -348,8 +367,6 @@ local function renderDetailGroups(details)
                 displayValues.range = nil
             elseif group.key == 'combat' and not shouldShowRange() then
                 displayValues.range = nil
-            elseif group.key == 'flags' then
-                displayValues = nil
             end
 
             if displayValues and next(displayValues) ~= nil then
