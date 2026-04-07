@@ -8,6 +8,7 @@ local libraryButton = nil
 local ui = nil
 local searchEvent = nil
 local requestCounter = 0
+local showDetail = nil
 
 local categories = {
     { key = 'ARMORS', label = 'Armors' },
@@ -42,6 +43,8 @@ local state = {
     totalPages = 1,
     totalResults = 0,
     selectedWareId = nil,
+    selectedTier = 1,
+    availableTiers = {},
     selectedResult = nil,
     pageCache = {},
     detailCache = {},
@@ -184,6 +187,10 @@ local function makePageCacheKey(category, search, page)
     return string.format('%s|%s|%d|%d', category or '', search or '', page or 1, PAGE_SIZE)
 end
 
+local function makeDetailCacheKey(wareId, tier)
+    return string.format('%s|%s', tostring(wareId or ''), tostring(tier or 1))
+end
+
 local function copyTable(source)
     local result = {}
     for key, value in pairs(source) do
@@ -211,6 +218,8 @@ local function bindUi()
         detailContent = child('detailContent'),
         itemName = child('itemName'),
         itemDescription = child('itemDescription'),
+        tierTabsPanel = child('tierTabsPanel'),
+        tierTabs = child('tierTabs'),
         itemSprite = child('sprite'),
         detailList = child('detailList'),
         closeButton = child('closeButton')
@@ -227,10 +236,14 @@ local function resetDetailPanel(message, clearSelection)
     ui.detailContent:hide()
     ui.itemName:setText(tr('Item'))
     ui.itemDescription:setVisible(false)
+    ui.tierTabsPanel:hide()
+    ui.tierTabs:destroyChildren()
     ui.itemSprite:setItemId(0)
     ui.detailList:destroyChildren()
     if clearSelection then
         state.selectedWareId = nil
+        state.selectedTier = 1
+        state.availableTiers = {}
         state.selectedResult = nil
     end
 end
@@ -354,6 +367,77 @@ local function shouldShowRange()
         or state.activeCategory == 'WEAPONS_CROSSBOW'
 end
 
+local function normalizeTierList(tiers)
+    local result = {}
+    local seen = {}
+    if type(tiers) ~= 'table' then
+        return result
+    end
+
+    for _, tier in ipairs(tiers) do
+        local numericTier = tonumber(tier)
+        if numericTier and numericTier >= 1 and numericTier <= 5 and not seen[numericTier] then
+            seen[numericTier] = true
+            table.insert(result, numericTier)
+        end
+    end
+
+    table.sort(result)
+    return result
+end
+
+local function requestItemDetail(wareId, tier)
+    if not wareId then
+        return
+    end
+
+    local numericTier = tonumber(tier) or 1
+    state.selectedWareId = tonumber(wareId) or state.selectedWareId
+    state.selectedTier = numericTier
+    local cacheKey = makeDetailCacheKey(wareId, numericTier)
+    local cached = state.detailCache[cacheKey]
+    if cached then
+        showDetail(cached)
+        return
+    end
+
+    resetDetailPanel(tr('Loading item details...'), false)
+    sendRequest('detail', {
+        wareId = wareId,
+        tier = numericTier
+    })
+end
+
+local function renderTierTabs(currentTier, availableTiers)
+    ui.tierTabs:destroyChildren()
+
+    if #availableTiers <= 1 then
+        ui.tierTabsPanel:hide()
+        return
+    end
+
+    for _, tier in ipairs(availableTiers) do
+        local button = g_ui.createWidget('LibraryTierButton', ui.tierTabs)
+        button.tierValue = tier
+        button:setText(tierNames[tier] or ('Tier ' .. tier))
+        button:setChecked(tier == currentTier)
+        button.onClick = function(widget)
+            if widget.tierValue == state.selectedTier then
+                return
+            end
+            requestItemDetail(state.selectedWareId, widget.tierValue)
+        end
+        button.onMouseRelease = function(widget, mousePos, mouseButton)
+            if widget:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
+                widget:onClick()
+                return true
+            end
+        end
+    end
+
+    ui.tierTabsPanel:show()
+end
+
 local function renderDetailGroups(details)
     local list = ui.detailList
     list:destroyChildren()
@@ -394,12 +478,14 @@ local function renderDetailGroups(details)
     end
 end
 
-local function showDetail(data)
+showDetail = function(data)
     if not data then
         return
     end
 
     state.selectedWareId = tonumber(data.wareId) or state.selectedWareId
+    state.selectedTier = tonumber(data.tier) or 1
+    state.availableTiers = normalizeTierList(data.availableTiers)
     ui.detailPlaceholder:hide()
     ui.detailContent:show()
     ui.itemName:setText(data.name or tr('Item'))
@@ -413,22 +499,8 @@ local function showDetail(data)
         ui.itemDescription:setVisible(false)
     end
 
+    renderTierTabs(state.selectedTier, state.availableTiers)
     renderDetailGroups(data.details or {})
-end
-
-local function requestItemDetail(wareId)
-    if not wareId then
-        return
-    end
-
-    local cached = state.detailCache[wareId]
-    if cached then
-        showDetail(cached)
-        return
-    end
-
-    resetDetailPanel(tr('Loading item details...'), false)
-    sendRequest('detail', { wareId = wareId })
 end
 
 local function clearResultSelection()
@@ -445,8 +517,9 @@ local function onResultSelected(widget, entry)
 
     state.selectedResult = widget
     state.selectedWareId = tonumber(entry.wareId)
+    state.selectedTier = 1
     widget:setChecked(true)
-    requestItemDetail(tonumber(entry.wareId))
+    requestItemDetail(tonumber(entry.wareId), 1)
 end
 
 local function renderResults(response)
@@ -599,12 +672,11 @@ end
 
 local function handleDetailResponse(data)
     local wareId = tonumber(data.wareId)
+    local tier = tonumber(data.tier) or 1
     if wareId then
-        state.detailCache[wareId] = data
+        state.detailCache[makeDetailCacheKey(wareId, tier)] = data
     end
-    if wareId and state.selectedResult and (state.selectedWareId == nil or state.selectedWareId == wareId) then
-        showDetail(data)
-    elseif wareId and tonumber(state.selectedWareId) == wareId then
+    if wareId == tonumber(state.selectedWareId) and tier == tonumber(state.selectedTier) then
         showDetail(data)
     end
 end
@@ -746,6 +818,8 @@ local function resetDataState()
     state.activeCategory = nil
     state.search = ''
     state.selectedWareId = nil
+    state.selectedTier = 1
+    state.availableTiers = {}
     state.pageCache = {}
     state.detailCache = {}
     state.pending = {}

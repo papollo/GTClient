@@ -65,6 +65,22 @@ LibrarySectionLabel < Label
   text-auto-resize: true
   margin-top: 10
 
+LibraryTierButton < UICheckBox
+  size: 72 20
+  color: #C0C0C0
+  text-align: center
+  background-color: #484848
+  border-width: 1
+  border-color: #222222
+
+  $hover:
+    background-color: #525252
+
+  $checked:
+    color: #F6F6F6
+    background-color: #585858
+    border-color: #747474
+
 MainWindow
   id: libraryWindow
   size: 700 560
@@ -303,9 +319,25 @@ MainWindow
           text-wrap: true
           visible: false
 
+        UIWidget
+          id: tierTabsPanel
+          anchors.top: itemDescription.bottom
+          anchors.left: itemName.left
+          anchors.right: parent.right
+          margin-top: 8
+          height: 20
+          visible: false
+
+          UIWidget
+            id: tierTabs
+            anchors.fill: parent
+            layout:
+              type: horizontalBox
+              spacing: 4
+
         Panel
           id: detailListBase
-          anchors.top: selectedItem.bottom
+          anchors.top: tierTabsPanel.bottom
           anchors.left: parent.left
           anchors.right: parent.right
           anchors.bottom: parent.bottom
