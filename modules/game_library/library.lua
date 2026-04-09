@@ -14,25 +14,31 @@ local categories = {
     { key = 'ARMORS', label = 'Armors' },
     { key = 'AMULETS', label = 'Amulets' },
     { key = 'BOOTS', label = 'Boots' },
-    { key = 'CONTAINERS', label = 'Containers' },
-    { key = 'CREATURE_PRODUCTS', label = 'Creature Products' },
-    { key = 'FOOD', label = 'Food' },
     { key = 'HELMETS_AND_HATS', label = 'Helmets and Hats' },
     { key = 'LEGS', label = 'Legs' },
-    { key = 'OTHERS', label = 'Others' },
-    { key = 'POTIONS', label = 'Potions' },
-    { key = 'QUIVERS', label = 'Quivers' },
     { key = 'RINGS', label = 'Rings' },
-    { key = 'RUNES', label = 'Runes' },
-    { key = 'TOOLS', label = 'Tools' },
-    { key = 'VALUABLES', label = 'Valuables' },
     { key = 'WEAPONS_AMMO', label = 'Weapons: Ammo' },
     { key = 'WEAPONS_BOW', label = 'Weapons: Bow' },
     { key = 'WEAPONS_TWO_HANDED', label = 'Weapons: Two Handed' },
     { key = 'WEAPONS_CROSSBOW', label = 'Weapons: Crossbow' },
     { key = 'WEAPONS_ONE_HANDED', label = 'Weapons: One Handed' },
     { key = 'WEAPONS_WANDS', label = 'Weapons: Wands' },
-    { key = 'WEAPONS_ALL', label = 'Weapons: All' }
+    { key = 'WEAPONS_ALL', label = 'Weapons: All' },
+    { key = 'PLANT', label = 'Plants' },
+    { key = 'FOOD', label = 'Food' },
+    { key = 'MATERIALS', label = 'Materials' },
+    { key = 'ALCHEMY_RECIPIES', label = 'Alchemy Recipies' },
+    { key = 'COOKING_RECIPIES', label = 'Cooking Recipies' },
+    { key = 'BOW_SCHEMAS', label = 'Bow Schemas' },
+    { key = 'SMITH_SCHEMAS', label = 'Smith Schemas' },
+    { key = 'CONTAINERS', label = 'Containers' },
+    { key = 'CREATURE_PRODUCTS', label = 'Creature Products' },
+    { key = 'OTHERS', label = 'Others' },
+    { key = 'POTIONS', label = 'Potions' },
+    { key = 'QUIVERS', label = 'Quivers' },
+    { key = 'RUNES', label = 'Runes' },
+    { key = 'TOOLS', label = 'Tools' },
+    { key = 'VALUABLES', label = 'Valuables' }
 }
 
 local state = {
@@ -218,7 +224,6 @@ local function bindUi()
         detailPlaceholder = child('detailPlaceholder'),
         detailContent = child('detailContent'),
         itemName = child('itemName'),
-        itemDescription = child('itemDescription'),
         tierTabsPanel = child('tierTabsPanel'),
         tierTabs = child('tierTabs'),
         itemSprite = child('sprite'),
@@ -236,7 +241,6 @@ local function resetDetailPanel(message, clearSelection)
     ui.detailPlaceholder:show()
     ui.detailContent:hide()
     ui.itemName:setText(tr('Item'))
-    ui.itemDescription:setVisible(false)
     ui.tierTabsPanel:hide()
     ui.tierTabs:destroyChildren()
     ui.itemSprite:setItemId(0)
@@ -443,6 +447,20 @@ local function renderDetailGroups(details)
     local list = ui.detailList
     list:destroyChildren()
 
+    local description = details.__description
+    if type(description) == 'string' and description:trim() ~= '' then
+        local heading = g_ui.createWidget('LibrarySectionLabel', list)
+        heading:setText(tr('Description') .. ':')
+
+        local descriptionLabel = g_ui.createWidget('Label', list)
+        descriptionLabel:setText(description)
+        descriptionLabel:setColor('#BDBDBD')
+        descriptionLabel:setTextWrap(true)
+        descriptionLabel:setWidth(360)
+        descriptionLabel:setAutoResize(false)
+        descriptionLabel:setHeight(math.max(34, math.ceil(#description / 48) * 14))
+    end
+
     for _, group in ipairs(groupOrder) do
         local values = details[group.key]
         if type(values) == 'table' then
@@ -492,16 +510,10 @@ showDetail = function(data)
     ui.itemName:setText(data.name or tr('Item'))
     ui.itemSprite:setItemId(tonumber(data.clientId) or 0)
 
-    local description = data.description
-    if type(description) == 'string' and description:trim() ~= '' then
-        ui.itemDescription:setText(description)
-        ui.itemDescription:setVisible(true)
-    else
-        ui.itemDescription:setVisible(false)
-    end
-
     renderTierTabs(state.selectedTier, state.availableTiers)
-    renderDetailGroups(data.details or {})
+    local details = copyTable(data.details or {})
+    details.__description = data.description
+    renderDetailGroups(details)
 end
 
 local function clearResultSelection()
