@@ -315,3 +315,15 @@ android/app/src/main/assets
 
 # .ai
 .ai
+
+# sciprt
+build-release.ps1
+
+# OpenClaw
+.openclaw
+AGENTS.md
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
