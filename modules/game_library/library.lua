@@ -1,6 +1,5 @@
 local LIBRARY_OPCODE = 217
 local PAGE_SIZE = 20
-local MAX_PAGE_SIZE = 50
 local SEARCH_DELAY = 250
 
 local libraryWindow = nil
@@ -9,6 +8,9 @@ local ui = nil
 local searchEvent = nil
 local requestCounter = 0
 local showDetail = nil
+
+local DOMAIN_ITEMS = 'items'
+local DOMAIN_MONSTERS = 'monsters'
 
 local categories = {
     { key = 'ARMORS', label = 'Armors' },
@@ -42,33 +44,58 @@ local categories = {
 }
 
 local state = {
-    categoriesLoaded = false,
-    categoriesRequested = false,
-    activeCategory = nil,
-    search = '',
-    page = 1,
-    totalPages = 1,
-    totalResults = 0,
-    selectedWareId = nil,
-    selectedTier = 1,
-    availableTiers = {},
-    selectedResult = nil,
-    pageCache = {},
-    detailCache = {},
+    domain = DOMAIN_ITEMS,
+    items = {
+        categoriesLoaded = false,
+        categoriesRequested = false,
+        activeCategory = nil,
+        search = '',
+        page = 1,
+        totalPages = 1,
+        totalResults = 0,
+        selectedId = nil,
+        selectedTier = 1,
+        availableTiers = {},
+        selectedResult = nil,
+        pageCache = {},
+        detailCache = {}
+    },
+    monsters = {
+        search = '',
+        page = 1,
+        totalPages = 1,
+        totalResults = 0,
+        selectedId = nil,
+        selectedTier = 1,
+        availableTiers = {},
+        selectedResult = nil,
+        pageCache = {},
+        detailCache = {}
+    },
     pending = {}
 }
 
 local groupOrder = {
-    { key = 'basic', label = 'Basic' },
-    { key = 'combat', label = 'Combat' },
-    { key = 'resistances', label = 'Resistances' },
-    { key = 'skills', label = 'Skills' }
+    [DOMAIN_ITEMS] = {
+        { key = 'basic', label = 'Basic' },
+        { key = 'combat', label = 'Combat' },
+        { key = 'resistances', label = 'Resistances' },
+        { key = 'skills', label = 'Skills' }
+    },
+    [DOMAIN_MONSTERS] = {
+        { key = 'basic', label = 'Basic' },
+        { key = 'combat', label = 'Combat' },
+        { key = 'resistances', label = 'Resistances' },
+        { key = 'loot', label = 'Loot' },
+        { key = 'location', label = 'Location' },
+        { key = 'skills', label = 'Skills' }
+    }
 }
 
 local groupFieldOrder = {
     basic = {
         'tier', 'weight', 'armor', 'defense', 'extraDefense', 'attack', 'hitChance', 'attackSpeed',
-        'containerSize', 'text'
+        'containerSize', 'text', 'health', 'experience', 'speed', 'mitigation', 'summonCost', 'convinceCost'
     },
     combat = {
         'range', 'elementDamage', 'elementType', 'criticalhitamount', 'criticalhitchance',
@@ -82,6 +109,12 @@ local groupFieldOrder = {
     skills = {
         'skillSword', 'skillAxe', 'skillClub', 'skillDist', 'skillShield', 'skillFish',
         'magicLevel', 'speed', 'healthGain', 'manaGain', 'maxHealthPoints', 'maxManaPoints'
+    },
+    loot = {
+        'value', 'count', 'chance', 'difficulty', 'stackable'
+    },
+    location = {
+        'name', 'area', 'places', 'notes'
     }
 }
 
@@ -97,6 +130,11 @@ local fieldMeta = {
     attackSpeed = { label = 'Attack Speed' },
     containerSize = { label = 'Container Size' },
     text = { label = 'Text' },
+    health = { label = 'Health' },
+    experience = { label = 'Experience' },
+    mitigation = { label = 'Mitigation' },
+    summonCost = { label = 'Summon Cost' },
+    convinceCost = { label = 'Convince Cost' },
     elementDamage = { label = 'Element Damage' },
     elementType = { label = 'Element Type' },
     criticalhitamount = { label = 'Critical Hit Amount' },
@@ -146,7 +184,14 @@ local fieldMeta = {
     fluidContainer = { label = 'Fluid Container', boolean = true },
     splash = { label = 'Splash', boolean = true },
     weapon = { label = 'Weapon', boolean = true },
-    armorItem = { label = 'Armor Item', boolean = true }
+    armorItem = { label = 'Armor Item', boolean = true },
+    value = { label = 'Value' },
+    count = { label = 'Count' },
+    chance = { label = 'Chance' },
+    difficulty = { label = 'Difficulty' },
+    area = { label = 'Area' },
+    places = { label = 'Places' },
+    notes = { label = 'Notes' }
 }
 
 local elementNames = {
@@ -177,9 +222,13 @@ local function getProtocol()
     return g_game.getProtocolGame()
 end
 
-local function makeRequestId(action)
+local function getDomainState(domain)
+    return state[domain or state.domain]
+end
+
+local function makeRequestId(domain, action)
     requestCounter = requestCounter + 1
-    return string.format('library-%s-%d', action, requestCounter)
+    return string.format('library-%s-%s-%d', domain, action, requestCounter)
 end
 
 local function normalizeSearch(text)
@@ -190,16 +239,19 @@ local function normalizeSearch(text)
     return text:lower()
 end
 
-local function makePageCacheKey(category, search, page)
-    return string.format('%s|%s|%d|%d', category or '', search or '', page or 1, PAGE_SIZE)
+local function makePageCacheKey(domain, category, search, page)
+    return string.format('%s|%s|%s|%d|%d', domain or '', category or '', search or '', page or 1, PAGE_SIZE)
 end
 
-local function makeDetailCacheKey(wareId, tier)
-    return string.format('%s|%s', tostring(wareId or ''), tostring(tier or 1))
+local function makeDetailCacheKey(domain, id, tier)
+    return string.format('%s|%s|%s', domain or '', tostring(id or ''), tostring(tier or 1))
 end
 
 local function copyTable(source)
     local result = {}
+    if type(source) ~= 'table' then
+        return result
+    end
     for key, value in pairs(source) do
         result[key] = value
     end
@@ -213,9 +265,20 @@ end
 local function bindUi()
     ui = {
         itemsTab = child('itemsTab'),
+        monstersTab = child('monstersTab'),
+        categoryPanel = child('categoryPanel'),
+        itemsSection = child('itemsSection'),
+        categoryLabel = child('categoryLabel'),
         categoryList = child('categoryList'),
+        topListEmptyLabel = child('topListEmptyLabel'),
+        monsterPanel = child('monsterPanel'),
+        monsterLabel = child('monsterLabel'),
+        monsterList = child('monsterList'),
+        monsterEmptyLabel = child('monsterEmptyLabel'),
+        resultLabel = child('itemsLabel'),
         resultList = child('resultList'),
         resultEmptyLabel = child('resultEmptyLabel'),
+        searchLabel = child('searchLabel'),
         searchEdit = child('searchEdit'),
         searchClearButton = child('searchClearButton'),
         prevPageButton = child('prevPageButton'),
@@ -227,9 +290,51 @@ local function bindUi()
         tierTabsPanel = child('tierTabsPanel'),
         tierTabs = child('tierTabs'),
         itemSprite = child('sprite'),
+        detailCreature = child('detailCreature'),
+        selectedItem = child('selectedItem'),
         detailList = child('detailList'),
         closeButton = child('closeButton')
     }
+end
+
+local function getResultLabelText(domain)
+    return domain == DOMAIN_MONSTERS and tr('Monsters') or tr('Items')
+end
+
+local function getSelectionPlaceholder(domain)
+    if domain == DOMAIN_MONSTERS then
+        return tr('Select a monster to see its details here.')
+    end
+    return tr('Select an item to see its details here.')
+end
+
+local function getInitialPlaceholder(domain)
+    if domain == DOMAIN_MONSTERS then
+        return tr('Choose the monsters tab and select a monster to see its details here.')
+    end
+    return tr('Select a category and choose an item to see its details here.')
+end
+
+local function getLoadingText(domain)
+    return domain == DOMAIN_MONSTERS and tr('Loading monsters...') or tr('Loading items...')
+end
+
+local function getDetailLoadingText(domain)
+    return domain == DOMAIN_MONSTERS and tr('Loading monster details...') or tr('Loading item details...')
+end
+
+local function getNoResultsText(domain)
+    if domain == DOMAIN_MONSTERS then
+        return tr('No monsters found.')
+    end
+    return tr('No items found for this category.')
+end
+
+local function resetDetailCreature()
+    if ui.detailCreature then
+        ui.detailCreature:setVisible(false)
+        ui.detailCreature:setOutfit({ type = 0 })
+    end
 end
 
 local function resetDetailPanel(message, clearSelection)
@@ -237,50 +342,84 @@ local function resetDetailPanel(message, clearSelection)
         clearSelection = true
     end
 
+    local domainState = getDomainState()
     ui.detailPlaceholder:setText(message)
     ui.detailPlaceholder:show()
     ui.detailContent:hide()
-    ui.itemName:setText(tr('Item'))
+    ui.itemName:setText(state.domain == DOMAIN_MONSTERS and tr('Monster') or tr('Item'))
     ui.tierTabsPanel:hide()
     ui.tierTabs:destroyChildren()
     ui.itemSprite:setItemId(0)
+    ui.selectedItem:setVisible(state.domain == DOMAIN_ITEMS)
+    resetDetailCreature()
     ui.detailList:destroyChildren()
     if clearSelection then
-        state.selectedWareId = nil
-        state.selectedTier = 1
-        state.availableTiers = {}
-        state.selectedResult = nil
+        domainState.selectedId = nil
+        domainState.selectedTier = 1
+        domainState.availableTiers = {}
+        domainState.selectedResult = nil
+    end
+end
+
+local function anchorSearchSection(isItems)
+    ui.searchLabel:removeAnchor(AnchorTop)
+    if isItems then
+        ui.searchLabel:addAnchor(AnchorTop, 'itemsSection', AnchorBottom)
+    else
+        ui.searchLabel:addAnchor(AnchorTop, 'monsterPanel', AnchorBottom)
     end
 end
 
 local function updateResultEmptyLabel(message)
     ui.resultEmptyLabel:setText(message)
     ui.resultEmptyLabel:setVisible(true)
+    ui.topListEmptyLabel:setVisible(false)
+    ui.monsterEmptyLabel:setVisible(false)
+end
+
+local function updateMonsterEmptyLabel(message)
+    ui.monsterEmptyLabel:setText(message)
+    ui.monsterEmptyLabel:setVisible(true)
+    ui.resultEmptyLabel:setVisible(false)
+    ui.topListEmptyLabel:setVisible(false)
+end
+
+local function hideAllEmptyLabels()
+    ui.resultEmptyLabel:setVisible(false)
+    ui.topListEmptyLabel:setVisible(false)
+    ui.monsterEmptyLabel:setVisible(false)
 end
 
 local function updatePagination()
-    local page = math.max(1, tonumber(state.page) or 1)
-    local totalPages = math.max(1, tonumber(state.totalPages) or 1)
+    local domainState = getDomainState()
+    local page = math.max(1, tonumber(domainState.page) or 1)
+    local totalPages = math.max(1, tonumber(domainState.totalPages) or 1)
     ui.pageLabel:setText(string.format('Page %d / %d', page, totalPages))
-    ui.prevPageButton:setEnabled(state.activeCategory ~= nil and page > 1)
-    ui.nextPageButton:setEnabled(state.activeCategory ~= nil and page < totalPages)
+    local hasSource = state.domain == DOMAIN_MONSTERS or domainState.activeCategory ~= nil
+    ui.prevPageButton:setEnabled(hasSource and page > 1)
+    ui.nextPageButton:setEnabled(hasSource and page < totalPages)
 end
 
 local function setResultWidgetsEnabled(enabled)
+    local domainState = getDomainState()
     ui.searchEdit:setEnabled(enabled)
     ui.searchClearButton:setEnabled(enabled)
-    ui.prevPageButton:setEnabled(enabled and state.page > 1)
-    ui.nextPageButton:setEnabled(enabled and state.page < state.totalPages)
+    ui.prevPageButton:setEnabled(enabled and domainState.page > 1)
+    ui.nextPageButton:setEnabled(enabled and domainState.page < domainState.totalPages)
 end
 
 local function humanizeKey(key)
+    if key == nil then
+        return ''
+    end
+    key = tostring(key)
     local spaced = key:gsub('(%l)(%u)', '%1 %2')
     spaced = spaced:gsub('(%a)(%d)', '%1 %2')
     spaced = spaced:gsub('(%d)(%a)', '%1 %2')
     return spaced:gsub('^%l', string.upper)
 end
 
-local function formatValue(key, value)
+local function formatScalarValue(key, value)
     local meta = fieldMeta[key] or {}
     if meta.boolean then
         return value and 'Yes' or 'No'
@@ -305,23 +444,115 @@ local function formatValue(key, value)
     return tostring(value)
 end
 
+local function formatValue(key, value)
+    if type(value) == 'table' then
+        if value.name or value.itemId or value.amount or value.count or value.chance or value.difficulty or value.diffculty then
+            local parts = {}
+            local count = tonumber(value.count) or tonumber(value.amount)
+            local chance = value.chance
+            local difficulty = value.difficulty or value.diffculty
+
+            if count and count > 0 then
+                table.insert(parts, string.format('Max count: %d', count))
+            end
+            if chance ~= nil and tostring(chance) ~= '' then
+                table.insert(parts, string.format('Chance: %s', tostring(chance)))
+            end
+            if difficulty ~= nil and tostring(difficulty) ~= '' then
+                table.insert(parts, string.format('Difficulty: %s', tostring(difficulty)))
+            end
+
+            if #parts > 0 then
+                return table.concat(parts, ', ')
+            end
+
+            if value.name and tostring(value.name) ~= '' then
+                return tostring(value.name)
+            end
+
+            if tonumber(value.itemId) and tonumber(value.itemId) > 0 then
+                return string.format('Item ID: %d', tonumber(value.itemId))
+            end
+
+            return ''
+        end
+
+        local parts = {}
+        for _, entry in ipairs(value) do
+            if type(entry) == 'table' then
+                if entry.name then
+                    local text = tostring(entry.name)
+                    if entry.count then
+                        text = string.format('%s x%s', text, tostring(entry.count))
+                    end
+                    if entry.chance then
+                        text = string.format('%s (%s)', text, tostring(entry.chance))
+                    end
+                    table.insert(parts, text)
+                else
+                    local nested = {}
+                    for nestedKey, nestedValue in pairs(entry) do
+                        table.insert(nested, string.format('%s: %s', humanizeKey(nestedKey), formatScalarValue(nestedKey, nestedValue)))
+                    end
+                    table.sort(nested)
+                    table.insert(parts, table.concat(nested, ', '))
+                end
+            else
+                table.insert(parts, tostring(entry))
+            end
+        end
+        return table.concat(parts, '\n')
+    end
+    return formatScalarValue(key, value)
+end
+
+local function isVisibleLootEntry(entry)
+    if type(entry) ~= 'table' then
+        return false
+    end
+
+    local name = entry.name and tostring(entry.name) or ''
+    if name:trim() ~= '' then
+        return true
+    end
+
+    local itemId = tonumber(entry.itemId) or 0
+    return itemId > 0
+end
+
+local function getLootDisplayData(entry)
+    local itemName = entry.name and tostring(entry.name) or ''
+    local count = tonumber(entry.count) or tonumber(entry.amount)
+    local chance = entry.chance
+
+    return {
+        name = itemName ~= '' and itemName or '-',
+        count = count and count > 0 and tostring(count) or '-',
+        chance = chance ~= nil and tostring(chance) ~= '' and tostring(chance) or '-'
+    }
+end
+
 local function getFieldLabel(key)
     local meta = fieldMeta[key]
     return meta and meta.label or humanizeKey(key)
 end
 
-local function sendRequest(action, data)
+local function sendRequest(domain, action, data)
     local protocol = getProtocol()
     if not protocol then
         return nil
     end
 
-    local requestId = makeRequestId(action)
-    state.pending[requestId] = action
+    local requestId = makeRequestId(domain, action)
+    state.pending[requestId] = {
+        domain = domain,
+        action = action,
+        data = copyTable(data)
+    }
     local payload = {
         version = 1,
         action = action,
-        domain = 'items',
+        domain = domain,
         requestId = requestId,
         data = data or {}
     }
@@ -330,11 +561,12 @@ local function sendRequest(action, data)
 end
 
 local function ensureCategoriesRequested()
-    if state.categoriesLoaded or state.categoriesRequested then
+    local itemsState = state.items
+    if itemsState.categoriesLoaded or itemsState.categoriesRequested then
         return
     end
-    state.categoriesRequested = true
-    sendRequest('categories')
+    itemsState.categoriesRequested = true
+    sendRequest(DOMAIN_ITEMS, 'categories')
 end
 
 local function getOrderedGroupEntries(groupKey, values)
@@ -356,7 +588,10 @@ local function getOrderedGroupEntries(groupKey, values)
     end
 
     table.sort(remainder, function(a, b)
-        return a.key < b.key
+        if type(a.key) == 'number' and type(b.key) == 'number' then
+            return a.key < b.key
+        end
+        return tostring(a.key) < tostring(b.key)
     end)
 
     for _, entry in ipairs(remainder) do
@@ -366,10 +601,13 @@ local function getOrderedGroupEntries(groupKey, values)
     return ordered
 end
 
-local function shouldShowRange()
-    return state.activeCategory == 'WEAPONS_AMMO'
-        or state.activeCategory == 'WEAPONS_BOW'
-        or state.activeCategory == 'WEAPONS_CROSSBOW'
+local function shouldShowRange(domain)
+    local domainState = getDomainState(domain)
+    return domain == DOMAIN_ITEMS and (
+        domainState.activeCategory == 'WEAPONS_AMMO'
+        or domainState.activeCategory == 'WEAPONS_BOW'
+        or domainState.activeCategory == 'WEAPONS_CROSSBOW'
+    )
 end
 
 local function normalizeTierList(tiers)
@@ -391,32 +629,101 @@ local function normalizeTierList(tiers)
     return result
 end
 
-local function requestItemDetail(wareId, tier)
-    if not wareId then
+local function normalizeMonsterOutfit(outfitData)
+    if type(outfitData) ~= 'table' then
+        return nil
+    end
+
+    local outfit = {
+        type = tonumber(outfitData.type) or tonumber(outfitData.lookType) or 0,
+        head = tonumber(outfitData.head) or 0,
+        body = tonumber(outfitData.body) or 0,
+        legs = tonumber(outfitData.legs) or 0,
+        feet = tonumber(outfitData.feet) or 0,
+        addons = tonumber(outfitData.addons) or 0,
+        mount = tonumber(outfitData.mount) or 0,
+        auxType = tonumber(outfitData.auxType) or 0
+    }
+
+    if outfit.type <= 0 then
+        return nil
+    end
+
+    outfit.category = tonumber(outfitData.category) or ThingCategoryCreature
+    return outfit
+end
+
+local function applyMonsterPreview(widget, raceId, outfitData)
+    local sprite = widget and widget:recursiveGetChildById('Sprite')
+    local creature = widget and (widget:recursiveGetChildById('Creature') or widget:recursiveGetChildById('detailCreature'))
+    local iconBackground = widget and widget:recursiveGetChildById('iconBackground')
+
+    if sprite then
+        sprite:setItemId(0)
+        sprite:setVisible(false)
+    end
+    if creature then
+        creature:setVisible(false)
+    end
+    if iconBackground then
+        iconBackground:setImageSource('/images/ui/item')
+    end
+
+    if not widget then
+        return false
+    end
+
+    local resolvedOutfit = normalizeMonsterOutfit(outfitData)
+    if not resolvedOutfit then
+        local numericRaceId = tonumber(raceId) or 0
+        if numericRaceId <= 0 then
+            return false
+        end
+
+        local raceData = g_things.getRaceData(numericRaceId)
+        if not raceData or raceData.raceId == 0 then
+            return false
+        end
+
+        resolvedOutfit = raceData.outfit
+    end
+
+    if creature then
+        creature:setOutfit(resolvedOutfit)
+        creature:getCreature():setStaticWalking(1000)
+        creature:setVisible(true)
+    end
+    if iconBackground then
+        iconBackground:setImageSource('')
+    end
+    return true
+end
+
+local function requestDetail(entryId, tier)
+    if not entryId then
         return
     end
 
+    local domainState = getDomainState()
     local numericTier = tonumber(tier) or 1
-    state.selectedWareId = tonumber(wareId) or state.selectedWareId
-    state.selectedTier = numericTier
-    local cacheKey = makeDetailCacheKey(wareId, numericTier)
-    local cached = state.detailCache[cacheKey]
+    domainState.selectedId = entryId
+    domainState.selectedTier = numericTier
+    local cacheKey = makeDetailCacheKey(state.domain, entryId, numericTier)
+    local cached = domainState.detailCache[cacheKey]
     if cached then
         showDetail(cached)
         return
     end
 
-    resetDetailPanel(tr('Loading item details...'), false)
-    sendRequest('detail', {
-        wareId = wareId,
-        tier = numericTier
-    })
+    resetDetailPanel(getDetailLoadingText(state.domain), false)
+    local payload = state.domain == DOMAIN_MONSTERS and { monsterId = entryId } or { wareId = entryId, tier = numericTier }
+    sendRequest(state.domain, 'detail', payload)
 end
 
 local function renderTierTabs(currentTier, availableTiers)
     ui.tierTabs:destroyChildren()
 
-    if #availableTiers <= 1 then
+    if state.domain ~= DOMAIN_ITEMS or #availableTiers <= 1 then
         ui.tierTabsPanel:hide()
         return
     end
@@ -427,10 +734,11 @@ local function renderTierTabs(currentTier, availableTiers)
         button:setText(tierNames[tier] or ('Tier ' .. tier))
         button:setChecked(tier == currentTier)
         button.onClick = function(widget)
-            if widget.tierValue == state.selectedTier then
+            local domainState = getDomainState()
+            if widget.tierValue == domainState.selectedTier then
                 return
             end
-            requestItemDetail(state.selectedWareId, widget.tierValue)
+            requestDetail(domainState.selectedId, widget.tierValue)
         end
         button.onMouseRelease = function(widget, mousePos, mouseButton)
             if widget:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
@@ -457,22 +765,62 @@ local function renderDetailGroups(details)
         descriptionLabel:setColor('#BDBDBD')
         descriptionLabel:setTextWrap(true)
         descriptionLabel:setWidth(360)
-        descriptionLabel:setAutoResize(false)
+        if descriptionLabel.setAutoResize then
+            descriptionLabel:setAutoResize(false)
+        end
         descriptionLabel:setHeight(math.max(34, math.ceil(#description / 48) * 14))
     end
 
-    for _, group in ipairs(groupOrder) do
+    for _, group in ipairs(groupOrder[state.domain] or {}) do
         local values = details[group.key]
         if type(values) == 'table' then
+            if group.key == 'loot' then
+                local visibleLoot = {}
+                for _, entry in ipairs(values) do
+                    if isVisibleLootEntry(entry) then
+                        table.insert(visibleLoot, entry)
+                    end
+                end
+
+                if #visibleLoot > 0 then
+                    local heading = g_ui.createWidget('LibrarySectionLabel', list)
+                    heading:setText(group.label .. ':')
+
+                    g_ui.createWidget('LibraryLootTableHeader', list)
+
+                    for _, entry in ipairs(visibleLoot) do
+                        local lootData = getLootDisplayData(entry)
+                        local row = g_ui.createWidget('LibraryLootTableRow', list)
+                        local nameLabel = row:getChildById('name')
+                        local countLabel = row:getChildById('count')
+                        local chanceLabel = row:getChildById('chance')
+
+                        local lineCount = select(2, lootData.name:gsub('\n', '\n')) + 1
+                        local requiresTallRow = #lootData.name > 26 or lineCount > 1
+                        row:setHeight(requiresTallRow and math.max(24, lineCount * 14) or 20)
+
+                        if nameLabel then
+                            nameLabel:setText(lootData.name)
+                            nameLabel:setTextWrap(requiresTallRow)
+                        end
+                        if countLabel then
+                            countLabel:setText(lootData.count)
+                        end
+                        if chanceLabel then
+                            chanceLabel:setText(lootData.chance)
+                        end
+                    end
+                end
+            else
             local displayValues = copyTable(values)
 
             if group.key == 'basic' then
                 displayValues.range = nil
-            elseif group.key == 'combat' and not shouldShowRange() then
+            elseif group.key == 'combat' and not shouldShowRange(state.domain) then
                 displayValues.range = nil
             end
 
-            if displayValues and next(displayValues) ~= nil then
+            if next(displayValues) ~= nil then
                 local heading = g_ui.createWidget('LibrarySectionLabel', list)
                 heading:setText(group.label .. ':')
 
@@ -483,15 +831,19 @@ local function renderDetailGroups(details)
                     local background = row:getChildById('background')
                     local nameLabel = background and background:getChildById('name')
                     local valueLabel = background and background:getChildById('value')
-                    row:setHeight(type(value) == 'string' and #value > 40 and 34 or 20)
+                    local textValue = formatValue(key, value)
+                    local lineCount = select(2, textValue:gsub('\n', '\n')) + 1
+                    local requiresTallRow = (type(value) == 'string' and #value > 40) or lineCount > 1
+                    row:setHeight(requiresTallRow and math.max(34, lineCount * 14) or 20)
                     if nameLabel then
                         nameLabel:setText(getFieldLabel(key))
                     end
                     if valueLabel then
-                        valueLabel:setText(formatValue(key, value))
-                        valueLabel:setTextWrap(type(value) == 'string')
+                        valueLabel:setText(textValue)
+                        valueLabel:setTextWrap(type(value) == 'string' or lineCount > 1)
                     end
                 end
+            end
             end
         end
     end
@@ -502,69 +854,113 @@ showDetail = function(data)
         return
     end
 
-    state.selectedWareId = tonumber(data.wareId) or state.selectedWareId
-    state.selectedTier = tonumber(data.tier) or 1
-    state.availableTiers = normalizeTierList(data.availableTiers)
-    ui.detailPlaceholder:hide()
-    ui.detailContent:show()
-    ui.itemName:setText(data.name or tr('Item'))
-    ui.itemSprite:setItemId(tonumber(data.clientId) or 0)
-
-    renderTierTabs(state.selectedTier, state.availableTiers)
-    local details = copyTable(data.details or {})
-    details.__description = data.description
-    renderDetailGroups(details)
-end
-
-local function clearResultSelection()
-    if state.selectedResult and not state.selectedResult:isDestroyed() then
-        state.selectedResult:setChecked(false)
-    end
-    state.selectedResult = nil
-end
-
-local function onResultSelected(widget, entry)
-    if state.selectedResult and state.selectedResult ~= widget and not state.selectedResult:isDestroyed() then
-        state.selectedResult:setChecked(false)
-    end
-
-    state.selectedResult = widget
-    state.selectedWareId = tonumber(entry.wareId)
-    state.selectedTier = 1
-    widget:setChecked(true)
-    requestItemDetail(tonumber(entry.wareId), 1)
-end
-
-local function renderResults(response)
-    local list = ui.resultList
-    list:destroyChildren()
-    clearResultSelection()
-
-    local items = response.items or {}
-    state.page = tonumber(response.page) or 1
-    state.totalPages = math.max(1, tonumber(response.totalPages) or 1)
-    state.totalResults = tonumber(response.totalResults) or #items
-    updatePagination()
-    setResultWidgetsEnabled(state.activeCategory ~= nil)
-
-    if #items == 0 then
-        updateResultEmptyLabel(state.activeCategory and tr('No items found for this category.') or tr('Select a category to load items.'))
-        resetDetailPanel(state.activeCategory and tr('Select an item to see its details here.') or tr('Select a category and choose an item to see its details here.'))
+    local domain = data.domain or state.domain
+    if domain ~= state.domain then
         return
     end
 
-    ui.resultEmptyLabel:hide()
+    local domainState = getDomainState(domain)
+    local selectedId = domain == DOMAIN_MONSTERS and (data.monsterId or data.id) or tonumber(data.wareId)
+    domainState.selectedId = selectedId or domainState.selectedId
+    domainState.selectedTier = tonumber(data.tier) or 1
+    domainState.availableTiers = domain == DOMAIN_ITEMS and normalizeTierList(data.availableTiers) or {}
+    ui.detailPlaceholder:hide()
+    ui.detailContent:show()
+    ui.itemName:setText(data.name or (domain == DOMAIN_MONSTERS and tr('Monster') or tr('Item')))
+
+    local details = copyTable(data.details or {})
+    details.__description = data.description
+
+    if domain == DOMAIN_MONSTERS then
+        ui.selectedItem:setVisible(false)
+        ui.itemSprite:setItemId(0)
+        local visible = applyMonsterPreview(ui.detailContent, data.raceId, data.outfit)
+        if not visible then
+            resetDetailCreature()
+        end
+    else
+        resetDetailCreature()
+        ui.selectedItem:setVisible(true)
+        ui.itemSprite:setItemId(tonumber(data.clientId) or 0)
+    end
+
+    renderTierTabs(domainState.selectedTier, domainState.availableTiers)
+    renderDetailGroups(details)
+end
+
+local function clearResultSelection(domain)
+    local domainState = getDomainState(domain)
+    if domainState.selectedResult and not domainState.selectedResult:isDestroyed() then
+        domainState.selectedResult:setChecked(false)
+    end
+    domainState.selectedResult = nil
+end
+
+local function onResultSelected(widget, entry)
+    local domainState = getDomainState()
+    if domainState.selectedResult and domainState.selectedResult ~= widget and not domainState.selectedResult:isDestroyed() then
+        domainState.selectedResult:setChecked(false)
+    end
+
+    domainState.selectedResult = widget
+    domainState.selectedId = state.domain == DOMAIN_MONSTERS and (entry.monsterId or entry.id) or tonumber(entry.wareId)
+    domainState.selectedTier = 1
+    widget:setChecked(true)
+    requestDetail(domainState.selectedId, 1)
+end
+
+local function renderResults(response)
+    local list = state.domain == DOMAIN_MONSTERS and ui.monsterList or ui.resultList
+    list:destroyChildren()
+    hideAllEmptyLabels()
+    clearResultSelection(state.domain)
+
+    local domainState = getDomainState()
+    local items = response.items or {}
+    domainState.page = tonumber(response.page) or 1
+    domainState.totalPages = math.max(1, tonumber(response.totalPages) or 1)
+    domainState.totalResults = tonumber(response.totalResults) or #items
+    updatePagination()
+    setResultWidgetsEnabled(state.domain == DOMAIN_MONSTERS or domainState.activeCategory ~= nil)
+
+    if #items == 0 then
+        if state.domain == DOMAIN_MONSTERS then
+            updateMonsterEmptyLabel(getNoResultsText(state.domain))
+        else
+            updateResultEmptyLabel(getNoResultsText(state.domain))
+        end
+        resetDetailPanel(getSelectionPlaceholder(state.domain))
+        return
+    end
 
     for _, entry in ipairs(items) do
-        local row = g_ui.createWidget('LibraryResultItem', list)
+        local rowType = state.domain == DOMAIN_MONSTERS and 'LibraryMonsterListItem' or 'LibraryResultItem'
+        local row = g_ui.createWidget(rowType, list)
         local sprite = row:recursiveGetChildById('Sprite')
+        local creature = row:recursiveGetChildById('Creature')
         local nameLabel = row:recursiveGetChildById('Name')
         row:setPhantom(false)
-        if sprite then
-            sprite:setItemId(tonumber(entry.clientId) or 0)
+
+        if state.domain == DOMAIN_MONSTERS then
+            if sprite then
+                sprite:setItemId(0)
+                sprite:setVisible(false)
+            end
+            if not applyMonsterPreview(row, entry.raceId, entry.outfit) and creature then
+                creature:setVisible(false)
+            end
+        else
+            if creature then
+                creature:setVisible(false)
+            end
+            if sprite then
+                sprite:setVisible(true)
+                sprite:setItemId(tonumber(entry.clientId) or 0)
+            end
         end
+
         if nameLabel then
-            nameLabel:setText(entry.name or tr('Unknown item'))
+            nameLabel:setText(entry.name or (state.domain == DOMAIN_MONSTERS and tr('Unknown monster') or tr('Unknown item')))
         end
         row.onClick = function()
             onResultSelected(row, entry)
@@ -577,43 +973,77 @@ local function renderResults(response)
         end
     end
 
-    resetDetailPanel(tr('Select an item to see its details here.'))
+    resetDetailPanel(getSelectionPlaceholder(state.domain))
 end
 
 local function requestCurrentPage(force)
-    if not state.activeCategory then
+    local domainState = getDomainState()
+    if state.domain == DOMAIN_ITEMS and not domainState.activeCategory then
         updateResultEmptyLabel(tr('Select a category to load items.'))
         setResultWidgetsEnabled(false)
         return
     end
 
-    local search = normalizeSearch(state.search or '')
-    local cacheKey = makePageCacheKey(state.activeCategory, search, state.page)
-    if not force and state.pageCache[cacheKey] then
-        renderResults(state.pageCache[cacheKey])
+    local search = normalizeSearch(domainState.search or '')
+    local category = state.domain == DOMAIN_ITEMS and domainState.activeCategory or ''
+    local cacheKey = makePageCacheKey(state.domain, category, search, domainState.page)
+    if not force and domainState.pageCache[cacheKey] then
+        renderResults(domainState.pageCache[cacheKey])
         return
     end
 
-    ui.resultList:destroyChildren()
-    updateResultEmptyLabel(tr('Loading items...'))
-    resetDetailPanel(tr('Select an item to see its details here.'))
+    if state.domain == DOMAIN_MONSTERS then
+        ui.monsterList:destroyChildren()
+        updateMonsterEmptyLabel(getLoadingText(state.domain))
+    else
+        ui.resultList:destroyChildren()
+        updateResultEmptyLabel(getLoadingText(state.domain))
+    end
+    resetDetailPanel(getSelectionPlaceholder(state.domain))
     setResultWidgetsEnabled(true)
-    sendRequest('list', {
-        category = state.activeCategory,
-        page = state.page,
+
+    local payload = {
+        page = domainState.page,
         pageSize = PAGE_SIZE,
         search = search
-    })
+    }
+    if state.domain == DOMAIN_ITEMS then
+        payload.category = domainState.activeCategory
+    end
+    sendRequest(state.domain, 'list', payload)
+end
+
+local function updateDomainUi()
+    local isItems = state.domain == DOMAIN_ITEMS
+    ui.itemsTab:setOn(isItems)
+    ui.monstersTab:setOn(not isItems)
+    ui.categoryPanel:setVisible(isItems)
+    ui.monsterPanel:setVisible(not isItems)
+    ui.itemsSection:setVisible(isItems)
+    ui.resultLabel:setText(getResultLabelText(state.domain) .. ':')
+    ui.detailPlaceholder:setText(getInitialPlaceholder(state.domain))
+    ui.topListEmptyLabel:setVisible(false)
+    ui.monsterEmptyLabel:setVisible(false)
+    anchorSearchSection(isItems)
+
+    if isItems then
+        ui.resultEmptyLabel:setVisible(false)
+    else
+        ui.resultList:destroyChildren()
+        ui.resultEmptyLabel:setText(tr('Select a monster from the list above.'))
+        ui.resultEmptyLabel:setVisible(true)
+    end
 end
 
 local function setCategory(categoryKey)
-    if state.activeCategory == categoryKey then
+    local domainState = state.items
+    if domainState.activeCategory == categoryKey then
         return
     end
 
-    state.activeCategory = categoryKey
-    state.page = 1
-    state.search = ''
+    domainState.activeCategory = categoryKey
+    domainState.page = 1
+    domainState.search = ''
     ui.searchEdit:setText('')
 
     for _, widget in ipairs(ui.categoryList:getChildren()) do
@@ -631,7 +1061,7 @@ local function renderCategories()
         local widget = g_ui.createWidget('LibraryCategoryItem', list)
         widget.categoryKey = entry.key
         widget:setText(entry.label)
-        widget:setChecked(state.activeCategory == entry.key)
+        widget:setChecked(state.items.activeCategory == entry.key)
         widget.onClick = function()
             setCategory(entry.key)
         end
@@ -665,50 +1095,57 @@ local function mergeServerCategories(serverCategories)
 end
 
 local function handleCategoriesResponse(data)
-    state.categoriesLoaded = true
-    state.categoriesRequested = false
+    state.items.categoriesLoaded = true
+    state.items.categoriesRequested = false
     mergeServerCategories(data.categories)
     renderCategories()
 end
 
-local function handleListResponse(data)
-    local search = normalizeSearch(data.search or '')
-    local category = data.category or state.activeCategory
-    local page = tonumber(data.page) or 1
-    local cacheKey = makePageCacheKey(category, search, page)
-    state.pageCache[cacheKey] = data
+local function handleListResponse(domain, data, requestData)
+    local domainState = getDomainState(domain)
+    requestData = requestData or {}
+    local search = normalizeSearch(data.search or requestData.search or '')
+    local category = domain == DOMAIN_ITEMS and (data.category or requestData.category or domainState.activeCategory) or ''
+    local page = tonumber(data.page) or tonumber(requestData.page) or 1
+    data.domain = domain
+    local cacheKey = makePageCacheKey(domain, category, search, page)
+    domainState.pageCache[cacheKey] = data
 
-    if category == state.activeCategory and search == normalizeSearch(state.search or '') then
+    if domain == state.domain and (domain == DOMAIN_MONSTERS or category == domainState.activeCategory) and search == normalizeSearch(domainState.search or '') then
         renderResults(data)
     end
 end
 
-local function handleDetailResponse(data)
-    local wareId = tonumber(data.wareId)
-    local tier = tonumber(data.tier) or 1
-    if wareId then
-        state.detailCache[makeDetailCacheKey(wareId, tier)] = data
+local function handleDetailResponse(domain, data, requestData)
+    local domainState = getDomainState(domain)
+    requestData = requestData or {}
+    local id = domain == DOMAIN_MONSTERS and (data.monsterId or data.id or requestData.monsterId) or tonumber(data.wareId or requestData.wareId)
+    local tier = tonumber(data.tier or requestData.tier) or 1
+    data.domain = domain
+    if id then
+        domainState.detailCache[makeDetailCacheKey(domain, id, tier)] = data
     end
-    if wareId == tonumber(state.selectedWareId) and tier == tonumber(state.selectedTier) then
+    if domain == state.domain and id == domainState.selectedId and (domain == DOMAIN_MONSTERS or tier == tonumber(domainState.selectedTier)) then
         showDetail(data)
     end
 end
 
-local function handleLibraryError(payload)
+local function handleLibraryError(domain, action, payload)
+    if domain ~= state.domain then
+        return
+    end
+
     local message = tr('Library request failed.')
     if type(payload) == 'table' and type(payload.error) == 'table' and type(payload.error.message) == 'string' then
         message = payload.error.message
     end
 
-    if payload and payload.action == 'categories' then
-        state.categoriesRequested = false
+    if domain == DOMAIN_ITEMS and action == 'categories' then
+        state.items.categoriesRequested = false
     end
 
-    if state.activeCategory then
-        updateResultEmptyLabel(message)
-    else
-        ui.detailPlaceholder:setText(message)
-    end
+    updateResultEmptyLabel(message)
+    ui.detailPlaceholder:setText(message)
 end
 
 local function onLibraryOpcode(protocol, opcode, payload)
@@ -718,15 +1155,20 @@ local function onLibraryOpcode(protocol, opcode, payload)
 
     local requestId = payload.requestId
     local action = payload.action
+    local domain = payload.domain or state.domain
+    local requestData = {}
     if requestId ~= nil then
-        local pendingAction = state.pending[requestId]
+        local pending = state.pending[requestId]
         state.pending[requestId] = nil
-        action = action or pendingAction
+        if pending then
+            action = action or pending.action
+            domain = payload.domain or pending.domain
+            requestData = pending.data or requestData
+        end
     end
 
-    payload.action = action
     if payload.ok == false then
-        handleLibraryError(payload)
+        handleLibraryError(domain, action, payload)
         return
     end
 
@@ -734,9 +1176,9 @@ local function onLibraryOpcode(protocol, opcode, payload)
     if action == 'categories' then
         handleCategoriesResponse(data)
     elseif action == 'list' then
-        handleListResponse(data)
+        handleListResponse(domain, data, requestData)
     elseif action == 'detail' then
-        handleDetailResponse(data)
+        handleDetailResponse(domain, data, requestData)
     end
 end
 
@@ -748,8 +1190,9 @@ local function queueSearch()
 
     searchEvent = scheduleEvent(function()
         searchEvent = nil
-        state.search = ui.searchEdit:getText() or ''
-        state.page = 1
+        local domainState = getDomainState()
+        domainState.search = ui.searchEdit:getText() or ''
+        domainState.page = 1
         requestCurrentPage(true)
     end, SEARCH_DELAY)
 end
@@ -759,9 +1202,38 @@ local function clearSearch()
         return
     end
     ui.searchEdit:setText('')
-    state.search = ''
-    state.page = 1
+    local domainState = getDomainState()
+    domainState.search = ''
+    domainState.page = 1
     requestCurrentPage(true)
+end
+
+local function switchDomain(domain)
+    if state.domain == domain then
+        return
+    end
+
+    state.domain = domain
+    updateDomainUi()
+    clearResultSelection(DOMAIN_ITEMS)
+    clearResultSelection(DOMAIN_MONSTERS)
+
+    local domainState = getDomainState()
+    ui.searchEdit:setText(domainState.search or '')
+
+    if domain == DOMAIN_ITEMS then
+        ensureCategoriesRequested()
+        renderCategories()
+    end
+
+    if domain == DOMAIN_MONSTERS or domainState.activeCategory then
+        requestCurrentPage(false)
+    else
+        updateResultEmptyLabel(tr('Select a category to load items.'))
+        resetDetailPanel(getInitialPlaceholder(domain))
+        setResultWidgetsEnabled(false)
+        updatePagination()
+    end
 end
 
 local function show()
@@ -772,18 +1244,23 @@ local function show()
     libraryWindow:show()
     libraryWindow:raise()
     libraryWindow:focus()
-    ui.itemsTab:setOn(true)
     if libraryButton then
         libraryButton:setOn(true)
     end
 
-    ensureCategoriesRequested()
-    renderCategories()
-    if state.activeCategory then
+    updateDomainUi()
+    if state.domain == DOMAIN_ITEMS then
+        ensureCategoriesRequested()
+        renderCategories()
+    end
+
+    local domainState = getDomainState()
+    ui.searchEdit:setText(domainState.search or '')
+    if state.domain == DOMAIN_MONSTERS or domainState.activeCategory then
         requestCurrentPage(false)
     else
         updateResultEmptyLabel(tr('Select a category to load items.'))
-        resetDetailPanel(tr('Select a category and choose an item to see its details here.'))
+        resetDetailPanel(getInitialPlaceholder(state.domain))
         setResultWidgetsEnabled(false)
         updatePagination()
     end
@@ -811,30 +1288,43 @@ function toggle()
 end
 
 local function resetUiState()
-    state.page = 1
-    state.totalPages = 1
-    state.totalResults = 0
-    clearResultSelection()
+    clearResultSelection(DOMAIN_ITEMS)
+    clearResultSelection(DOMAIN_MONSTERS)
     ui.searchEdit:setText('')
     ui.resultList:destroyChildren()
-    ui.detailList:destroyChildren()
+    ui.monsterList:destroyChildren()
     renderCategories()
-    updateResultEmptyLabel(tr('Select a category to load items.'))
-    resetDetailPanel(tr('Select a category and choose an item to see its details here.'))
+    ui.detailList:destroyChildren()
+    updateDomainUi()
+    updateResultEmptyLabel(state.domain == DOMAIN_MONSTERS and tr('Search monsters or browse the list.') or tr('Select a category to load items.'))
+    resetDetailPanel(getInitialPlaceholder(state.domain))
     updatePagination()
-    setResultWidgetsEnabled(false)
+    setResultWidgetsEnabled(state.domain == DOMAIN_MONSTERS)
+end
+
+local function resetDomainState(domain)
+    local domainState = getDomainState(domain)
+    domainState.search = ''
+    domainState.page = 1
+    domainState.totalPages = 1
+    domainState.totalResults = 0
+    domainState.selectedId = nil
+    domainState.selectedTier = 1
+    domainState.availableTiers = {}
+    domainState.selectedResult = nil
+    domainState.pageCache = {}
+    domainState.detailCache = {}
+    if domain == DOMAIN_ITEMS then
+        domainState.categoriesLoaded = false
+        domainState.categoriesRequested = false
+        domainState.activeCategory = nil
+    end
 end
 
 local function resetDataState()
-    state.categoriesLoaded = false
-    state.categoriesRequested = false
-    state.activeCategory = nil
-    state.search = ''
-    state.selectedWareId = nil
-    state.selectedTier = 1
-    state.availableTiers = {}
-    state.pageCache = {}
-    state.detailCache = {}
+    state.domain = DOMAIN_ITEMS
+    resetDomainState(DOMAIN_ITEMS)
+    resetDomainState(DOMAIN_MONSTERS)
     state.pending = {}
 end
 
@@ -849,21 +1339,23 @@ function init()
     libraryWindow = g_ui.loadUI('/game_library/library', g_ui.getRootWidget())
     bindUi()
     libraryWindow:hide()
-    ui.itemsTab:setOn(true)
-    ui.itemsTab:setEnabled(false)
+    ui.itemsTab.onClick = function() switchDomain(DOMAIN_ITEMS) end
+    ui.monstersTab.onClick = function() switchDomain(DOMAIN_MONSTERS) end
     ui.closeButton.onClick = hide
     libraryWindow.onEscape = hide
     ui.searchEdit.onTextChange = queueSearch
     ui.searchClearButton.onClick = clearSearch
     ui.prevPageButton.onClick = function()
-        if state.page > 1 then
-            state.page = state.page - 1
+        local domainState = getDomainState()
+        if domainState.page > 1 then
+            domainState.page = domainState.page - 1
             requestCurrentPage(false)
         end
     end
     ui.nextPageButton.onClick = function()
-        if state.page < state.totalPages then
-            state.page = state.page + 1
+        local domainState = getDomainState()
+        if domainState.page < domainState.totalPages then
+            domainState.page = domainState.page + 1
             requestCurrentPage(false)
         end
     end
@@ -881,6 +1373,7 @@ function init()
         }
     })
 
+    resetDataState()
     resetUiState()
 end
 

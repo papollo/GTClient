@@ -29,8 +29,10 @@ local function tryLoadDatWithFallbacks(datPath)
     }
 
     for _, combo in ipairs(combinations) do
+        local enabled = {}
         for _, idx in ipairs(combo) do
             g_game.enableFeature(featureFlags[idx])
+            enabled[#enabled + 1] = tostring(featureFlags[idx])
         end
 
         if g_things.loadDat(datPath) then

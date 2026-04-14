@@ -22,6 +22,7 @@
 
 #include "overlaymanager.h"
 
+#include "effect.h"
 #include "map.h"
 #include "thing.h"
 

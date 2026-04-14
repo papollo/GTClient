@@ -28,6 +28,38 @@ LibraryCategoryItem < UICheckBox
     color: #F6F6F6
     background-color: #585858
 
+LibraryMonsterListItem < UICheckBox
+  size: 182 35
+  background-color: #484848
+
+  UIWidget
+    id: iconBackground
+    size: 32 32
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 2
+    image-source: /images/ui/item
+
+    UICreature
+      id: Creature
+      anchors.fill: parent
+
+  Label
+    id: Name
+    anchors.left: iconBackground.right
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 8
+    margin-right: 6
+    color: #CFCFCF
+    text-wrap: true
+
+  $hover:
+    background-color: #525252
+
+  $checked:
+    background-color: #585858
+
 LibraryResultItem < UIWidget
   size: 196 35
   background-color: #484848
@@ -43,6 +75,11 @@ LibraryResultItem < UIWidget
     UIItem
       id: Sprite
       anchors.fill: parent
+
+    UICreature
+      id: Creature
+      anchors.fill: parent
+      visible: false
 
   Label
     id: Name
@@ -64,6 +101,69 @@ LibrarySectionLabel < Label
   color: #BEBEBE
   text-auto-resize: true
   margin-top: 10
+
+LibraryLootTableHeader < UIWidget
+  size: 360 18
+  margin-top: 3
+  background-color: #404040
+
+  Label
+    id: name
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 6
+    width: 150
+    color: #D7D7D7
+    !text: tr('Item')
+
+  Label
+    id: count
+    anchors.left: name.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 72
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Max count')
+
+  Label
+    id: chance
+    anchors.left: count.right
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 6
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Chance')
+
+LibraryLootTableRow < UIWidget
+  size: 360 20
+  background-color: #484848
+
+  Label
+    id: name
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 6
+    width: 150
+    color: #C8C8C8
+    text-wrap: true
+
+  Label
+    id: count
+    anchors.left: name.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 72
+    color: #C8C8C8
+    text-align: center
+
+  Label
+    id: chance
+    anchors.left: count.right
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 6
+    color: #C8C8C8
+    text-align: center
 
 LibraryTierButton < UICheckBox
   size: 72 20
@@ -109,6 +209,24 @@ MainWindow
       anchors.left: parent.left
       margin-left: 1
 
+    LibraryTabButton
+      id: monstersTab
+      anchors.top: parent.top
+      anchors.left: itemsTab.right
+      margin-left: 6
+      image-source: /images/game/cyclopedia/bestiary_off
+      image-clip: 0 0 34 34
+
+      $on:
+        size: 150 34
+        image-source: /images/game/cyclopedia/bestiary_on
+        image-clip: 0 0 150 34
+
+      $pressed:
+        size: 34 34
+        image-source: /images/game/cyclopedia/bestiary_off
+        image-clip: 0 34 34 34
+
   UIWidget
     id: contentContainer
     anchors.top: buttonSelection.bottom
@@ -117,154 +235,238 @@ MainWindow
     anchors.bottom: bottomSeparator.top
     margin-top: 5
 
-    UILabel
-      id: categoryLabel
+    UIWidget
+      id: leftColumn
       anchors.top: parent.top
       anchors.left: parent.left
-      margin-top: 10
-      !text: tr('Categories') .. ':'
-      text-auto-resize: true
-      color: #BDBDBD
+      anchors.bottom: parent.bottom
+      width: 200
 
-    TextList
-      id: categoryList
-      vertical-scrollbar: categoryScrollbar
-      anchors.left: parent.left
-      anchors.top: parent.top
-      margin-top: 30
-      image-source: /images/ui/panel_flat
-      image-border: 10
-      size: 200 120
-      padding-left: 2
-      padding-top: 2
-      padding-bottom: 2
-      focusable: false
+      UIWidget
+        id: categoryPanel
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 152
 
-    VerticalScrollBar
-      id: categoryScrollbar
-      anchors.top: categoryList.top
-      anchors.right: categoryList.right
-      anchors.bottom: categoryList.bottom
-      step: 10
-      pixels-scroll: true
+        UILabel
+          id: categoryLabel
+          anchors.top: parent.top
+          anchors.left: parent.left
+          margin-top: 10
+          !text: tr('Categories') .. ':'
+          text-auto-resize: true
+          color: #BDBDBD
+
+        TextList
+          id: categoryList
+          vertical-scrollbar: categoryScrollbar
+          anchors.left: parent.left
+          anchors.top: categoryLabel.bottom
+          margin-top: 4
+          image-source: /images/ui/panel_flat
+          image-border: 10
+          width: 200
+          height: 120
+          padding-left: 2
+          padding-top: 2
+          padding-bottom: 2
+          focusable: false
+
+        Label
+          id: topListEmptyLabel
+          anchors.centerIn: categoryList
+          width: 150
+          text-wrap: true
+          text-align: center
+          color: #9A9A9A
+          height: 48
+          visible: false
+
+        VerticalScrollBar
+          id: categoryScrollbar
+          anchors.top: categoryList.top
+          anchors.right: categoryList.right
+          anchors.bottom: categoryList.bottom
+          step: 10
+          pixels-scroll: true
+
+      UIWidget
+        id: monsterPanel
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 360
+        visible: false
+
+        UILabel
+          id: monsterLabel
+          anchors.top: parent.top
+          anchors.left: parent.left
+          margin-top: 10
+          !text: tr('Monsters') .. ':'
+          text-auto-resize: true
+          color: #BDBDBD
+
+        TextList
+          id: monsterList
+          vertical-scrollbar: monsterScrollbar
+          anchors.left: parent.left
+          anchors.top: monsterLabel.bottom
+          margin-top: 4
+          image-source: /images/ui/panel_flat
+          image-border: 10
+          width: 200
+          height: 330
+          padding-left: 2
+          padding-top: 2
+          padding-bottom: 2
+          focusable: false
+
+        Label
+          id: monsterEmptyLabel
+          anchors.centerIn: monsterList
+          width: 150
+          text-wrap: true
+          text-align: center
+          color: #9A9A9A
+          height: 48
+          visible: false
+
+        VerticalScrollBar
+          id: monsterScrollbar
+          anchors.top: monsterList.top
+          anchors.right: monsterList.right
+          anchors.bottom: monsterList.bottom
+          step: 10
+          pixels-scroll: true
+
+      UIWidget
+        id: itemsSection
+        anchors.top: categoryPanel.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 213
+
+        Label
+          id: itemsLabel
+          anchors.top: parent.top
+          anchors.left: parent.left
+          margin-top: 8
+          !text: tr('Items') .. ':'
+          text-auto-resize: true
+          color: #BDBDBD
+
+        Panel
+          id: resultListBase
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.top: itemsLabel.bottom
+          margin-top: 5
+          height: 180
+          background-color: #363636
+
+          UIScrollArea
+            id: resultList
+            anchors.fill: parent
+            vertical-scrollbar: resultScrollbar
+            padding-top: 2
+            padding-bottom: 2
+            layout:
+              type: verticalBox
+              spacing: 1
+
+          VerticalScrollBar
+            id: resultScrollbar
+            anchors.top: resultList.top
+            anchors.right: resultList.right
+            anchors.bottom: resultList.bottom
+            step: 30
+            pixel-scroll: true
+
+          Label
+            id: resultEmptyLabel
+            anchors.centerIn: parent
+            width: 150
+            text-wrap: true
+            text-align: center
+            color: #9A9A9A
+            height: 48
+            !text: tr('Select a category to load items.')
+
+      Label
+        id: searchLabel
+        anchors.top: itemsSection.bottom
+        anchors.left: parent.left
+        margin-top: 8
+        !text: tr('Search') .. ':'
+        text-auto-resize: true
+        color: #BDBDBD
+
+      TextEdit
+        id: searchEdit
+        anchors.top: searchLabel.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        margin-top: 4
+        height: 18
+        padding-top: 2
+        padding-right: 18
+        placeholder: Type to search
+        placeholder-color: #6E706F
+
+      UIWidget
+        id: searchClearButton
+        anchors.right: searchEdit.right
+        anchors.top: searchEdit.top
+        margin-top: 1
+        margin-right: 2
+        image-source: /game_cyclopedia/images/button_clear_search
+        image-color: white
+        opacity: 0.8
+
+        $hover:
+          opacity: 1.0
+          image-color: white
+
+        $pressed:
+          opacity: 1.0
+          image-color: gray
+
+      UIWidget
+        id: paginationPanel
+        anchors.top: searchEdit.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        margin-top: 8
+        margin-bottom: 12
+        height: 20
+
+        PreviousQtButton
+          id: prevPageButton
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+
+        Label
+          id: pageLabel
+          anchors.centerIn: parent
+          !text: tr('Page 1 / 1')
+          color: #BDBDBD
+          text-auto-resize: true
+
+        NextQtButton
+          id: nextPageButton
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
 
     VerticalSeparator
       id: middleSeparator
-      anchors.left: parent.left
+      anchors.left: leftColumn.right
       anchors.top: parent.top
       anchors.bottom: parent.bottom
       margin-top: 10
       margin-bottom: 10
-      margin-left: 210
-
-    Label
-      id: itemsLabel
-      anchors.top: categoryList.bottom
-      anchors.left: parent.left
-      margin-top: 12
-      !text: tr('Items') .. ':'
-      text-auto-resize: true
-      color: #BDBDBD
-
-    Panel
-      id: resultListBase
-      anchors.left: parent.left
-      anchors.top: itemsLabel.bottom
-      margin-top: 5
-      size: 200 180
-      background-color: #363636
-
-      UIScrollArea
-        id: resultList
-        anchors.fill: parent
-        vertical-scrollbar: resultScrollbar
-        padding-top: 2
-        padding-bottom: 2
-        layout:
-          type: verticalBox
-          spacing: 1
-
-      VerticalScrollBar
-        id: resultScrollbar
-        anchors.top: resultList.top
-        anchors.right: resultList.right
-        anchors.bottom: resultList.bottom
-        step: 30
-        pixel-scroll: true
-
-      Label
-        id: resultEmptyLabel
-        anchors.centerIn: parent
-        width: 150
-        text-wrap: true
-        text-align: center
-        color: #9A9A9A
-        height: 48
-        !text: tr('Select a category to load items.')
-
-    Label
-      id: searchLabel
-      anchors.top: resultListBase.bottom
-      anchors.left: parent.left
-      margin-top: 10
-      !text: tr('Search') .. ':'
-      text-auto-resize: true
-      color: #BDBDBD
-
-    TextEdit
-      id: searchEdit
-      anchors.top: searchLabel.bottom
-      anchors.left: parent.left
-      anchors.right: resultListBase.right
-      margin-top: 4
-      height: 18
-      padding-top: 2
-      padding-right: 18
-      placeholder: Type to search
-      placeholder-color: #6E706F
-
-    UIWidget
-      id: searchClearButton
-      anchors.right: searchEdit.right
-      anchors.top: searchEdit.top
-      margin-top: 1
-      margin-right: 2
-      image-source: /game_cyclopedia/images/button_clear_search
-      image-color: white
-      opacity: 0.8
-
-      $hover:
-        opacity: 1.0
-        image-color: white
-
-      $pressed:
-        opacity: 1.0
-        image-color: gray
-
-    UIWidget
-      id: paginationPanel
-      anchors.top: searchEdit.bottom
-      anchors.left: parent.left
-      anchors.right: resultListBase.right
-      margin-top: 8
-      height: 20
-
-      PreviousQtButton
-        id: prevPageButton
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-
-      Label
-        id: pageLabel
-        anchors.centerIn: parent
-        !text: tr('Page 1 / 1')
-        color: #BDBDBD
-        text-auto-resize: true
-
-      NextQtButton
-        id: nextPageButton
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
+      margin-left: 10
 
     UIWidget
       id: detailPanel
@@ -299,6 +501,13 @@ MainWindow
           UIItem
             id: sprite
             anchors.fill: parent
+
+        UICreature
+          id: detailCreature
+          size: 32 32
+          anchors.top: parent.top
+          anchors.left: parent.left
+          visible: false
 
         Label
           id: itemName

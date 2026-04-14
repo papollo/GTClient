@@ -27,6 +27,7 @@
 #include "creature.h"
 #include "game.h"
 #include "lightview.h"
+#include "localplayer.h"
 #include "map.h"
 #include "missile.h"
 #include "overlaymanager.h"

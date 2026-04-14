@@ -2435,18 +2435,6 @@ void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const
                 dodgeBaseLevel = baseLevel;
             }
         }
-        g_logger.debug(
-            "parsePlayerSkills(0xA1): proto={}, version={}, unreadBefore={}, unreadAfter={}, regularSkills={}, additionalSkills={}, forgeSkills={}, dodge=({}/{})",
-            g_game.getProtocolVersion(),
-            g_game.getClientVersion(),
-            unreadBefore,
-            msg->getUnreadSize(),
-            regularSkillsCount,
-            additionalSkillsCount,
-            forgeSkillsCount,
-            dodgeLevel,
-            dodgeBaseLevel
-        );
         return;
     }
 
@@ -2533,18 +2521,6 @@ void ProtocolGame::parsePlayerSkills(const InputMessagePtr& msg) const
         m_localPlayer->setTotalCapacity(capacity);
     }
 
-    g_logger.debug(
-        "parsePlayerSkills(0xA1): proto={}, version={}, unreadBefore={}, unreadAfter={}, regularSkills={}, additionalSkills={}, forgeSkills={}, dodge=({}/{})",
-        g_game.getProtocolVersion(),
-        g_game.getClientVersion(),
-        unreadBefore,
-        msg->getUnreadSize(),
-        regularSkillsCount,
-        additionalSkillsCount,
-        forgeSkillsCount,
-        dodgeLevel,
-        dodgeBaseLevel
-    );
 }
 
 void ProtocolGame::parsePlayerState(const InputMessagePtr& msg) const
@@ -5837,4 +5813,3 @@ void ProtocolGame::parseHighscores(const InputMessagePtr& msg)
 
     g_game.processHighscore(serverName, world, worldType, battlEye, vocations, categories, page, totalPages, highscores, entriesTs);
 }
-
