@@ -536,6 +536,8 @@ locale = {
     ["Alchemy"] = "Alchemy",
     ["Smithing"] = "Smithing",
     ["Hunting"] = "Hunting",
+    ["Select an item to see its details here."] = "Valj ett foremal for att se dess detaljer har.",
+    ["Loading items..."] = "Laddar foremal...",
   }
 }
 

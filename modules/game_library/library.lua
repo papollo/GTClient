@@ -85,6 +85,7 @@ local groupOrder = {
     [DOMAIN_MONSTERS] = {
         { key = 'basic', label = 'Basic' },
         { key = 'combat', label = 'Combat' },
+        { key = 'attacks', label = 'Attacks' },
         { key = 'resistances', label = 'Resistances' },
         { key = 'loot', label = 'Loot' },
         { key = 'location', label = 'Location' },
@@ -532,6 +533,44 @@ local function getLootDisplayData(entry)
     }
 end
 
+local function isVisibleAttackEntry(entry)
+    if type(entry) ~= 'table' then
+        return false
+    end
+
+    local name = entry.name and tostring(entry.name) or ''
+    return name:trim() ~= ''
+end
+
+local function getAttackDisplayData(entry)
+    local name = entry.name and tostring(entry.name) or '-'
+    local damage = entry.damage ~= nil and tostring(entry.damage) ~= '' and tostring(entry.damage) or '-'
+    local chance = entry.chance ~= nil and tostring(entry.chance) ~= '' and tostring(entry.chance) or '-'
+    local interval = entry.interval ~= nil and tostring(entry.interval) ~= '' and tostring(entry.interval) or '-'
+
+    local info = {}
+    if entry.type ~= nil and tostring(entry.type) ~= '' and tostring(entry.type) ~= '-' then
+        table.insert(info, tostring(entry.type))
+    end
+    if entry.range ~= nil and tostring(entry.range) ~= '' and tostring(entry.range) ~= '-' then
+        table.insert(info, tostring(entry.range))
+    end
+    if entry.effect ~= nil and tostring(entry.effect) ~= '' and tostring(entry.effect) ~= '-' then
+        table.insert(info, tostring(entry.effect))
+    end
+
+    if #info > 0 then
+        name = string.format('%s (%s)', name, table.concat(info, ', '))
+    end
+
+    return {
+        name = name,
+        damage = damage,
+        chance = chance,
+        interval = interval
+    }
+end
+
 local function getFieldLabel(key)
     local meta = fieldMeta[key]
     return meta and meta.label or humanizeKey(key)
@@ -756,7 +795,7 @@ local function renderDetailGroups(details)
     list:destroyChildren()
 
     local description = details.__description
-    if type(description) == 'string' and description:trim() ~= '' then
+    if state.domain == DOMAIN_ITEMS and type(description) == 'string' and description:trim() ~= '' then
         local heading = g_ui.createWidget('LibrarySectionLabel', list)
         heading:setText(tr('Description') .. ':')
 
@@ -774,7 +813,48 @@ local function renderDetailGroups(details)
     for _, group in ipairs(groupOrder[state.domain] or {}) do
         local values = details[group.key]
         if type(values) == 'table' then
-            if group.key == 'loot' then
+            if group.key == 'attacks' then
+                local visibleAttacks = {}
+                for _, entry in ipairs(values) do
+                    if isVisibleAttackEntry(entry) then
+                        table.insert(visibleAttacks, entry)
+                    end
+                end
+
+                if #visibleAttacks > 0 then
+                    local heading = g_ui.createWidget('LibrarySectionLabel', list)
+                    heading:setText(group.label .. ':')
+
+                    g_ui.createWidget('LibraryAttackTableHeader', list)
+
+                    for _, entry in ipairs(visibleAttacks) do
+                        local attackData = getAttackDisplayData(entry)
+                        local row = g_ui.createWidget('LibraryAttackTableRow', list)
+                        local nameLabel = row:getChildById('name')
+                        local damageLabel = row:getChildById('damage')
+                        local chanceLabel = row:getChildById('chance')
+                        local intervalLabel = row:getChildById('interval')
+
+                        local lineCount = select(2, attackData.name:gsub('\n', '\n')) + 1
+                        local requiresTallRow = #attackData.name > 24 or lineCount > 1
+                        row:setHeight(requiresTallRow and math.max(24, lineCount * 14) or 20)
+
+                        if nameLabel then
+                            nameLabel:setText(attackData.name)
+                            nameLabel:setTextWrap(requiresTallRow)
+                        end
+                        if damageLabel then
+                            damageLabel:setText(attackData.damage)
+                        end
+                        if chanceLabel then
+                            chanceLabel:setText(attackData.chance)
+                        end
+                        if intervalLabel then
+                            intervalLabel:setText(attackData.interval)
+                        end
+                    end
+                end
+            elseif group.key == 'loot' then
                 local visibleLoot = {}
                 for _, entry in ipairs(values) do
                     if isVisibleLootEntry(entry) then

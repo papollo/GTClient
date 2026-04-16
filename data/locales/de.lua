@@ -535,6 +535,8 @@ locale = {
     ["Alchemy"] = "Alchemy",
     ["Smithing"] = "Smithing",
     ["Hunting"] = "Hunting",
+    ["Select an item to see its details here."] = "Wahle einen Gegenstand aus, um hier seine Details zu sehen.",
+    ["Loading items..."] = "Gegenstande werden geladen...",
   }
 }
 

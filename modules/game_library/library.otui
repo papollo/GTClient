@@ -165,6 +165,86 @@ LibraryLootTableRow < UIWidget
     color: #C8C8C8
     text-align: center
 
+LibraryAttackTableHeader < UIWidget
+  size: 360 18
+  margin-top: 3
+  background-color: #404040
+
+  Label
+    id: name
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 6
+    width: 136
+    color: #D7D7D7
+    !text: tr('Attack')
+
+  Label
+    id: damage
+    anchors.left: name.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 70
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Damage')
+
+  Label
+    id: chance
+    anchors.left: damage.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 62
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Chance')
+
+  Label
+    id: interval
+    anchors.left: chance.right
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 6
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Interval')
+
+LibraryAttackTableRow < UIWidget
+  size: 360 20
+  background-color: #484848
+
+  Label
+    id: name
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 6
+    width: 136
+    color: #C8C8C8
+    text-wrap: true
+
+  Label
+    id: damage
+    anchors.left: name.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 70
+    color: #C8C8C8
+    text-align: center
+
+  Label
+    id: chance
+    anchors.left: damage.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 62
+    color: #C8C8C8
+    text-align: center
+
+  Label
+    id: interval
+    anchors.left: chance.right
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 6
+    color: #C8C8C8
+    text-align: center
+
 LibraryTierButton < UICheckBox
   size: 72 20
   color: #C0C0C0
