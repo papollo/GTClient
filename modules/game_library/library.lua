@@ -43,6 +43,10 @@ local categories = {
     { key = 'VALUABLES', label = 'Valuables' }
 }
 
+local defaultMonsterCategories = {
+    { key = 'normal', label = 'Normal Monsters', default = true, implicit = true }
+}
+
 local state = {
     domain = DOMAIN_ITEMS,
     items = {
@@ -61,6 +65,10 @@ local state = {
         detailCache = {}
     },
     monsters = {
+        categoriesLoaded = false,
+        categoriesRequested = false,
+        categories = {},
+        activeCategory = nil,
         search = '',
         page = 1,
         totalPages = 1,
@@ -273,6 +281,8 @@ local function bindUi()
         categoryList = child('categoryList'),
         topListEmptyLabel = child('topListEmptyLabel'),
         monsterPanel = child('monsterPanel'),
+        monsterCategoryLabel = child('monsterCategoryLabel'),
+        monsterCategoryList = child('monsterCategoryList'),
         monsterLabel = child('monsterLabel'),
         monsterList = child('monsterList'),
         monsterEmptyLabel = child('monsterEmptyLabel'),
@@ -544,27 +554,14 @@ end
 
 local function getAttackDisplayData(entry)
     local name = entry.name and tostring(entry.name) or '-'
+    local range = entry.range ~= nil and tostring(entry.range) ~= '' and tostring(entry.range) or '-'
     local damage = entry.damage ~= nil and tostring(entry.damage) ~= '' and tostring(entry.damage) or '-'
     local chance = entry.chance ~= nil and tostring(entry.chance) ~= '' and tostring(entry.chance) or '-'
     local interval = entry.interval ~= nil and tostring(entry.interval) ~= '' and tostring(entry.interval) or '-'
 
-    local info = {}
-    if entry.type ~= nil and tostring(entry.type) ~= '' and tostring(entry.type) ~= '-' then
-        table.insert(info, tostring(entry.type))
-    end
-    if entry.range ~= nil and tostring(entry.range) ~= '' and tostring(entry.range) ~= '-' then
-        table.insert(info, tostring(entry.range))
-    end
-    if entry.effect ~= nil and tostring(entry.effect) ~= '' and tostring(entry.effect) ~= '-' then
-        table.insert(info, tostring(entry.effect))
-    end
-
-    if #info > 0 then
-        name = string.format('%s (%s)', name, table.concat(info, ', '))
-    end
-
     return {
         name = name,
+        range = range,
         damage = damage,
         chance = chance,
         interval = interval
@@ -606,6 +603,15 @@ local function ensureCategoriesRequested()
     end
     itemsState.categoriesRequested = true
     sendRequest(DOMAIN_ITEMS, 'categories')
+end
+
+local function ensureMonsterCategoriesRequested()
+    local monstersState = state.monsters
+    if monstersState.categoriesLoaded or monstersState.categoriesRequested then
+        return
+    end
+    monstersState.categoriesRequested = true
+    sendRequest(DOMAIN_MONSTERS, 'categories')
 end
 
 local function getOrderedGroupEntries(groupKey, values)
@@ -831,6 +837,7 @@ local function renderDetailGroups(details)
                         local attackData = getAttackDisplayData(entry)
                         local row = g_ui.createWidget('LibraryAttackTableRow', list)
                         local nameLabel = row:getChildById('name')
+                        local rangeLabel = row:getChildById('range')
                         local damageLabel = row:getChildById('damage')
                         local chanceLabel = row:getChildById('chance')
                         local intervalLabel = row:getChildById('interval')
@@ -842,6 +849,9 @@ local function renderDetailGroups(details)
                         if nameLabel then
                             nameLabel:setText(attackData.name)
                             nameLabel:setTextWrap(requiresTallRow)
+                        end
+                        if rangeLabel then
+                            rangeLabel:setText(attackData.range)
                         end
                         if damageLabel then
                             damageLabel:setText(attackData.damage)
@@ -1058,14 +1068,18 @@ end
 
 local function requestCurrentPage(force)
     local domainState = getDomainState()
-    if state.domain == DOMAIN_ITEMS and not domainState.activeCategory then
-        updateResultEmptyLabel(tr('Select a category to load items.'))
+    if not domainState.activeCategory then
+        if state.domain == DOMAIN_MONSTERS then
+            updateMonsterEmptyLabel(tr('Select a category to load monsters.'))
+        else
+            updateResultEmptyLabel(tr('Select a category to load items.'))
+        end
         setResultWidgetsEnabled(false)
         return
     end
 
     local search = normalizeSearch(domainState.search or '')
-    local category = state.domain == DOMAIN_ITEMS and domainState.activeCategory or ''
+    local category = domainState.activeCategory or ''
     local cacheKey = makePageCacheKey(state.domain, category, search, domainState.page)
     if not force and domainState.pageCache[cacheKey] then
         renderResults(domainState.pageCache[cacheKey])
@@ -1083,13 +1097,11 @@ local function requestCurrentPage(force)
     setResultWidgetsEnabled(true)
 
     local payload = {
+        category = domainState.activeCategory,
         page = domainState.page,
         pageSize = PAGE_SIZE,
         search = search
     }
-    if state.domain == DOMAIN_ITEMS then
-        payload.category = domainState.activeCategory
-    end
     sendRequest(state.domain, 'list', payload)
 end
 
@@ -1133,6 +1145,16 @@ local function setCategory(categoryKey)
     requestCurrentPage(false)
 end
 
+local function getMonsterCategoryLabel(entry)
+    if type(entry) ~= 'table' then
+        return ''
+    end
+    if type(entry.label) == 'string' and entry.label ~= '' then
+        return entry.label
+    end
+    return humanizeKey(entry.key)
+end
+
 local function renderCategories()
     local list = ui.categoryList
     list:destroyChildren()
@@ -1144,6 +1166,51 @@ local function renderCategories()
         widget:setChecked(state.items.activeCategory == entry.key)
         widget.onClick = function()
             setCategory(entry.key)
+        end
+        widget.onMouseRelease = function(self, mousePos, mouseButton)
+            if self:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
+                self:onClick()
+                return true
+            end
+        end
+    end
+end
+
+local function setMonsterCategory(categoryKey)
+    local domainState = state.monsters
+    if domainState.activeCategory == categoryKey then
+        return
+    end
+
+    domainState.activeCategory = categoryKey
+    domainState.page = 1
+    domainState.search = ''
+    if domainState.selectedResult and not domainState.selectedResult:isDestroyed() then
+        domainState.selectedResult:setChecked(false)
+    end
+    domainState.selectedResult = nil
+    domainState.selectedId = nil
+    domainState.selectedTier = 1
+    ui.searchEdit:setText('')
+
+    for _, widget in ipairs(ui.monsterCategoryList:getChildren()) do
+        widget:setChecked(widget.categoryKey == categoryKey)
+    end
+
+    requestCurrentPage(false)
+end
+
+local function renderMonsterCategories()
+    local list = ui.monsterCategoryList
+    list:destroyChildren()
+
+    for _, entry in ipairs(state.monsters.categories) do
+        local widget = g_ui.createWidget('LibraryCategoryItem', list)
+        widget.categoryKey = entry.key
+        widget:setText(getMonsterCategoryLabel(entry))
+        widget:setChecked(state.monsters.activeCategory == entry.key)
+        widget.onClick = function()
+            setMonsterCategory(entry.key)
         end
         widget.onMouseRelease = function(self, mousePos, mouseButton)
             if self:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
@@ -1174,6 +1241,46 @@ local function mergeServerCategories(serverCategories)
     end
 end
 
+local function normalizeMonsterCategories(serverCategories)
+    local normalized = {}
+    local seen = {}
+    local defaultCategory = nil
+
+    local function addCategory(category)
+        if type(category) ~= 'table' or type(category.key) ~= 'string' or category.key == '' or seen[category.key] then
+            return
+        end
+        local entry = {
+            key = category.key,
+            label = category.label,
+            default = category.default == true,
+            implicit = category.implicit == true
+        }
+        seen[entry.key] = true
+        table.insert(normalized, entry)
+        if entry.default and not defaultCategory then
+            defaultCategory = entry.key
+        end
+    end
+
+    if type(serverCategories) == 'table' then
+        for _, category in ipairs(serverCategories) do
+            addCategory(category)
+        end
+    end
+
+    if not seen.normal then
+        addCategory(defaultMonsterCategories[1])
+        defaultCategory = defaultCategory or 'normal'
+    end
+
+    if not defaultCategory and normalized[1] then
+        defaultCategory = normalized[1].key
+    end
+
+    return normalized, defaultCategory
+end
+
 local function handleCategoriesResponse(data)
     state.items.categoriesLoaded = true
     state.items.categoriesRequested = false
@@ -1181,17 +1288,30 @@ local function handleCategoriesResponse(data)
     renderCategories()
 end
 
+local function handleMonsterCategoriesResponse(data)
+    local monstersState = state.monsters
+    local previousCategory = monstersState.activeCategory
+    monstersState.categoriesLoaded = true
+    monstersState.categoriesRequested = false
+    monstersState.categories, monstersState.activeCategory = normalizeMonsterCategories(data.categories)
+    renderMonsterCategories()
+
+    if state.domain == DOMAIN_MONSTERS and monstersState.activeCategory and monstersState.activeCategory ~= previousCategory then
+        requestCurrentPage(false)
+    end
+end
+
 local function handleListResponse(domain, data, requestData)
     local domainState = getDomainState(domain)
     requestData = requestData or {}
     local search = normalizeSearch(data.search or requestData.search or '')
-    local category = domain == DOMAIN_ITEMS and (data.category or requestData.category or domainState.activeCategory) or ''
+    local category = data.category or requestData.category or domainState.activeCategory or ''
     local page = tonumber(data.page) or tonumber(requestData.page) or 1
     data.domain = domain
     local cacheKey = makePageCacheKey(domain, category, search, page)
     domainState.pageCache[cacheKey] = data
 
-    if domain == state.domain and (domain == DOMAIN_MONSTERS or category == domainState.activeCategory) and search == normalizeSearch(domainState.search or '') then
+    if domain == state.domain and category == (domainState.activeCategory or '') and search == normalizeSearch(domainState.search or '') then
         renderResults(data)
     end
 end
@@ -1222,9 +1342,15 @@ local function handleLibraryError(domain, action, payload)
 
     if domain == DOMAIN_ITEMS and action == 'categories' then
         state.items.categoriesRequested = false
+    elseif domain == DOMAIN_MONSTERS and action == 'categories' then
+        state.monsters.categoriesRequested = false
     end
 
-    updateResultEmptyLabel(message)
+    if domain == DOMAIN_MONSTERS then
+        updateMonsterEmptyLabel(message)
+    else
+        updateResultEmptyLabel(message)
+    end
     ui.detailPlaceholder:setText(message)
 end
 
@@ -1253,8 +1379,10 @@ local function onLibraryOpcode(protocol, opcode, payload)
     end
 
     local data = payload.data or {}
-    if action == 'categories' then
+    if action == 'categories' and domain == DOMAIN_ITEMS then
         handleCategoriesResponse(data)
+    elseif action == 'categories' and domain == DOMAIN_MONSTERS then
+        handleMonsterCategoriesResponse(data)
     elseif action == 'list' then
         handleListResponse(domain, data, requestData)
     elseif action == 'detail' then
@@ -1304,12 +1432,19 @@ local function switchDomain(domain)
     if domain == DOMAIN_ITEMS then
         ensureCategoriesRequested()
         renderCategories()
+    else
+        ensureMonsterCategoriesRequested()
+        renderMonsterCategories()
     end
 
-    if domain == DOMAIN_MONSTERS or domainState.activeCategory then
+    if domainState.activeCategory then
         requestCurrentPage(false)
     else
-        updateResultEmptyLabel(tr('Select a category to load items.'))
+        if domain == DOMAIN_MONSTERS then
+            updateMonsterEmptyLabel(tr('Select a category to load monsters.'))
+        else
+            updateResultEmptyLabel(tr('Select a category to load items.'))
+        end
         resetDetailPanel(getInitialPlaceholder(domain))
         setResultWidgetsEnabled(false)
         updatePagination()
@@ -1332,14 +1467,21 @@ local function show()
     if state.domain == DOMAIN_ITEMS then
         ensureCategoriesRequested()
         renderCategories()
+    else
+        ensureMonsterCategoriesRequested()
+        renderMonsterCategories()
     end
 
     local domainState = getDomainState()
     ui.searchEdit:setText(domainState.search or '')
-    if state.domain == DOMAIN_MONSTERS or domainState.activeCategory then
+    if domainState.activeCategory then
         requestCurrentPage(false)
     else
-        updateResultEmptyLabel(tr('Select a category to load items.'))
+        if state.domain == DOMAIN_MONSTERS then
+            updateMonsterEmptyLabel(tr('Select a category to load monsters.'))
+        else
+            updateResultEmptyLabel(tr('Select a category to load items.'))
+        end
         resetDetailPanel(getInitialPlaceholder(state.domain))
         setResultWidgetsEnabled(false)
         updatePagination()
@@ -1374,12 +1516,17 @@ local function resetUiState()
     ui.resultList:destroyChildren()
     ui.monsterList:destroyChildren()
     renderCategories()
+    renderMonsterCategories()
     ui.detailList:destroyChildren()
     updateDomainUi()
-    updateResultEmptyLabel(state.domain == DOMAIN_MONSTERS and tr('Search monsters or browse the list.') or tr('Select a category to load items.'))
+    if state.domain == DOMAIN_MONSTERS then
+        updateMonsterEmptyLabel(tr('Select a category to load monsters.'))
+    else
+        updateResultEmptyLabel(tr('Select a category to load items.'))
+    end
     resetDetailPanel(getInitialPlaceholder(state.domain))
     updatePagination()
-    setResultWidgetsEnabled(state.domain == DOMAIN_MONSTERS)
+    setResultWidgetsEnabled(false)
 end
 
 local function resetDomainState(domain)
@@ -1397,6 +1544,11 @@ local function resetDomainState(domain)
     if domain == DOMAIN_ITEMS then
         domainState.categoriesLoaded = false
         domainState.categoriesRequested = false
+        domainState.activeCategory = nil
+    else
+        domainState.categoriesLoaded = false
+        domainState.categoriesRequested = false
+        domainState.categories = {}
         domainState.activeCategory = nil
     end
 end

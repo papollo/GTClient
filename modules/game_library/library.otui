@@ -103,7 +103,7 @@ LibrarySectionLabel < Label
   margin-top: 10
 
 LibraryLootTableHeader < UIWidget
-  size: 360 18
+  size: 260 18
   margin-top: 3
   background-color: #404040
 
@@ -112,15 +112,16 @@ LibraryLootTableHeader < UIWidget
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     margin-left: 6
-    width: 150
+    width: 250
     color: #D7D7D7
+    text-align: center
     !text: tr('Item')
 
   Label
     id: count
     anchors.left: name.right
     anchors.verticalCenter: parent.verticalCenter
-    width: 72
+    width: 75
     color: #D7D7D7
     text-align: center
     !text: tr('Max count')
@@ -128,15 +129,14 @@ LibraryLootTableHeader < UIWidget
   Label
     id: chance
     anchors.left: count.right
-    anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
-    margin-right: 6
+    width: 100
     color: #D7D7D7
     text-align: center
     !text: tr('Chance')
 
 LibraryLootTableRow < UIWidget
-  size: 360 20
+  size: 260 20
   background-color: #484848
 
   Label
@@ -144,29 +144,29 @@ LibraryLootTableRow < UIWidget
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     margin-left: 6
-    width: 150
+    width: 250
     color: #C8C8C8
     text-wrap: true
+    text-align: center
 
   Label
     id: count
     anchors.left: name.right
     anchors.verticalCenter: parent.verticalCenter
-    width: 72
+    width: 75
     color: #C8C8C8
     text-align: center
 
   Label
     id: chance
     anchors.left: count.right
-    anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
-    margin-right: 6
+    width: 100
     color: #C8C8C8
     text-align: center
 
 LibraryAttackTableHeader < UIWidget
-  size: 360 18
+  size: 260 18
   margin-top: 3
   background-color: #404040
 
@@ -175,15 +175,25 @@ LibraryAttackTableHeader < UIWidget
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     margin-left: 6
-    width: 136
+    width: 125
     color: #D7D7D7
+    text-align: center
     !text: tr('Attack')
 
   Label
-    id: damage
+    id: range
     anchors.left: name.right
     anchors.verticalCenter: parent.verticalCenter
-    width: 70
+    width: 75
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Range')
+
+  Label
+    id: damage
+    anchors.left: range.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 75
     color: #D7D7D7
     text-align: center
     !text: tr('Damage')
@@ -192,7 +202,7 @@ LibraryAttackTableHeader < UIWidget
     id: chance
     anchors.left: damage.right
     anchors.verticalCenter: parent.verticalCenter
-    width: 62
+    width: 75
     color: #D7D7D7
     text-align: center
     !text: tr('Chance')
@@ -200,15 +210,14 @@ LibraryAttackTableHeader < UIWidget
   Label
     id: interval
     anchors.left: chance.right
-    anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
-    margin-right: 6
+    width: 75
     color: #D7D7D7
     text-align: center
     !text: tr('Interval')
 
 LibraryAttackTableRow < UIWidget
-  size: 360 20
+  size: 260 20
   background-color: #484848
 
   Label
@@ -216,15 +225,24 @@ LibraryAttackTableRow < UIWidget
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     margin-left: 6
-    width: 136
+    width: 125
     color: #C8C8C8
     text-wrap: true
+    text-align: center
+
+  Label
+    id: range
+    anchors.left: name.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 75
+    color: #C8C8C8
+    text-align: center
 
   Label
     id: damage
-    anchors.left: name.right
+    anchors.left: range.right
     anchors.verticalCenter: parent.verticalCenter
-    width: 70
+    width: 75
     color: #C8C8C8
     text-align: center
 
@@ -232,16 +250,15 @@ LibraryAttackTableRow < UIWidget
     id: chance
     anchors.left: damage.right
     anchors.verticalCenter: parent.verticalCenter
-    width: 62
+    width: 75
     color: #C8C8C8
     text-align: center
 
   Label
     id: interval
     anchors.left: chance.right
-    anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
-    margin-right: 6
+    width: 75
     color: #C8C8C8
     text-align: center
 
@@ -380,10 +397,42 @@ MainWindow
         visible: false
 
         UILabel
-          id: monsterLabel
+          id: monsterCategoryLabel
           anchors.top: parent.top
           anchors.left: parent.left
           margin-top: 10
+          !text: tr('Categories') .. ':'
+          text-auto-resize: true
+          color: #BDBDBD
+
+        TextList
+          id: monsterCategoryList
+          vertical-scrollbar: monsterCategoryScrollbar
+          anchors.left: parent.left
+          anchors.top: monsterCategoryLabel.bottom
+          margin-top: 4
+          image-source: /images/ui/panel_flat
+          image-border: 10
+          width: 200
+          height: 74
+          padding-left: 2
+          padding-top: 2
+          padding-bottom: 2
+          focusable: false
+
+        VerticalScrollBar
+          id: monsterCategoryScrollbar
+          anchors.top: monsterCategoryList.top
+          anchors.right: monsterCategoryList.right
+          anchors.bottom: monsterCategoryList.bottom
+          step: 10
+          pixels-scroll: true
+
+        UILabel
+          id: monsterLabel
+          anchors.top: monsterCategoryList.bottom
+          anchors.left: parent.left
+          margin-top: 8
           !text: tr('Monsters') .. ':'
           text-auto-resize: true
           color: #BDBDBD
@@ -397,7 +446,7 @@ MainWindow
           image-source: /images/ui/panel_flat
           image-border: 10
           width: 200
-          height: 330
+          height: 220
           padding-left: 2
           padding-top: 2
           padding-bottom: 2
