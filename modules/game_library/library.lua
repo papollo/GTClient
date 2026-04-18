@@ -1245,9 +1245,15 @@ local function normalizeMonsterCategories(serverCategories)
     local normalized = {}
     local seen = {}
     local defaultCategory = nil
+    local hiddenMonsterCategories = {
+        newCampArena = true
+    }
 
     local function addCategory(category)
         if type(category) ~= 'table' or type(category.key) ~= 'string' or category.key == '' or seen[category.key] then
+            return
+        end
+        if hiddenMonsterCategories[category.key] then
             return
         end
         local entry = {
