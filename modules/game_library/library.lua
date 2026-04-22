@@ -39,6 +39,7 @@ local categories = {
     { key = 'POTIONS', label = 'Potions' },
     { key = 'QUIVERS', label = 'Quivers' },
     { key = 'RUNES', label = 'Runes' },
+    { key = 'MAGIC_SCROLLS', label = 'Magic Scrolls' },
     { key = 'TOOLS', label = 'Tools' },
     { key = 'VALUABLES', label = 'Valuables' }
 }

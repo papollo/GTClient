@@ -34,7 +34,6 @@ echo Target package directory: %TARGET_DIR%
 
 if "%USE_FALLBACK%"=="0" (
     echo [1/5] Configuring windows release package build...
-    if exist "%NINJA_BUILD_DIR%" rd /S /Q "%NINJA_BUILD_DIR%"
     cmake -S "%SOURCE_DIR%" -B "%NINJA_BUILD_DIR%" -G Ninja -D CMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" -D BUILD_STATIC_LIBRARY=ON -D VCPKG_TARGET_TRIPLET=x64-windows-static -D CMAKE_BUILD_TYPE=%BUILD_CONFIG% -D TOGGLE_BIN_FOLDER=ON
     if errorlevel 1 (
         echo [ERROR] CMake configure failed.
@@ -49,7 +48,6 @@ if "%USE_FALLBACK%"=="0" (
     )
 ) else (
     echo [1/5] Configuring windows release package build with MSBuild...
-    if exist "%FALLBACK_BUILD_DIR%" rd /S /Q "%FALLBACK_BUILD_DIR%"
     cmake -S "%SOURCE_DIR%" -B "%FALLBACK_BUILD_DIR%" -G "Visual Studio 17 2022" -A x64 -D CMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" -D BUILD_STATIC_LIBRARY=ON -D VCPKG_TARGET_TRIPLET=x64-windows-static -D CMAKE_BUILD_TYPE=%BUILD_CONFIG% -D TOGGLE_BIN_FOLDER=ON
     if errorlevel 1 (
         echo [ERROR] CMake configure failed.
