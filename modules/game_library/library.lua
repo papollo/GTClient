@@ -104,7 +104,7 @@ local groupOrder = {
 
 local groupFieldOrder = {
     basic = {
-        'tier', 'weight', 'armor', 'defense', 'extraDefense', 'attack', 'hitChance', 'attackSpeed',
+        'tier', 'weight', 'armor', 'attack', 'defense', 'extraDefense', 'hitChance', 'attackSpeed',
         'containerSize', 'text', 'health', 'experience', 'speed', 'mitigation', 'summonCost', 'convinceCost'
     },
     combat = {
