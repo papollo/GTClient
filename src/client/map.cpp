@@ -1278,7 +1278,7 @@ void Map::updateAttachedWidgets(const MapViewPtr& mapView)
             const auto displacementY = g_game.getFeature(Otc::GameNegativeOffset) ? 0 : creature->getDisplacementY();
 
             const auto& jumpOffset = creature->getJumpOffset() * g_drawPool.getScaleFactor();
-            const auto& creatureOffset = Point(16 - displacementX, -displacementY - 2) + creature->getDrawOffset();
+            const auto& creatureOffset = Point(g_gameConfig.getSpriteSize() / 2 - displacementX, -displacementY - 2) + creature->getDrawOffset();
             p += creatureOffset * g_drawPool.getScaleFactor() - Point(std::round(jumpOffset.x), std::round(jumpOffset.y));
         }
 

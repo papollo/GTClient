@@ -54,7 +54,7 @@ public:
     void onDisappear() override;
 
     void draw(const Point& dest, bool drawThings = true, const LightViewPtr& lightView = nullptr) override;
-    void draw(const Rect& destRect, uint8_t size, bool center = false);
+    void draw(const Rect& destRect, int size, bool center = false);
     void drawLight(const Point& dest, const LightViewPtr& lightView) override;
 
     void internalDraw(Point dest, const Color& color = Color::white);
@@ -327,7 +327,7 @@ private:
     uint8_t m_walkAnimationPhase{ 0 };
     uint8_t m_walkedPixels{ 0 };
 
-    uint8_t m_exactSize{ 0 };
+    int m_exactSize{ 0 };
 
     uint8_t m_disableWalkAnimation{ 0 };
 

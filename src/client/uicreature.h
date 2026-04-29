@@ -35,8 +35,8 @@ public:
     void setOutfit(const Outfit& outfit);
 
     CreaturePtr getCreature() { return m_creature; }
-    uint8_t getCreatureSize() { return m_creatureSize; }
-    void setCreatureSize(const uint8_t size) { m_creatureSize = size; }
+    int getCreatureSize() { return m_creatureSize; }
+    void setCreatureSize(const int size) { m_creatureSize = size; }
 
     void setCenter(const bool v) { m_center = v; }
     bool isCentered() { return m_center; }
@@ -63,6 +63,6 @@ protected:
     void onStyleApply(std::string_view styleName, const OTMLNodePtr& styleNode) override;
     Outfit getOutfit() { if (!m_creature) setOutfit({}); return m_creature->getOutfit(); }
     CreaturePtr m_creature;
-    uint8_t m_creatureSize{ 0 };
+    int m_creatureSize{ 0 };
     bool m_center{ false };
 };

@@ -65,7 +65,9 @@ void Creature::draw(const Point& dest, const bool drawThings, const LightViewPtr
 
     if (drawThings) {
         if (m_showTimedSquare) {
-            g_drawPool.addBoundingRect(Rect(dest + (m_walkOffset - getDisplacement() + 2) * g_drawPool.getScaleFactor(), Size(28 * g_drawPool.getScaleFactor())), m_timedSquareColor, std::max<int>(static_cast<int>(2 * g_drawPool.getScaleFactor()), 1));
+            const int squareInset = 2 * g_drawPool.getScaleFactor();
+            const int squareSize = g_gameConfig.getSpriteSize() * g_drawPool.getScaleFactor() - 2 * squareInset;
+            g_drawPool.addBoundingRect(Rect(dest + (m_walkOffset - getDisplacement()) * g_drawPool.getScaleFactor() + Point(squareInset), Size(squareSize)), m_timedSquareColor, std::max<int>(static_cast<int>(2 * g_drawPool.getScaleFactor()), 1));
         }
 
         if (m_showStaticSquare) {
@@ -115,12 +117,12 @@ void Creature::drawLight(const Point& dest, const LightViewPtr& lightView) {
     drawAttachedLightEffect(dest + m_walkOffset * g_drawPool.getScaleFactor(), lightView);
 }
 
-void Creature::draw(const Rect& destRect, const uint8_t size, const bool center)
+void Creature::draw(const Rect& destRect, const int size, const bool center)
 {
     if (!canDraw())
         return;
 
-    uint8_t frameSize = getExactSize();
+    int frameSize = getExactSize();
     if (size > 0)
         frameSize = std::max<int>(frameSize * (size / 100.f), 2 * g_gameConfig.getSpriteSize() * (size / 100.f));
 
@@ -156,7 +158,7 @@ void Creature::drawInformation(const MapPosInfo& mapRect, const Point& dest, con
     const auto displacementY = g_game.getFeature(Otc::GameNegativeOffset) ? 0 : getDisplacementY();
 
     const auto& parentRect = mapRect.rect;
-    const auto& creatureOffset = Point(16 - displacementX, -displacementY - 2) + getDrawOffset();
+    const auto& creatureOffset = Point(g_gameConfig.getSpriteSize() / 2 - displacementX, -displacementY - 2) + getDrawOffset();
 
     Point p = dest - mapRect.drawOffset;
     p += (creatureOffset - Point(std::round(m_jumpOffset.x), std::round(m_jumpOffset.y))) * mapRect.scaleFactor;
@@ -1113,7 +1115,7 @@ int Creature::getExactSize(int layer, int /*xPattern*/, int yPattern, int zPatte
         exactSize = getThingType()->getExactSize();
     }
 
-    return m_exactSize = std::max<uint8_t>(exactSize, g_gameConfig.getSpriteSize());
+    return m_exactSize = std::max<int>(exactSize, g_gameConfig.getSpriteSize());
 }
 
 void Creature::setMountShader(const std::string_view name) {
