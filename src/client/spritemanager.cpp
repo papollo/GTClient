@@ -114,7 +114,7 @@ bool SpriteManager::loadCwmSpr(std::string file)
             return false;
         }
 
-        m_spritesCount = spritesFile->getU16();
+        m_spritesCount = spritesFile->getU32();
 
         const uint32_t entries = spritesFile->getU32();
         m_cwmSpritesMetadata.reserve(entries);
