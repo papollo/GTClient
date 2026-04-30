@@ -7,6 +7,8 @@ set "NINJA_BUILD_DIR=%SOURCE_DIR%\build\windows-release-package"
 set "FALLBACK_BUILD_DIR=%SOURCE_DIR%\build\windows-release-package-msbuild"
 set "TARGET_DIR=%TARGET_DIR%"
 if not defined TARGET_DIR set "TARGET_DIR=C:\Users\apoll\client_files"
+set "TEST_TARGET_DIR=%TEST_TARGET_DIR%"
+if not defined TEST_TARGET_DIR set "TEST_TARGET_DIR=C:\Users\apoll\otclient-release-test"
 set "COPIED_EXE=0"
 set "USE_FALLBACK=0"
 
@@ -31,30 +33,36 @@ if errorlevel 1 (
 echo Repo root: %SOURCE_DIR%
 echo Build config: %BUILD_CONFIG%
 echo Target package directory: %TARGET_DIR%
+echo Test package directory: %TEST_TARGET_DIR%
+
+if /I "%TARGET_DIR%"=="%TEST_TARGET_DIR%" (
+    echo [ERROR] TARGET_DIR and TEST_TARGET_DIR must be different because init.lua is excluded from the test package.
+    exit /b 1
+)
 
 if "%USE_FALLBACK%"=="0" (
-    echo [1/6] Configuring windows release package build...
+    echo [1/7] Configuring windows release package build...
     cmake -S "%SOURCE_DIR%" -B "%NINJA_BUILD_DIR%" -G Ninja -D CMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" -D BUILD_STATIC_LIBRARY=ON -D VCPKG_TARGET_TRIPLET=x64-windows-static -D CMAKE_BUILD_TYPE=%BUILD_CONFIG% -D TOGGLE_BIN_FOLDER=ON
     if errorlevel 1 (
         echo [ERROR] CMake configure failed.
         exit /b 1
     )
 
-    echo [2/6] Building windows release package...
+    echo [2/7] Building windows release package...
     cmake --build "%NINJA_BUILD_DIR%" --target otclient
     if errorlevel 1 (
         echo [ERROR] CMake build failed.
         exit /b 1
     )
 ) else (
-    echo [1/6] Configuring windows release package build with MSBuild...
+    echo [1/7] Configuring windows release package build with MSBuild...
     cmake -S "%SOURCE_DIR%" -B "%FALLBACK_BUILD_DIR%" -G "Visual Studio 17 2022" -A x64 -D CMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" -D BUILD_STATIC_LIBRARY=ON -D VCPKG_TARGET_TRIPLET=x64-windows-static -D CMAKE_BUILD_TYPE=%BUILD_CONFIG% -D TOGGLE_BIN_FOLDER=ON
     if errorlevel 1 (
         echo [ERROR] CMake configure failed.
         exit /b 1
     )
 
-    echo [2/6] Building windows-release-msbuild...
+    echo [2/7] Building windows-release-msbuild...
     cmake --build "%FALLBACK_BUILD_DIR%" --config %BUILD_CONFIG% --target otclient
     if errorlevel 1 (
         echo [ERROR] CMake build failed.
@@ -62,7 +70,7 @@ if "%USE_FALLBACK%"=="0" (
     )
 )
 
-echo [3/6] Preparing target directory...
+echo [3/7] Preparing target directory...
 if not exist "%TARGET_DIR%" (
     mkdir "%TARGET_DIR%"
     if errorlevel 1 (
@@ -73,7 +81,7 @@ if not exist "%TARGET_DIR%" (
 
 call :clean_dir "%TARGET_DIR%" || exit /b 1
 
-echo [4/6] Copying client files...
+echo [4/7] Copying client files...
 call :mirror_dir "%SOURCE_DIR%\data" "%TARGET_DIR%\data" || exit /b 1
 call :mirror_dir "%SOURCE_DIR%\mods" "%TARGET_DIR%\mods" || exit /b 1
 call :mirror_dir "%SOURCE_DIR%\modules" "%TARGET_DIR%\modules" || exit /b 1
@@ -97,7 +105,7 @@ if "%COPIED_EXE%"=="0" (
     exit /b 1
 )
 
-echo [5/6] Preparing Tibia.cwm with cache and stripping shippable .spr files...
+echo [5/7] Preparing Tibia.cwm with cache and stripping shippable .spr files...
 set "SOURCE_SPR_FILE=%SOURCE_DIR%\data\things\1098\Tibia.spr"
 set "SPR_DIR=%TARGET_DIR%\data\things\1098"
 set "SPR_FILE=%SPR_DIR%\Tibia.spr"
@@ -187,8 +195,25 @@ del /Q "%SPR_FILE%"
 if exist "%SPR_DIR%\Tibai.spr.bak" del /Q "%SPR_DIR%\Tibai.spr.bak"
 if exist "%SPR_DIR%\Tibia.spr.bak" del /Q "%SPR_DIR%\Tibia.spr.bak"
 
-echo [6/6] Release package is ready.
+echo [6/7] Copying test package without init.lua...
+if not exist "%TEST_TARGET_DIR%" (
+    mkdir "%TEST_TARGET_DIR%"
+    if errorlevel 1 (
+        echo [ERROR] Failed to create test target directory: %TEST_TARGET_DIR%
+        exit /b 1
+    )
+)
+
+robocopy "%TARGET_DIR%" "%TEST_TARGET_DIR%" /E /XF init.lua >nul
+set "ROBOCOPY_EXIT=%ERRORLEVEL%"
+if %ROBOCOPY_EXIT% GEQ 8 (
+    echo [ERROR] robocopy failed for test package: %TEST_TARGET_DIR%
+    exit /b 1
+)
+
+echo [7/7] Release package is ready.
 echo Output: %TARGET_DIR%
+echo Test output: %TEST_TARGET_DIR%
 exit /b 0
 
 :clean_dir

@@ -29,7 +29,7 @@ LibraryCategoryItem < UICheckBox
     background-color: #585858
 
 LibraryMonsterListItem < UICheckBox
-  size: 182 35
+  size: 182 44
   background-color: #484848
 
   UIWidget
@@ -48,11 +48,15 @@ LibraryMonsterListItem < UICheckBox
     id: Name
     anchors.left: iconBackground.right
     anchors.right: parent.right
-    anchors.verticalCenter: parent.verticalCenter
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    margin-top: 4
+    margin-bottom: 4
     margin-left: 8
     margin-right: 6
     color: #CFCFCF
     text-wrap: true
+    text-align: left
 
   $hover:
     background-color: #525252
@@ -61,7 +65,7 @@ LibraryMonsterListItem < UICheckBox
     background-color: #585858
 
 LibraryResultItem < UIWidget
-  size: 196 35
+  size: 150 44
   background-color: #484848
 
   UIWidget
@@ -85,11 +89,15 @@ LibraryResultItem < UIWidget
     id: Name
     anchors.left: iconBackground.right
     anchors.right: parent.right
-    anchors.verticalCenter: parent.verticalCenter
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    margin-top: 4
+    margin-bottom: 4
     margin-left: 8
     margin-right: 6
     color: #CFCFCF
     text-wrap: true
+    text-align: left
 
   $hover:
     background-color: #525252
@@ -499,6 +507,7 @@ MainWindow
             id: resultList
             anchors.fill: parent
             vertical-scrollbar: resultScrollbar
+            padding-right: 15
             padding-top: 2
             padding-bottom: 2
             layout:
@@ -677,7 +686,7 @@ MainWindow
             anchors.fill: parent
             vertical-scrollbar: detailScrollbar
             padding-left: 6
-            padding-right: 6
+            padding-right: 21
             padding-top: 6
             padding-bottom: 6
             layout:
