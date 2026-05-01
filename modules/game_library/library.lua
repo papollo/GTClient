@@ -76,7 +76,9 @@ local state = {
         totalResults = 0,
         selectedId = nil,
         selectedTier = 1,
+        selectedVariant = nil,
         availableTiers = {},
+        availableVariants = {},
         selectedResult = nil,
         pageCache = {},
         detailCache = {}
@@ -95,6 +97,7 @@ local groupOrder = {
         { key = 'basic', label = 'Basic' },
         { key = 'combat', label = 'Combat' },
         { key = 'attacks', label = 'Attacks' },
+        { key = 'summons', label = 'Summons' },
         { key = 'resistances', label = 'Resistances' },
         { key = 'loot', label = 'Loot' },
         { key = 'location', label = 'Location' },
@@ -226,6 +229,12 @@ local tierNames = {
     [3] = 'Superior',
     [4] = 'Epic',
     [5] = 'Legendary'
+}
+
+local VARIANT_ORDER = {
+    weak = 1,
+    normal = 2,
+    strong = 3
 }
 
 local function getProtocol()
@@ -368,7 +377,9 @@ local function resetDetailPanel(message, clearSelection)
     if clearSelection then
         domainState.selectedId = nil
         domainState.selectedTier = 1
+        domainState.selectedVariant = nil
         domainState.availableTiers = {}
+        domainState.availableVariants = {}
         domainState.selectedResult = nil
     end
 end
@@ -675,6 +686,37 @@ local function normalizeTierList(tiers)
     return result
 end
 
+local function normalizeVariantList(variants)
+    local result = {}
+    if type(variants) ~= 'table' then
+        return result
+    end
+
+    local seen = {}
+    for _, entry in ipairs(variants) do
+        if type(entry) == 'table' and type(entry.key) == 'string' and VARIANT_ORDER[entry.key] and not seen[entry.key] then
+            seen[entry.key] = true
+            local label = entry.label
+            if type(label) ~= 'string' or label == '' then
+                label = humanizeKey(entry.key)
+            end
+            table.insert(result, {
+                key = entry.key,
+                label = label,
+                monsterId = entry.monsterId,
+                name = entry.name,
+                default = entry.default == true
+            })
+        end
+    end
+
+    table.sort(result, function(a, b)
+        return (VARIANT_ORDER[a.key] or 99) < (VARIANT_ORDER[b.key] or 99)
+    end)
+
+    return result
+end
+
 local function normalizeMonsterOutfit(outfitData)
     if type(outfitData) ~= 'table' then
         return nil
@@ -745,16 +787,31 @@ local function applyMonsterPreview(widget, raceId, outfitData)
     return true
 end
 
-local function requestDetail(entryId, tier)
+local function requestDetail(entryId, selector)
     if not entryId then
         return
     end
 
     local domainState = getDomainState()
-    local numericTier = tonumber(tier) or 1
-    domainState.selectedId = entryId
-    domainState.selectedTier = numericTier
-    local cacheKey = makeDetailCacheKey(state.domain, entryId, numericTier)
+    local cacheKey
+    local payload
+    if state.domain == DOMAIN_MONSTERS then
+        local variant = type(selector) == 'string' and selector ~= '' and selector or nil
+        domainState.selectedId = entryId
+        domainState.selectedVariant = variant
+        cacheKey = makeDetailCacheKey(state.domain, entryId, variant or '')
+        payload = { monsterId = entryId }
+        if variant then
+            payload.variant = variant
+        end
+    else
+        local numericTier = tonumber(selector) or 1
+        domainState.selectedId = entryId
+        domainState.selectedTier = numericTier
+        cacheKey = makeDetailCacheKey(state.domain, entryId, numericTier)
+        payload = { wareId = entryId, tier = numericTier }
+    end
+
     local cached = domainState.detailCache[cacheKey]
     if cached then
         showDetail(cached)
@@ -762,7 +819,6 @@ local function requestDetail(entryId, tier)
     end
 
     resetDetailPanel(getDetailLoadingText(state.domain), false)
-    local payload = state.domain == DOMAIN_MONSTERS and { monsterId = entryId } or { wareId = entryId, tier = numericTier }
     sendRequest(state.domain, 'detail', payload)
 end
 
@@ -785,6 +841,37 @@ local function renderTierTabs(currentTier, availableTiers)
                 return
             end
             requestDetail(domainState.selectedId, widget.tierValue)
+        end
+        button.onMouseRelease = function(widget, mousePos, mouseButton)
+            if widget:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
+                widget:onClick()
+                return true
+            end
+        end
+    end
+
+    ui.tierTabsPanel:show()
+end
+
+local function renderVariantTabs(currentVariant, availableVariants)
+    ui.tierTabs:destroyChildren()
+
+    if state.domain ~= DOMAIN_MONSTERS or type(availableVariants) ~= 'table' or #availableVariants <= 1 then
+        ui.tierTabsPanel:hide()
+        return
+    end
+
+    for _, variant in ipairs(availableVariants) do
+        local button = g_ui.createWidget('LibraryTierButton', ui.tierTabs)
+        button.variantValue = variant.key
+        button:setText(variant.label)
+        button:setChecked(variant.key == currentVariant)
+        button.onClick = function(widget)
+            local domainState = getDomainState()
+            if widget.variantValue == domainState.selectedVariant then
+                return
+            end
+            requestDetail(domainState.selectedId, widget.variantValue)
         end
         button.onMouseRelease = function(widget, mousePos, mouseButton)
             if widget:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
@@ -902,6 +989,51 @@ local function renderDetailGroups(details)
                         end
                     end
                 end
+            elseif group.key == 'summons' then
+                local entries = type(values.entries) == 'table' and values.entries or {}
+                local visibleSummons = {}
+                for _, entry in ipairs(entries) do
+                    if type(entry) == 'table' and type(entry.name) == 'string' and entry.name:trim() ~= '' then
+                        table.insert(visibleSummons, entry)
+                    end
+                end
+
+                if #visibleSummons > 0 then
+                    local heading = g_ui.createWidget('LibrarySectionLabel', list)
+                    local maxSummons = tonumber(values.maxSummons)
+                    if maxSummons and maxSummons > 0 then
+                        heading:setText(string.format('%s (%s: %d):', group.label, tr('Max'), maxSummons))
+                    else
+                        heading:setText(group.label .. ':')
+                    end
+
+                    g_ui.createWidget('LibrarySummonTableHeader', list)
+
+                    for _, entry in ipairs(visibleSummons) do
+                        local row = g_ui.createWidget('LibrarySummonTableRow', list)
+                        local nameLabel = row:getChildById('name')
+                        local chanceLabel = row:getChildById('chance')
+                        local intervalLabel = row:getChildById('interval')
+
+                        local name = tostring(entry.name)
+                        local lineCount = select(2, name:gsub('\n', '\n')) + 1
+                        local requiresTallRow = #name > 18 or lineCount > 1
+                        row:setHeight(requiresTallRow and math.max(24, lineCount * 14) or 20)
+
+                        if nameLabel then
+                            nameLabel:setText(name)
+                            nameLabel:setTextWrap(requiresTallRow)
+                        end
+                        if chanceLabel then
+                            local chance = entry.chance ~= nil and tostring(entry.chance) or ''
+                            chanceLabel:setText(chance ~= '' and chance or '-')
+                        end
+                        if intervalLabel then
+                            local interval = entry.interval ~= nil and tostring(entry.interval) or ''
+                            intervalLabel:setText(interval ~= '' and interval or '-')
+                        end
+                    end
+                end
             else
             local displayValues = copyTable(values)
 
@@ -951,10 +1083,18 @@ showDetail = function(data)
     end
 
     local domainState = getDomainState(domain)
-    local selectedId = domain == DOMAIN_MONSTERS and (data.monsterId or data.id) or tonumber(data.wareId)
-    domainState.selectedId = selectedId or domainState.selectedId
-    domainState.selectedTier = tonumber(data.tier) or 1
-    domainState.availableTiers = domain == DOMAIN_ITEMS and normalizeTierList(data.availableTiers) or {}
+    if domain == DOMAIN_MONSTERS then
+        if type(data.bossVariant) == 'string' and data.bossVariant ~= '' then
+            domainState.selectedVariant = data.bossVariant
+        end
+        domainState.availableVariants = normalizeVariantList(data.availableVariants)
+        domainState.availableTiers = {}
+    else
+        domainState.selectedId = tonumber(data.wareId) or domainState.selectedId
+        domainState.selectedTier = tonumber(data.tier) or 1
+        domainState.availableTiers = normalizeTierList(data.availableTiers)
+        domainState.availableVariants = {}
+    end
     ui.detailPlaceholder:hide()
     ui.detailContent:show()
     ui.itemName:setText(data.name or (domain == DOMAIN_MONSTERS and tr('Monster') or tr('Item')))
@@ -975,7 +1115,11 @@ showDetail = function(data)
         ui.itemSprite:setItemId(tonumber(data.clientId) or 0)
     end
 
-    renderTierTabs(domainState.selectedTier, domainState.availableTiers)
+    if domain == DOMAIN_MONSTERS then
+        renderVariantTabs(domainState.selectedVariant, domainState.availableVariants)
+    else
+        renderTierTabs(domainState.selectedTier, domainState.availableTiers)
+    end
     renderDetailGroups(details)
 end
 
@@ -994,10 +1138,17 @@ local function onResultSelected(widget, entry)
     end
 
     domainState.selectedResult = widget
-    domainState.selectedId = state.domain == DOMAIN_MONSTERS and (entry.monsterId or entry.id) or tonumber(entry.wareId)
-    domainState.selectedTier = 1
     widget:setChecked(true)
-    requestDetail(domainState.selectedId, 1)
+    if state.domain == DOMAIN_MONSTERS then
+        domainState.selectedId = entry.monsterId or entry.id
+        local variant = type(entry.bossVariant) == 'string' and entry.bossVariant ~= '' and entry.bossVariant or nil
+        domainState.selectedVariant = variant
+        requestDetail(domainState.selectedId, variant)
+    else
+        domainState.selectedId = tonumber(entry.wareId)
+        domainState.selectedTier = 1
+        requestDetail(domainState.selectedId, 1)
+    end
 end
 
 local function renderResults(response)
@@ -1192,6 +1343,8 @@ local function setMonsterCategory(categoryKey)
     domainState.selectedResult = nil
     domainState.selectedId = nil
     domainState.selectedTier = 1
+    domainState.selectedVariant = nil
+    domainState.availableVariants = {}
     ui.searchEdit:setText('')
 
     for _, widget in ipairs(ui.monsterCategoryList:getChildren()) do
@@ -1326,14 +1479,31 @@ end
 local function handleDetailResponse(domain, data, requestData)
     local domainState = getDomainState(domain)
     requestData = requestData or {}
-    local id = domain == DOMAIN_MONSTERS and (data.monsterId or data.id or requestData.monsterId) or tonumber(data.wareId or requestData.wareId)
-    local tier = tonumber(data.tier or requestData.tier) or 1
     data.domain = domain
-    if id then
-        domainState.detailCache[makeDetailCacheKey(domain, id, tier)] = data
-    end
-    if domain == state.domain and id == domainState.selectedId and (domain == DOMAIN_MONSTERS or tier == tonumber(domainState.selectedTier)) then
-        showDetail(data)
+
+    if domain == DOMAIN_MONSTERS then
+        local familyId = requestData.monsterId or data.monsterId or data.id
+        local variant
+        if type(data.bossVariant) == 'string' and data.bossVariant ~= '' then
+            variant = data.bossVariant
+        elseif type(requestData.variant) == 'string' and requestData.variant ~= '' then
+            variant = requestData.variant
+        end
+        if familyId then
+            domainState.detailCache[makeDetailCacheKey(domain, familyId, variant or '')] = data
+        end
+        if domain == state.domain and familyId == domainState.selectedId and (variant or '') == (domainState.selectedVariant or '') then
+            showDetail(data)
+        end
+    else
+        local id = tonumber(data.wareId or requestData.wareId)
+        local tier = tonumber(data.tier or requestData.tier) or 1
+        if id then
+            domainState.detailCache[makeDetailCacheKey(domain, id, tier)] = data
+        end
+        if domain == state.domain and id == domainState.selectedId and tier == tonumber(domainState.selectedTier) then
+            showDetail(data)
+        end
     end
 end
 
@@ -1343,14 +1513,28 @@ local function handleLibraryError(domain, action, payload)
     end
 
     local message = tr('Library request failed.')
-    if type(payload) == 'table' and type(payload.error) == 'table' and type(payload.error.message) == 'string' then
-        message = payload.error.message
+    local errorCode
+    if type(payload) == 'table' and type(payload.error) == 'table' then
+        if type(payload.error.message) == 'string' then
+            message = payload.error.message
+        end
+        if type(payload.error.code) == 'string' then
+            errorCode = payload.error.code
+        end
     end
 
     if domain == DOMAIN_ITEMS and action == 'categories' then
         state.items.categoriesRequested = false
     elseif domain == DOMAIN_MONSTERS and action == 'categories' then
         state.monsters.categoriesRequested = false
+    end
+
+    if domain == DOMAIN_MONSTERS and action == 'detail' and errorCode == 'INVALID_VARIANT' then
+        local domainState = state.monsters
+        if domainState.selectedId and domainState.selectedVariant ~= 'normal' then
+            requestDetail(domainState.selectedId, 'normal')
+            return
+        end
     end
 
     if domain == DOMAIN_MONSTERS then
@@ -1557,6 +1741,8 @@ local function resetDomainState(domain)
         domainState.categoriesRequested = false
         domainState.categories = {}
         domainState.activeCategory = nil
+        domainState.selectedVariant = nil
+        domainState.availableVariants = {}
     end
 end
 

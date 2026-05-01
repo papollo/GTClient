@@ -270,6 +270,69 @@ LibraryAttackTableRow < UIWidget
     color: #C8C8C8
     text-align: center
 
+LibrarySummonTableHeader < UIWidget
+  size: 260 18
+  margin-top: 3
+  background-color: #404040
+
+  Label
+    id: name
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 6
+    width: 130
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Summon')
+
+  Label
+    id: chance
+    anchors.left: name.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 60
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Chance')
+
+  Label
+    id: interval
+    anchors.left: chance.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 70
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Interval')
+
+LibrarySummonTableRow < UIWidget
+  size: 260 20
+  background-color: #484848
+
+  Label
+    id: name
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 6
+    width: 130
+    color: #C8C8C8
+    text-wrap: true
+    text-align: center
+
+  Label
+    id: chance
+    anchors.left: name.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 60
+    color: #C8C8C8
+    text-align: center
+
+  Label
+    id: interval
+    anchors.left: chance.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 70
+    color: #C8C8C8
+    text-align: center
+
 LibraryTierButton < UICheckBox
   size: 72 20
   color: #C0C0C0
