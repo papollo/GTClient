@@ -1,3 +1,259 @@
+local CONTAINER_META_OPCODE = 218
+local OPEN_CONTAINERS_SETTINGS_NODE = 'OpenContainersV2'
+local RESTORE_DELAY_MS = 10
+local RESTORE_RETRY_DELAY_MS = 100
+
+local pendingContainerMeta = {}
+local uidByContainerId = {}
+local containerByUid = {}
+local restoreEvent = nil
+local restoreRetryEvent = nil
+local endingGame = false
+
+local function normalizeUid(uid)
+    if uid == nil then
+        return nil
+    end
+
+    uid = tostring(uid)
+    if uid:len() == 0 then
+        return nil
+    end
+
+    return uid
+end
+
+local function getContainerSettingsKey()
+    local characterName = g_game.getCharacterName()
+    if not characterName or characterName:len() == 0 then
+        return nil
+    end
+
+    local worldName = g_game.getWorldName()
+    if not worldName or worldName:len() == 0 then
+        worldName = 'unknown'
+    end
+
+    return characterName .. '@' .. worldName
+end
+
+local function getSavedOpenContainerUids()
+    local key = getContainerSettingsKey()
+    if not key then
+        return {}
+    end
+
+    local settings = g_settings.getNode(OPEN_CONTAINERS_SETTINGS_NODE)
+    if not settings or not settings[key] then
+        return {}
+    end
+
+    local uids = {}
+    local savedValue = settings[key]
+    if type(savedValue) == 'table' and savedValue.uids then
+        savedValue = savedValue.uids
+    end
+
+    if type(savedValue) == 'string' then
+        for uid in savedValue:gmatch('[^,]+') do
+            uid = normalizeUid(uid)
+            if uid then
+                table.insert(uids, uid)
+            end
+        end
+        return uids
+    end
+
+    if type(savedValue) ~= 'table' then
+        return {}
+    end
+
+    for _, uid in ipairs(savedValue) do
+        uid = normalizeUid(uid)
+        if uid then
+            table.insert(uids, uid)
+        end
+    end
+
+    return uids
+end
+
+local function setSavedOpenContainerUids(uids)
+    local key = getContainerSettingsKey()
+    if not key then
+        return
+    end
+
+    local settings = g_settings.getNode(OPEN_CONTAINERS_SETTINGS_NODE)
+    if not settings then
+        settings = {}
+    end
+
+    local normalizedUids = {}
+    local seenUids = {}
+    for _, uid in ipairs(uids) do
+        uid = normalizeUid(uid)
+        if uid and not seenUids[uid] then
+            table.insert(normalizedUids, uid)
+            seenUids[uid] = true
+        end
+    end
+
+    settings[key] = table.concat(normalizedUids, ',')
+    g_settings.setNode(OPEN_CONTAINERS_SETTINGS_NODE, settings)
+    g_settings.save()
+end
+
+local function getContainerWindowId(uid, fallbackId)
+    uid = normalizeUid(uid)
+    if uid then
+        return 'container_uid_' .. uid:gsub('[^%w_%-]', '_')
+    end
+
+    return 'container' .. fallbackId
+end
+
+local function collectOpenContainerUids()
+    local uids = {}
+    local seenUids = {}
+
+    local function appendUid(uid)
+        uid = normalizeUid(uid)
+        if uid and not seenUids[uid] then
+            table.insert(uids, uid)
+            seenUids[uid] = true
+        end
+    end
+
+    local panelIds = {
+        'gameLeftPanel',
+        'gameLeftExtraPanel',
+        'gameRightPanel',
+        'gameRightExtraPanel'
+    }
+
+    for _, panelId in ipairs(panelIds) do
+        local panel = rootWidget:recursiveGetChildById(panelId)
+        if panel then
+            for _, child in ipairs(panel:getChildren()) do
+                appendUid(child.containerUid)
+            end
+        end
+    end
+
+    for containerId, uid in pairs(uidByContainerId) do
+        local container = g_game.getContainer(containerId)
+        if container and container.window then
+            appendUid(uid)
+        end
+    end
+
+    return uids
+end
+
+local function saveOpenContainerSnapshot()
+    if endingGame then
+        return
+    end
+
+    setSavedOpenContainerUids(collectOpenContainerUids())
+end
+
+local function removeSavedOpenContainerUid(uid)
+    uid = normalizeUid(uid)
+    if not uid then
+        return
+    end
+
+    local remainingUids = {}
+    for _, savedUid in ipairs(getSavedOpenContainerUids()) do
+        if savedUid ~= uid then
+            table.insert(remainingUids, savedUid)
+        end
+    end
+
+    setSavedOpenContainerUids(remainingUids)
+end
+
+local function clearRuntimeContainerState()
+    pendingContainerMeta = {}
+    uidByContainerId = {}
+    containerByUid = {}
+end
+
+local function stopRestore()
+    if restoreEvent then
+        removeEvent(restoreEvent)
+        restoreEvent = nil
+    end
+
+    if restoreRetryEvent then
+        removeEvent(restoreRetryEvent)
+        restoreRetryEvent = nil
+    end
+end
+
+local function requestRestore(isRetry)
+    if isRetry then
+        restoreRetryEvent = nil
+    else
+        restoreEvent = nil
+    end
+
+    if not g_game.isOnline() then
+        return
+    end
+
+    local uids = getSavedOpenContainerUids()
+    if #uids == 0 then
+        return
+    end
+
+    local protocol = g_game.getProtocolGame()
+    if not protocol then
+        return
+    end
+
+    protocol:sendExtendedJSONOpcode(CONTAINER_META_OPCODE, {
+        action = 'restore',
+        uids = uids
+    })
+end
+
+local function startRestore()
+    endingGame = false
+    clearRuntimeContainerState()
+    stopRestore()
+    restoreEvent = scheduleEvent(requestRestore, RESTORE_DELAY_MS)
+    restoreRetryEvent = scheduleEvent(function()
+        requestRestore(true)
+    end, RESTORE_RETRY_DELAY_MS)
+end
+
+local function onGameEnd()
+    endingGame = true
+    stopRestore()
+    clean()
+    clearRuntimeContainerState()
+end
+
+local function onContainerMeta(protocol, opcode, data)
+    if type(data) ~= 'table' or data.action ~= 'containerMeta' then
+        return
+    end
+
+    local containerId = tonumber(data.containerId)
+    local uid = normalizeUid(data.uid)
+    if not containerId or not uid then
+        return
+    end
+
+    pendingContainerMeta[containerId] = {
+        uid = uid,
+        parentUid = normalizeUid(data.parentUid)
+    }
+end
+
 function init()
     g_ui.importStyle('container')
 
@@ -7,9 +263,12 @@ function init()
         onSizeChange = onContainerChangeSize,
         onUpdateItem = onContainerUpdateItem
     })
-    connect(Game, {
-        onGameEnd = clean()
+    connect(g_game, {
+        onGameStart = startRestore,
+        onGameEnd = onGameEnd
     })
+
+    ProtocolGame.registerExtendedJSONOpcode(CONTAINER_META_OPCODE, onContainerMeta)
 
     reloadContainers()
 end
@@ -21,9 +280,15 @@ function terminate()
         onSizeChange = onContainerChangeSize,
         onUpdateItem = onContainerUpdateItem
     })
-    disconnect(Game, {
-        onGameEnd = clean()
+    disconnect(g_game, {
+        onGameStart = startRestore,
+        onGameEnd = onGameEnd
     })
+    ProtocolGame.unregisterExtendedJSONOpcode(CONTAINER_META_OPCODE)
+
+    stopRestore()
+    clean()
+    clearRuntimeContainerState()
 end
 
 function reloadContainers()
@@ -145,10 +410,34 @@ function onContainerOpen(container, previousContainer)
     else
         containerWindow = g_ui.createWidget('ContainerWindow')
     end
-    containerWindow:setId('container' .. container:getId())
+
+    local containerId = container:getId()
+    local meta = pendingContainerMeta[containerId]
+    pendingContainerMeta[containerId] = nil
+
+    local previousUid = uidByContainerId[containerId]
+    if previousUid then
+        containerByUid[previousUid] = nil
+        uidByContainerId[containerId] = nil
+    end
+
+    local containerUid = meta and meta.uid or nil
+    if containerUid then
+        uidByContainerId[containerId] = containerUid
+        containerByUid[containerUid] = container
+    end
+
+    containerWindow.containerUid = containerUid
+    containerWindow:setId(getContainerWindowId(containerUid, containerId))
+    containerWindow.save = containerUid ~= nil
+    if containerWindow.save then
+        containerWindow:setSettings({ closed = false })
+    end
+
     local containerPanel = containerWindow:getChildById('contentsPanel')
     local containerItemWidget = containerWindow:getChildById('containerItemWidget')
     containerWindow.onClose = function()
+        removeSavedOpenContainerUid(containerUid)
         g_game.close(container)
         containerWindow:hide()
     end
@@ -231,9 +520,23 @@ function onContainerOpen(container, previousContainer)
     end
 
     containerWindow:setup()
+    if containerWindow.save and not previousContainer then
+        containerWindow:setupOnStart()
+    end
+
+    if containerUid then
+        saveOpenContainerSnapshot()
+    end
 end
 
 function onContainerClose(container)
+    local containerId = container:getId()
+    local containerUid = uidByContainerId[containerId]
+    if containerUid and containerByUid[containerUid] == container then
+        uidByContainerId[containerId] = nil
+        containerByUid[containerUid] = nil
+    end
+
     destroy(container)
 end
 
