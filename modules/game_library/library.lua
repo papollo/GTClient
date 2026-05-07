@@ -107,8 +107,9 @@ local groupOrder = {
 
 local groupFieldOrder = {
     basic = {
-        'tier', 'weight', 'armor', 'attack', 'defense', 'extraDefense', 'hitChance', 'attackSpeed',
-        'containerSize', 'text', 'health', 'experience', 'speed', 'mitigation', 'summonCost', 'convinceCost'
+        'requiredLevel', 'requiredStrength', 'requiredAgility', 'tier', 'weight', 'armor', 'attack', 'defense',
+        'extraDefense', 'hitChance', 'attackSpeed', 'containerSize', 'text', 'health', 'experience', 'speed',
+        'mitigation', 'summonCost', 'convinceCost'
     },
     combat = {
         'range', 'elementDamage', 'elementType', 'criticalhitamount', 'criticalhitchance',
@@ -132,8 +133,11 @@ local groupFieldOrder = {
 }
 
 local fieldMeta = {
+    requiredLevel = { label = 'Required Level' },
+    requiredStrength = { label = 'Required Strength' },
+    requiredAgility = { label = 'Required Agility' },
     tier = { label = 'Tier' },
-    weight = { label = 'Weight' },
+    weight = { label = 'Weight', weight = true },
     armor = { label = 'Armor' },
     defense = { label = 'Defense' },
     extraDefense = { label = 'Extra Defense' },
@@ -460,6 +464,12 @@ local function formatScalarValue(key, value)
     end
     if meta.percent and type(value) == 'number' then
         return string.format('%d%%', value)
+    end
+    if meta.weight then
+        local numericValue = tonumber(value)
+        if numericValue then
+            return string.format('%.2f', numericValue / 100)
+        end
     end
     if type(value) == 'boolean' then
         return value and 'Yes' or 'No'
@@ -1039,6 +1049,12 @@ local function renderDetailGroups(details)
 
             if group.key == 'basic' then
                 displayValues.range = nil
+                if (tonumber(displayValues.requiredStrength) or 0) <= 0 then
+                    displayValues.requiredStrength = nil
+                end
+                if (tonumber(displayValues.requiredAgility) or 0) <= 0 then
+                    displayValues.requiredAgility = nil
+                end
             elseif group.key == 'combat' and not shouldShowRange(state.domain) then
                 displayValues.range = nil
             end
