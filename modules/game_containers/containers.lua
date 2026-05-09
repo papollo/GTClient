@@ -429,10 +429,7 @@ function onContainerOpen(container, previousContainer)
 
     containerWindow.containerUid = containerUid
     containerWindow:setId(getContainerWindowId(containerUid, containerId))
-    containerWindow.save = containerUid ~= nil
-    if containerWindow.save then
-        containerWindow:setSettings({ closed = false })
-    end
+    containerWindow.save = false
 
     local containerPanel = containerWindow:getChildById('contentsPanel')
     local containerItemWidget = containerWindow:getChildById('containerItemWidget')
@@ -520,6 +517,11 @@ function onContainerOpen(container, previousContainer)
     end
 
     containerWindow:setup()
+    if containerUid then
+        containerWindow.save = true
+        containerWindow:setSettings({ closed = false })
+    end
+
     if containerWindow.save and not previousContainer then
         containerWindow:setupOnStart()
     end

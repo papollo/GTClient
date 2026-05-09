@@ -6,7 +6,7 @@ local battleButtons = {} -- map of creature id
 local battleWindow, battleButton, battlePanel, mouseWidget, filterPanel, toggleFilterButton
 local lastBattleButtonSwitched, lastCreatureSelected
 
--- Hide Buttons ("hidePlayers", "hideNPCs", "hideMonsters", "hideSkulls", "hideParty")
+-- Hide Buttons ("hidePlayers", "hideNPCs", "hideMonsters", "hideSkulls", "hideParty", "hideSummons")
 local hideButtons = {}
 
 local eventOnCheckCreature = nil
@@ -33,6 +33,7 @@ local function connecting()
     connect(Creature, {
         onSkullChange = updateCreatureSkull,
         onEmblemChange = updateCreatureEmblem,
+        onTypeChange = onCreatureTypeChange,
         onOutfitChange = onCreatureOutfitChange,
         onHealthPercentChange = onCreatureHealthPercentChange,
         onPositionChange = onCreaturePositionChange,
@@ -59,6 +60,7 @@ local function disconnecting(gameEvent)
     disconnect(Creature, {
         onSkullChange = updateCreatureSkull,
         onEmblemChange = updateCreatureEmblem,
+        onTypeChange = onCreatureTypeChange,
         onOutfitChange = onCreatureOutfitChange,
         onHealthPercentChange = onCreatureHealthPercentChange,
         onPositionChange = onCreaturePositionChange,
@@ -106,7 +108,7 @@ function init() -- Initiating the module (load)
     end
 
     -- Adding Filter options
-    local options = { 'hidePlayers', 'hideNPCs', 'hideMonsters', 'hideSkulls', 'hideParty' }
+    local options = { 'hidePlayers', 'hideNPCs', 'hideMonsters', 'hideSkulls', 'hideParty', 'hideSummons' }
     for i, v in ipairs(options) do
         hideButtons[v] = battleWindow:recursiveGetChildById(v)
     end
@@ -438,6 +440,11 @@ function checkCreatures() -- Function that initially populates our tree once the
     end
 end
 
+local function isSummon(creature)
+    return creature:isMonster() and
+        (creature:getType() == CreatureTypeSummonOwn or creature:getType() == CreatureTypeSummonOther)
+end
+
 function doCreatureFitFilters(creature) -- Check if creature fit current applied filters (By changing the filter we will call checkCreatures(true) to recreate the tree)
     if creature:isLocalPlayer() then
         return false
@@ -468,9 +475,10 @@ function doCreatureFitFilters(creature) -- Check if creature fit current applied
     for i, v in pairs(hideButtons) do
         if v:isChecked() then
             if (i == 'hidePlayers' and creature:isPlayer()) or (i == 'hideNPCs' and creature:isNpc()) or
-                (i == 'hideMonsters' and creature:isMonster()) or
+                (i == 'hideMonsters' and creature:isMonster() and not isSummon(creature)) or
                 (i == 'hideSkulls' and (creature:isPlayer() and creature:getSkull() == SkullNone)) or
-                (i == 'hideParty' and creature:getShield() > ShieldWhiteBlue) then
+                (i == 'hideParty' and creature:getShield() > ShieldWhiteBlue) or
+                (i == 'hideSummons' and isSummon(creature)) then
                 return false
             end
         end
@@ -804,6 +812,17 @@ function updateCreatureEmblem(creature, emblemId) -- Update emblem
 
     if battleButton then
         battleButton:updateEmblem(emblemId)
+    end
+end
+
+function onCreatureTypeChange(creature, typeId)
+    local battleButton = battleButtons[creature:getId()]
+    local fit = doCreatureFitFilters(creature)
+
+    if battleButton ~= nil and not fit then
+        removeCreature(creature)
+    elseif battleButton == nil and fit then
+        addCreature(creature, getSortType())
     end
 end
 
