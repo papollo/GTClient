@@ -107,9 +107,9 @@ local groupOrder = {
 
 local groupFieldOrder = {
     basic = {
-        'requiredLevel', 'requiredStrength', 'requiredAgility', 'tier', 'weight', 'armor', 'attack', 'defense',
-        'extraDefense', 'hitChance', 'attackSpeed', 'containerSize', 'text', 'health', 'experience', 'speed',
-        'mitigation', 'summonCost', 'convinceCost'
+        'requiredLevel', 'requiredMagicLevel', 'requiredStrength', 'requiredAgility', 'tier', 'weight', 'armor',
+        'attack', 'defense', 'extraDefense', 'hitChance', 'attackSpeed', 'containerSize', 'text', 'health',
+        'experience', 'speed', 'mitigation', 'summonCost', 'convinceCost'
     },
     combat = {
         'range', 'elementDamage', 'elementType', 'criticalhitamount', 'criticalhitchance',
@@ -134,6 +134,7 @@ local groupFieldOrder = {
 
 local fieldMeta = {
     requiredLevel = { label = 'Required Level' },
+    requiredMagicLevel = { label = 'Required Magic Level' },
     requiredStrength = { label = 'Required Strength' },
     requiredAgility = { label = 'Required Agility' },
     tier = { label = 'Tier' },
@@ -727,6 +728,21 @@ local function normalizeVariantList(variants)
     return result
 end
 
+local function normalizeDetailGroups(details)
+    if type(details) ~= 'table' then
+        return
+    end
+
+    local basic = details.basic
+    if type(basic) ~= 'table' then
+        return
+    end
+
+    if basic.requiredMagicLevel ~= nil then
+        basic.requiredMagicLevel = tonumber(basic.requiredMagicLevel) or basic.requiredMagicLevel
+    end
+end
+
 local function normalizeMonsterOutfit(outfitData)
     if type(outfitData) ~= 'table' then
         return nil
@@ -1117,6 +1133,7 @@ showDetail = function(data)
 
     local details = copyTable(data.details or {})
     details.__description = data.description
+    normalizeDetailGroups(details)
 
     if domain == DOMAIN_MONSTERS then
         ui.selectedItem:setVisible(false)
