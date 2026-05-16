@@ -1,0 +1,11 @@
+Module
+  name: game_huntanalyzer
+  description: Hunt analyzer window
+  author: Gothic Tales
+  sandboxed: true
+  scripts: [ huntanalyzer ]
+  @onLoad: init()
+  @onUnload: terminate()
+  dependencies:
+    - game_interface
+    - game_mainpanel

@@ -1,0 +1,150 @@
+HuntAnalyzerStatRow < UIWidget
+  height: 16
+  margin-bottom: 2
+
+HuntAnalyzerStatName < GameLabel
+  id: name
+  font: verdana-11px-monochrome
+  anchors.left: parent.left
+  anchors.top: parent.top
+  anchors.bottom: parent.bottom
+  text-align: topleft
+
+HuntAnalyzerStatValue < GameLabel
+  id: value
+  font: verdana-11px-monochrome
+  anchors.right: parent.right
+  anchors.top: parent.top
+  anchors.bottom: parent.bottom
+  anchors.left: parent.horizontalCenter
+  text-align: topright
+  color: #bbbbbb
+
+HuntAnalyzerKillLabel < GameLabel
+  height: 14
+  margin-bottom: 1
+  font: verdana-11px-monochrome
+  text-align: topleft
+  color: #bbbbbb
+
+HuntAnalyzerKillRow < UIWidget
+  height: 14
+  margin-bottom: 2
+
+  GameLabel
+    id: name
+    font: verdana-11px-monochrome
+    anchors.left: parent.left
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    anchors.right: count.left
+    margin-right: 4
+    text-align: topleft
+    text-wrap: true
+    color: #bbbbbb
+
+  GameLabel
+    id: count
+    width: 45
+    font: verdana-11px-monochrome
+    anchors.right: parent.right
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    margin-right: 8
+    text-align: topright
+    color: #bbbbbb
+
+HuntAnalyzerKillSeparator < HorizontalSeparator
+  height: 2
+  margin-top: 1
+  margin-bottom: 2
+
+MiniWindow
+  id: huntAnalyzerWindow
+  !text: tr('Hunt Analyzer')
+  height: 344
+  icon: /images/topbuttons/battle
+  @onOpen: modules.game_huntanalyzer.onMiniWindowOpen()
+  @onClose: modules.game_huntanalyzer.onMiniWindowClose()
+  &save: true
+
+  MiniWindowContents
+    padding-left: 5
+    padding-right: 5
+    layout: verticalBox
+
+    Button
+      id: startStopButton
+      height: 22
+      margin-top: 5
+      margin-bottom: 5
+      !text: tr('Start')
+      @onClick: modules.game_huntanalyzer.onStartStopClick()
+
+    HuntAnalyzerStatRow
+      id: huntTime
+      HuntAnalyzerStatName
+        !text: tr('Hunt time')
+      HuntAnalyzerStatValue
+        text: 00:00:00
+
+    HuntAnalyzerStatRow
+      id: expGain
+      HuntAnalyzerStatName
+        !text: tr('Exp gain')
+      HuntAnalyzerStatValue
+        text: 0
+
+    HuntAnalyzerStatRow
+      id: expGainHour
+      HuntAnalyzerStatName
+        !text: tr('Exp gain/h')
+      HuntAnalyzerStatValue
+        text: 0
+
+    HuntAnalyzerStatRow
+      id: damage
+      HuntAnalyzerStatName
+        !text: tr('Damage')
+      HuntAnalyzerStatValue
+        text: 0
+
+    HuntAnalyzerStatRow
+      id: damageHour
+      HuntAnalyzerStatName
+        !text: tr('Damage/h')
+      HuntAnalyzerStatValue
+        text: 0
+
+    HorizontalSeparator
+      id: killedSeparator
+      margin-top: 4
+      margin-bottom: 2
+
+    GameLabel
+      id: killsTitle
+      height: 16
+      margin-bottom: 2
+      font: verdana-11px-monochrome
+      !text: tr('Killed:')
+      color: #f7f7f7
+
+    Panel
+      id: killsListBase
+      height: 174
+
+      UIScrollArea
+        id: killsList
+        anchors.fill: parent
+        vertical-scrollbar: killsScrollbar
+        padding-right: 12
+        layout:
+          type: verticalBox
+
+      VerticalScrollBar
+        id: killsScrollbar
+        anchors.top: killsList.top
+        anchors.right: killsList.right
+        anchors.bottom: killsList.bottom
+        step: 28
+        pixel-scroll: true
