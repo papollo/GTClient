@@ -21,9 +21,11 @@ LibraryDailyTabButton < UIButton
 
   UIWidget
     id: Icon
-    size: 34 34
+    size: 30 30
     anchors.left: parent.left
     anchors.top: parent.top
+    margin-left: 2
+    margin-top: 2
     image-source: /images/game/cyclopedia/charms_off
     image-clip: 0 0 34 34
     phantom: true
@@ -33,7 +35,7 @@ LibraryDailyTabButton < UIButton
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
-    margin-left: 42
+    margin-left: 40
     margin-right: 6
     !text: tr('Daily rewards')
     color: #C0C0C0
@@ -422,21 +424,6 @@ DailyRewardItem < UIButton
     color: #CFCFCF
     text-wrap: true
     text-align: center
-    phantom: true
-
-  Label
-    id: SelectedMark
-    anchors.top: parent.top
-    anchors.right: parent.right
-    margin-top: 3
-    margin-right: 4
-    height: 14
-    width: 58
-    text: SELECTED
-    color: #FFFFFF
-    background-color: #6fbf5f
-    text-align: center
-    visible: false
     phantom: true
 
   $hover:

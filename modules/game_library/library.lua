@@ -3,6 +3,13 @@ local PAGE_SIZE = 20
 local SEARCH_DELAY = 250
 local CLAIM_BUTTON_COLOR = '#6fbf5f'
 local CLAIMED_BUTTON_COLOR = '#e84a4a'
+local DAILY_REWARD_NOTIFY_COLOR = '#ffd34d'
+local LIBRARY_BUTTON_DEFAULT_COLOR = '#ffffff'
+local DAILY_TAB_DEFAULT_BACKGROUND = '#484848'
+local DAILY_TAB_ACTIVE_BACKGROUND = '#585858'
+local DAILY_TAB_DEFAULT_BORDER = '#222222'
+local DAILY_TAB_ACTIVE_BORDER = '#747474'
+local NOTIFICATION_BLINK_INTERVAL = 500
 
 local libraryWindow = nil
 local libraryButton = nil
@@ -89,6 +96,11 @@ local state = {
     dailyRewards = {
         status = nil,
         statusRequested = false,
+        notificationEvent = nil,
+        tabNotificationEvent = nil,
+        notificationBlinkOn = false,
+        tabNotificationBlinkOn = false,
+        notificationAvailable = false,
         selectedItems = {
             free = {},
             premium = {}
@@ -735,6 +747,74 @@ local function isDailyRewardAvailable(status)
     return status.available == true or status.available == 1 or status.available == 'true'
 end
 
+local function setLibraryButtonNotifyColor(enabled)
+    if not libraryButton then
+        return
+    end
+    libraryButton:setImageColor(enabled and DAILY_REWARD_NOTIFY_COLOR or LIBRARY_BUTTON_DEFAULT_COLOR)
+end
+
+local function setDailyRewardsTabNotifyColor(enabled)
+    if not ui or not ui.dailyRewardsTab then
+        return
+    end
+
+    local active = state.domain == DOMAIN_DAILY_REWARDS
+    ui.dailyRewardsTab:setBackgroundColor(active and DAILY_TAB_ACTIVE_BACKGROUND or DAILY_TAB_DEFAULT_BACKGROUND)
+    ui.dailyRewardsTab:setBorderColor(enabled and DAILY_REWARD_NOTIFY_COLOR
+        or (active and DAILY_TAB_ACTIVE_BORDER or DAILY_TAB_DEFAULT_BORDER))
+end
+
+local function stopDailyRewardNotification()
+    local domainState = state.dailyRewards
+    removeEvent(domainState.notificationEvent)
+    removeEvent(domainState.tabNotificationEvent)
+    domainState.notificationEvent = nil
+    domainState.tabNotificationEvent = nil
+    domainState.notificationBlinkOn = false
+    domainState.tabNotificationBlinkOn = false
+    domainState.notificationAvailable = false
+    setLibraryButtonNotifyColor(false)
+    setDailyRewardsTabNotifyColor(false)
+end
+
+local function startDailyRewardNotification()
+    local domainState = state.dailyRewards
+    domainState.notificationAvailable = true
+
+    if domainState.notificationEvent then
+        return
+    end
+
+    domainState.notificationBlinkOn = false
+    domainState.notificationEvent = cycleEvent(function()
+        if not libraryButton or not domainState.notificationAvailable then
+            stopDailyRewardNotification()
+            return
+        end
+        domainState.notificationBlinkOn = not domainState.notificationBlinkOn
+        setLibraryButtonNotifyColor(domainState.notificationBlinkOn)
+    end, NOTIFICATION_BLINK_INTERVAL)
+
+    domainState.tabNotificationBlinkOn = false
+    domainState.tabNotificationEvent = cycleEvent(function()
+        if not ui or not ui.dailyRewardsTab or not domainState.notificationAvailable then
+            stopDailyRewardNotification()
+            return
+        end
+        domainState.tabNotificationBlinkOn = not domainState.tabNotificationBlinkOn
+        setDailyRewardsTabNotifyColor(domainState.tabNotificationBlinkOn)
+    end, NOTIFICATION_BLINK_INTERVAL)
+end
+
+local function updateDailyRewardNotification(status)
+    if isDailyRewardAvailable(status) then
+        startDailyRewardNotification()
+    else
+        stopDailyRewardNotification()
+    end
+end
+
 local function getSelectedDailyCount(poolName)
     local count = 0
     local selected = state.dailyRewards.selectedItems[poolName] or {}
@@ -871,10 +951,6 @@ local function applyDailyItemSelectionStyle(widget, checked)
     widget:setBackgroundColor(checked and '#4f6244' or '#484848')
     widget:setBorderColor(checked and '#89F013' or '#222222')
 
-    local selectedMark = widget:recursiveGetChildById('SelectedMark')
-    if selectedMark then
-        selectedMark:setVisible(checked)
-    end
 end
 
 local function setDailyItemChecked(poolName, itemKey, checked)
@@ -977,6 +1053,7 @@ local function renderDailyRewardsStatus(data)
     domainState.status = data
     domainState.statusRequested = false
     resetDailyRewardSelection()
+    updateDailyRewardNotification(data)
 
     ui.dailyStatusLabel:setText(makeDailyStatusText(data))
     ui.dailyFooterStatsLabel:setText(makeDailyFooterStatsText(data))
@@ -1007,7 +1084,9 @@ local function requestDailyRewardsStatus(force)
     ui.dailyRewardsList:destroyChildren()
     ui.dailyFooterStatsLabel:setText('')
     ui.dailyClaimButton:setEnabled(false)
-    sendRequest(DOMAIN_DAILY_REWARDS, 'status')
+    if not sendRequest(DOMAIN_DAILY_REWARDS, 'status') then
+        domainState.statusRequested = false
+    end
 end
 
 local function buildDailyClaimPayload()
@@ -1729,6 +1808,11 @@ local function updateDomainUi()
         ui.dailyRewardsTabText:setVisible(isDailyRewards)
         ui.dailyRewardsTabText:setColor(isDailyRewards and '#F6F6F6' or '#C0C0C0')
     end
+    if state.dailyRewards.notificationAvailable then
+        setDailyRewardsTabNotifyColor(state.dailyRewards.tabNotificationBlinkOn)
+    else
+        setDailyRewardsTabNotifyColor(false)
+    end
     ui.leftColumn:setVisible(not isDailyRewards)
     ui.middleSeparator:setVisible(not isDailyRewards)
     ui.detailPanel:setVisible(not isDailyRewards)
@@ -2001,7 +2085,9 @@ local function handleLibraryError(domain, action, payload)
                 errorCode = payload.error.code
             end
             ui.dailyStatusLabel:setText(message)
-            if action == 'claim' and (errorCode == 'ALREADY_CLAIMED' or errorCode == 'REWARD_NOT_AVAILABLE') then
+            if action == 'status' then
+                stopDailyRewardNotification()
+            elseif action == 'claim' and (errorCode == 'ALREADY_CLAIMED' or errorCode == 'REWARD_NOT_AVAILABLE') then
                 requestDailyRewardsStatus(true)
             else
                 updateDailyClaimButton()
@@ -2255,6 +2341,7 @@ end
 local function resetDomainState(domain)
     local domainState = getDomainState(domain)
     if domain == DOMAIN_DAILY_REWARDS then
+        stopDailyRewardNotification()
         domainState.status = nil
         domainState.statusRequested = false
         resetDailyRewardSelection()
@@ -2352,6 +2439,8 @@ function terminate()
         onGameEnd = offline
     })
 
+    stopDailyRewardNotification()
+
     if searchEvent then
         removeEvent(searchEvent)
         searchEvent = nil
@@ -2379,9 +2468,11 @@ function online()
         libraryButton:setOn(false)
     end
     hide()
+    requestDailyRewardsStatus(true)
 end
 
 function offline()
+    stopDailyRewardNotification()
     resetDataState()
     resetUiState()
     hide()
