@@ -13,6 +13,46 @@ LibraryTabButton < UIButton
     image-source: /images/game/cyclopedia/items_off
     image-clip: 0 34 34 34
 
+LibraryDailyTabButton < UIButton
+  size: 34 34
+  background-color: #484848
+  border-width: 1
+  border-color: #222222
+
+  UIWidget
+    id: Icon
+    size: 34 34
+    anchors.left: parent.left
+    anchors.top: parent.top
+    image-source: /images/game/cyclopedia/charms_off
+    image-clip: 0 0 34 34
+    phantom: true
+
+  Label
+    id: Text
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 42
+    margin-right: 6
+    !text: tr('Daily rewards')
+    color: #C0C0C0
+    text-align: left
+    visible: false
+    phantom: true
+
+  $hover:
+    background-color: #525252
+
+  $on:
+    size: 150 34
+    background-color: #585858
+    border-color: #747474
+
+  $pressed:
+    size: 34 34
+    background-color: #404040
+
 LibraryCategoryItem < UICheckBox
   size: 182 18
   color: #C0C0C0
@@ -349,6 +389,73 @@ LibraryTierButton < UICheckBox
     background-color: #585858
     border-color: #747474
 
+DailyRewardItem < UIButton
+  size: 150 104
+  background-color: #484848
+  border-width: 1
+  border-color: #222222
+
+  UIWidget
+    id: iconBackground
+    size: 32 32
+    anchors.top: parent.top
+    anchors.horizontalCenter: parent.horizontalCenter
+    margin-top: 8
+    image-source: /images/ui/item
+    phantom: true
+
+    UIItem
+      id: Sprite
+      anchors.fill: parent
+      phantom: true
+
+  Label
+    id: Name
+    anchors.top: iconBackground.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    margin-top: 6
+    margin-left: 6
+    margin-right: 6
+    margin-bottom: 6
+    color: #CFCFCF
+    text-wrap: true
+    text-align: center
+    phantom: true
+
+  Label
+    id: SelectedMark
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: 3
+    margin-right: 4
+    height: 14
+    width: 58
+    text: SELECTED
+    color: #FFFFFF
+    background-color: #6fbf5f
+    text-align: center
+    visible: false
+    phantom: true
+
+  $hover:
+    background-color: #525252
+
+  $checked:
+    background-color: #4f6244
+    border-color: #89F013
+
+  $disabled:
+    opacity: 0.55
+
+DailyRewardGrid < UIWidget
+  layout:
+    type: grid
+    cell-size: 150 104
+    cell-spacing: 6
+    flow: true
+
 MainWindow
   id: libraryWindow
   size: 700 560
@@ -394,6 +501,12 @@ MainWindow
         size: 34 34
         image-source: /images/game/cyclopedia/bestiary_off
         image-clip: 0 34 34 34
+
+    LibraryDailyTabButton
+      id: dailyRewardsTab
+      anchors.top: parent.top
+      anchors.left: monstersTab.right
+      margin-left: 6
 
   UIWidget
     id: contentContainer
@@ -764,12 +877,87 @@ MainWindow
             step: 60
             pixel-scroll: true
 
+    UIWidget
+      id: dailyRewardsPanel
+      anchors.fill: parent
+      visible: false
+
+      Panel
+        id: dailySummaryPanel
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 58
+        background-color: #363636
+
+        Label
+          id: dailyTitleLabel
+          anchors.top: parent.top
+          anchors.left: parent.left
+          margin-top: 10
+          margin-left: 10
+          !text: tr('Daily Rewards')
+          color: #D7D7D7
+          text-auto-resize: true
+          visible: false
+
+        Label
+          id: dailyStatusLabel
+          anchors.top: dailyTitleLabel.bottom
+          anchors.left: dailyTitleLabel.left
+          margin-top: 6
+          width: 390
+          height: 18
+          text-wrap: true
+          color: #BDBDBD
+          !text: tr('Loading daily rewards...')
+          visible: false
+
+        Button
+          id: dailyClaimButton
+          size: 150 30
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.verticalCenter: parent.verticalCenter
+          !text: tr('Claim')
+          color: #C0C0C0
+
+      UIScrollArea
+        id: dailyRewardsList
+        anchors.top: dailySummaryPanel.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        margin-top: 10
+        vertical-scrollbar: dailyRewardsScrollbar
+        padding-right: 18
+        padding-bottom: 6
+        layout:
+          type: verticalBox
+          spacing: 8
+
+      VerticalScrollBar
+        id: dailyRewardsScrollbar
+        anchors.top: dailyRewardsList.top
+        anchors.right: dailyRewardsList.right
+        anchors.bottom: dailyRewardsList.bottom
+        step: 60
+        pixel-scroll: true
+
   HorizontalSeparator
     id: bottomSeparator
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.bottom: closeButton.top
     margin-bottom: 10
+
+  Label
+    id: dailyFooterStatsLabel
+    anchors.left: parent.left
+    anchors.verticalCenter: closeButton.verticalCenter
+    width: 430
+    color: #BDBDBD
+    text-wrap: true
+    visible: false
 
   Button
     id: closeButton

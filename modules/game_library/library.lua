@@ -1,6 +1,8 @@
 local LIBRARY_OPCODE = 217
 local PAGE_SIZE = 20
 local SEARCH_DELAY = 250
+local CLAIM_BUTTON_COLOR = '#6fbf5f'
+local CLAIMED_BUTTON_COLOR = '#e84a4a'
 
 local libraryWindow = nil
 local libraryButton = nil
@@ -11,6 +13,7 @@ local showDetail = nil
 
 local DOMAIN_ITEMS = 'items'
 local DOMAIN_MONSTERS = 'monsters'
+local DOMAIN_DAILY_REWARDS = 'dailyRewards'
 
 local categories = {
     { key = 'ARMORS', label = 'Armors' },
@@ -82,6 +85,18 @@ local state = {
         selectedResult = nil,
         pageCache = {},
         detailCache = {}
+    },
+    dailyRewards = {
+        status = nil,
+        statusRequested = false,
+        selectedItems = {
+            free = {},
+            premium = {}
+        },
+        rewardWidgets = {
+            free = {},
+            premium = {}
+        }
     },
     pending = {}
 }
@@ -290,6 +305,10 @@ local function bindUi()
     ui = {
         itemsTab = child('itemsTab'),
         monstersTab = child('monstersTab'),
+        dailyRewardsTab = child('dailyRewardsTab'),
+        dailyRewardsTabText = child('dailyRewardsTab') and child('dailyRewardsTab'):recursiveGetChildById('Text'),
+        leftColumn = child('leftColumn'),
+        middleSeparator = child('middleSeparator'),
         categoryPanel = child('categoryPanel'),
         itemsSection = child('itemsSection'),
         categoryLabel = child('categoryLabel'),
@@ -319,15 +338,27 @@ local function bindUi()
         detailCreature = child('detailCreature'),
         selectedItem = child('selectedItem'),
         detailList = child('detailList'),
+        detailPanel = child('detailPanel'),
+        dailyRewardsPanel = child('dailyRewardsPanel'),
+        dailyStatusLabel = child('dailyStatusLabel'),
+        dailyClaimButton = child('dailyClaimButton'),
+        dailyRewardsList = child('dailyRewardsList'),
+        dailyFooterStatsLabel = child('dailyFooterStatsLabel'),
         closeButton = child('closeButton')
     }
 end
 
 local function getResultLabelText(domain)
+    if domain == DOMAIN_DAILY_REWARDS then
+        return tr('Daily Rewards')
+    end
     return domain == DOMAIN_MONSTERS and tr('Monsters') or tr('Items')
 end
 
 local function getSelectionPlaceholder(domain)
+    if domain == DOMAIN_DAILY_REWARDS then
+        return tr('Daily rewards are shown in this tab.')
+    end
     if domain == DOMAIN_MONSTERS then
         return tr('Select a monster to see its details here.')
     end
@@ -335,6 +366,9 @@ local function getSelectionPlaceholder(domain)
 end
 
 local function getInitialPlaceholder(domain)
+    if domain == DOMAIN_DAILY_REWARDS then
+        return tr('Loading daily rewards...')
+    end
     if domain == DOMAIN_MONSTERS then
         return tr('Choose the monsters tab and select a monster to see its details here.')
     end
@@ -342,6 +376,9 @@ local function getInitialPlaceholder(domain)
 end
 
 local function getLoadingText(domain)
+    if domain == DOMAIN_DAILY_REWARDS then
+        return tr('Loading daily rewards...')
+    end
     return domain == DOMAIN_MONSTERS and tr('Loading monsters...') or tr('Loading items...')
 end
 
@@ -350,6 +387,9 @@ local function getDetailLoadingText(domain)
 end
 
 local function getNoResultsText(domain)
+    if domain == DOMAIN_DAILY_REWARDS then
+        return tr('Reward is not available.')
+    end
     if domain == DOMAIN_MONSTERS then
         return tr('No monsters found.')
     end
@@ -366,6 +406,10 @@ end
 local function resetDetailPanel(message, clearSelection)
     if clearSelection == nil then
         clearSelection = true
+    end
+
+    if state.domain == DOMAIN_DAILY_REWARDS then
+        return
     end
 
     local domainState = getDomainState()
@@ -419,6 +463,13 @@ local function hideAllEmptyLabels()
 end
 
 local function updatePagination()
+    if state.domain == DOMAIN_DAILY_REWARDS then
+        ui.pageLabel:setText(tr('Page 1 / 1'))
+        ui.prevPageButton:setEnabled(false)
+        ui.nextPageButton:setEnabled(false)
+        return
+    end
+
     local domainState = getDomainState()
     local page = math.max(1, tonumber(domainState.page) or 1)
     local totalPages = math.max(1, tonumber(domainState.totalPages) or 1)
@@ -429,6 +480,14 @@ local function updatePagination()
 end
 
 local function setResultWidgetsEnabled(enabled)
+    if state.domain == DOMAIN_DAILY_REWARDS then
+        ui.searchEdit:setEnabled(false)
+        ui.searchClearButton:setEnabled(false)
+        ui.prevPageButton:setEnabled(false)
+        ui.nextPageButton:setEnabled(false)
+        return
+    end
+
     local domainState = getDomainState()
     ui.searchEdit:setEnabled(enabled)
     ui.searchClearButton:setEnabled(enabled)
@@ -617,6 +676,370 @@ local function sendRequest(domain, action, data)
     }
     protocol:sendExtendedJSONOpcode(LIBRARY_OPCODE, payload)
     return requestId
+end
+
+local function resetDailyRewardSelection()
+    local domainState = state.dailyRewards
+    domainState.selectedItems = {
+        free = {},
+        premium = {}
+    }
+    domainState.rewardWidgets = {
+        free = {},
+        premium = {}
+    }
+end
+
+local function getDailyItemKey(item)
+    return string.format('%s:%s', tostring(item.itemId or ''), tostring(item.count or 1))
+end
+
+local function getDailyPool(status, poolName)
+    if type(status) ~= 'table' or type(status.rewards) ~= 'table' then
+        return nil
+    end
+    local pool = status.rewards[poolName]
+    if type(pool) ~= 'table' then
+        return nil
+    end
+    return pool
+end
+
+local function getDailyPoolItems(pool)
+    if type(pool) ~= 'table' or type(pool.items) ~= 'table' then
+        return {}
+    end
+    return pool.items
+end
+
+local function getDailyItemsToSelect(pool)
+    local value = tonumber(pool and pool.itemsToSelect)
+    if not value or value < 1 then
+        return 1
+    end
+    return math.floor(value)
+end
+
+local function isDailyChoicePool(pool)
+    return type(pool) == 'table' and pool.mode == 'choice'
+end
+
+local function isDailyPremiumLocked(status)
+    return type(status) == 'table' and status.premium ~= true
+end
+
+local function isDailyRewardAvailable(status)
+    if type(status) ~= 'table' then
+        return false
+    end
+    return status.available == true or status.available == 1 or status.available == 'true'
+end
+
+local function getSelectedDailyCount(poolName)
+    local count = 0
+    local selected = state.dailyRewards.selectedItems[poolName] or {}
+    for _, enabled in pairs(selected) do
+        if enabled then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+local function isDailySelectionComplete(status, poolName)
+    local pool = getDailyPool(status, poolName)
+    if not isDailyChoicePool(pool) then
+        return true
+    end
+    if poolName == 'premium' and isDailyPremiumLocked(status) then
+        return true
+    end
+    return getSelectedDailyCount(poolName) == getDailyItemsToSelect(pool)
+end
+
+local function updateDailyClaimButton()
+    local status = state.dailyRewards.status
+    local available = isDailyRewardAvailable(status)
+    local canClaim = available
+        and isDailySelectionComplete(status, 'free')
+        and isDailySelectionComplete(status, 'premium')
+
+    if type(status) == 'table' and status.claimed == true then
+        ui.dailyClaimButton:setText(tr('Claimed'))
+        ui.dailyClaimButton:setImageColor(CLAIMED_BUTTON_COLOR)
+        ui.dailyClaimButton:setColor('#ffffff')
+    else
+        ui.dailyClaimButton:setText(tr('Claim'))
+        ui.dailyClaimButton:setImageColor(CLAIM_BUTTON_COLOR)
+        ui.dailyClaimButton:setColor('#ffffff')
+    end
+
+    ui.dailyClaimButton:setEnabled(canClaim)
+end
+
+local function makeDailyStatusText(status)
+    if type(status) ~= 'table' then
+        return tr('Reward is not available.')
+    end
+
+    local stateText
+
+    if isDailyRewardAvailable(status) then
+        stateText = tr('REWARD IS AVAILABLE')
+    elseif status.claimed == true then
+        stateText = tr('REWARD CLAIMED TODAY')
+    else
+        stateText = tr('REWARD IS NOT AVAILABLE')
+    end
+
+    return stateText
+end
+
+local function makeDailyFooterStatsText(status)
+    if type(status) ~= 'table' then
+        return ''
+    end
+
+    local streak = tonumber(status.streak) or 0
+    local cycleDay = tonumber(status.cycleDay) or 1
+    return string.format('%s: %d    %s: %d', tr('Streak'), streak, tr('Day'), cycleDay)
+end
+
+local function createDailyLabel(parent, text, color)
+    local label = g_ui.createWidget('Label', parent)
+    label:setText(text or '')
+    label:setColor(color or '#BDBDBD')
+    label:setTextWrap(true)
+    label:setWidth(620)
+    label:setHeight(20)
+    return label
+end
+
+local function createDailyPoolHeader(parent, poolName, pool, locked)
+    local header = g_ui.createWidget('UIWidget', parent)
+    header:setHeight(34)
+    header:setBackgroundColor('#404040')
+
+    local title = g_ui.createWidget('Label', header)
+    title:addAnchor(AnchorTop, 'parent', AnchorTop)
+    title:addAnchor(AnchorLeft, 'parent', AnchorLeft)
+    title:setMarginTop(6)
+    title:setMarginLeft(8)
+    title:setText(poolName == 'premium' and tr('Premium Rewards') or tr('Free Rewards'))
+    title:setColor(locked and '#8A8A8A' or '#D7D7D7')
+    title:setTextAutoResize(true)
+
+    local modeText = tr('Bundle')
+    if isDailyChoicePool(pool) then
+        modeText = string.format('%s %d', tr('Choose'), getDailyItemsToSelect(pool))
+    end
+    if locked then
+        modeText = modeText .. ' - ' .. tr('Locked')
+    end
+
+    local subtitle = g_ui.createWidget('Label', header)
+    subtitle:addAnchor(AnchorTop, 'parent', AnchorTop)
+    subtitle:addAnchor(AnchorRight, 'parent', AnchorRight)
+    subtitle:setMarginTop(6)
+    subtitle:setMarginRight(8)
+    subtitle:setText(modeText)
+    subtitle:setColor(locked and '#8A8A8A' or '#BDBDBD')
+    subtitle:setTextAutoResize(true)
+
+    return header
+end
+
+local function updateDailyPoolCounter(counter, poolName, pool)
+    if not counter then
+        return
+    end
+    if not isDailyChoicePool(pool) then
+        counter:setText('')
+        return
+    end
+    counter:setText(string.format('%s: %d / %d', tr('Selected'), getSelectedDailyCount(poolName), getDailyItemsToSelect(pool)))
+end
+
+local function applyDailyItemSelectionStyle(widget, checked)
+    if not widget or widget:isDestroyed() then
+        return
+    end
+
+    if widget.setChecked then
+        widget:setChecked(checked)
+    end
+    widget:setBackgroundColor(checked and '#4f6244' or '#484848')
+    widget:setBorderColor(checked and '#89F013' or '#222222')
+
+    local selectedMark = widget:recursiveGetChildById('SelectedMark')
+    if selectedMark then
+        selectedMark:setVisible(checked)
+    end
+end
+
+local function setDailyItemChecked(poolName, itemKey, checked)
+    local widgets = state.dailyRewards.rewardWidgets[poolName] or {}
+    local widget = widgets[itemKey]
+    applyDailyItemSelectionStyle(widget, checked)
+end
+
+local function toggleDailyItem(poolName, pool, item, counter)
+    local status = state.dailyRewards.status
+    if type(status) ~= 'table' or not isDailyRewardAvailable(status) or not isDailyChoicePool(pool) then
+        return
+    end
+    if poolName == 'premium' and isDailyPremiumLocked(status) then
+        return
+    end
+
+    local itemKey = getDailyItemKey(item)
+    local selected = state.dailyRewards.selectedItems[poolName]
+    if selected[itemKey] then
+        selected[itemKey] = nil
+        setDailyItemChecked(poolName, itemKey, false)
+    else
+        local itemsToSelect = getDailyItemsToSelect(pool)
+        if itemsToSelect == 1 then
+            for selectedKey in pairs(selected) do
+                selected[selectedKey] = nil
+                setDailyItemChecked(poolName, selectedKey, false)
+            end
+        elseif getSelectedDailyCount(poolName) >= itemsToSelect then
+            return
+        end
+        selected[itemKey] = {
+            itemId = tonumber(item.itemId) or item.itemId,
+            count = tonumber(item.count) or 1
+        }
+        setDailyItemChecked(poolName, itemKey, true)
+    end
+
+    updateDailyPoolCounter(counter, poolName, pool)
+    updateDailyClaimButton()
+end
+
+local function renderDailyItem(parent, poolName, pool, item, locked, counter)
+    local widget = g_ui.createWidget('DailyRewardItem', parent)
+    local itemKey = getDailyItemKey(item)
+    local sprite = widget:recursiveGetChildById('Sprite')
+    local name = widget:recursiveGetChildById('Name')
+    local count = tonumber(item.count) or 1
+    local itemName = item.name or tr('Unknown item')
+
+    widget.itemKey = itemKey
+    applyDailyItemSelectionStyle(widget, false)
+    widget:setEnabled(true)
+    widget:setOpacity((locked or not isDailyRewardAvailable(state.dailyRewards.status)) and 0.55 or 1.0)
+
+    if sprite then
+        sprite:setItemId(tonumber(item.clientId) or 0)
+    end
+    if name then
+        if count > 1 then
+            name:setText(string.format('%s x%d', itemName, count))
+        else
+            name:setText(itemName)
+        end
+    end
+    widget:setTooltip(count > 1 and string.format('%s x%d', itemName, count) or itemName)
+
+    state.dailyRewards.rewardWidgets[poolName][itemKey] = widget
+
+    widget.onClick = function()
+        toggleDailyItem(poolName, pool, item, counter)
+    end
+
+    return widget
+end
+
+local function renderDailyPool(parent, poolName, pool, locked)
+    createDailyPoolHeader(parent, poolName, pool, locked)
+
+    local items = getDailyPoolItems(pool)
+    if #items == 0 then
+        createDailyLabel(parent, tr('Reward is not available.'), '#9A9A9A')
+        return
+    end
+
+    local counter = createDailyLabel(parent, '', locked and '#8A8A8A' or '#BDBDBD')
+    updateDailyPoolCounter(counter, poolName, pool)
+
+    local grid = g_ui.createWidget('DailyRewardGrid', parent)
+    grid:setHeight(math.max(1, math.ceil(#items / 4)) * 110)
+
+    for _, item in ipairs(items) do
+        renderDailyItem(grid, poolName, pool, item, locked, counter)
+    end
+end
+
+local function renderDailyRewardsStatus(data)
+    local domainState = state.dailyRewards
+    domainState.status = data
+    domainState.statusRequested = false
+    resetDailyRewardSelection()
+
+    ui.dailyStatusLabel:setText(makeDailyStatusText(data))
+    ui.dailyFooterStatsLabel:setText(makeDailyFooterStatsText(data))
+    ui.dailyRewardsList:destroyChildren()
+
+    if type(data) ~= 'table' then
+        createDailyLabel(ui.dailyRewardsList, tr('Reward is not available.'), '#9A9A9A')
+        updateDailyClaimButton()
+        return
+    end
+
+    renderDailyPool(ui.dailyRewardsList, 'free', getDailyPool(data, 'free') or { mode = 'bundle', items = {} }, false)
+    renderDailyPool(ui.dailyRewardsList, 'premium', getDailyPool(data, 'premium') or { mode = 'bundle', items = {} }, isDailyPremiumLocked(data))
+    updateDailyClaimButton()
+end
+
+local function requestDailyRewardsStatus(force)
+    local domainState = state.dailyRewards
+    if domainState.statusRequested then
+        return
+    end
+    if domainState.status and not force then
+        renderDailyRewardsStatus(domainState.status)
+        return
+    end
+    domainState.statusRequested = true
+    ui.dailyStatusLabel:setText(tr('Loading daily rewards...'))
+    ui.dailyRewardsList:destroyChildren()
+    ui.dailyFooterStatsLabel:setText('')
+    ui.dailyClaimButton:setEnabled(false)
+    sendRequest(DOMAIN_DAILY_REWARDS, 'status')
+end
+
+local function buildDailyClaimPayload()
+    local selectedItems = {
+        free = {},
+        premium = {}
+    }
+
+    for poolName, selected in pairs(state.dailyRewards.selectedItems) do
+        for _, item in pairs(selected) do
+            table.insert(selectedItems[poolName], {
+                itemId = item.itemId,
+                count = item.count
+            })
+        end
+    end
+
+    return { selectedItems = selectedItems }
+end
+
+local function claimDailyReward()
+    local status = state.dailyRewards.status
+    if type(status) ~= 'table' or not isDailyRewardAvailable(status) then
+        return
+    end
+    if not isDailySelectionComplete(status, 'free') or not isDailySelectionComplete(status, 'premium') then
+        return
+    end
+
+    ui.dailyClaimButton:setEnabled(false)
+    ui.dailyStatusLabel:setText(tr('Claiming daily reward...'))
+    sendRequest(DOMAIN_DAILY_REWARDS, 'claim', buildDailyClaimPayload())
 end
 
 local function ensureCategoriesRequested()
@@ -1252,6 +1675,11 @@ local function renderResults(response)
 end
 
 local function requestCurrentPage(force)
+    if state.domain == DOMAIN_DAILY_REWARDS then
+        requestDailyRewardsStatus(force)
+        return
+    end
+
     local domainState = getDomainState()
     if not domainState.activeCategory then
         if state.domain == DOMAIN_MONSTERS then
@@ -1292,18 +1720,38 @@ end
 
 local function updateDomainUi()
     local isItems = state.domain == DOMAIN_ITEMS
+    local isMonsters = state.domain == DOMAIN_MONSTERS
+    local isDailyRewards = state.domain == DOMAIN_DAILY_REWARDS
     ui.itemsTab:setOn(isItems)
-    ui.monstersTab:setOn(not isItems)
+    ui.monstersTab:setOn(isMonsters)
+    ui.dailyRewardsTab:setOn(isDailyRewards)
+    if ui.dailyRewardsTabText then
+        ui.dailyRewardsTabText:setVisible(isDailyRewards)
+        ui.dailyRewardsTabText:setColor(isDailyRewards and '#F6F6F6' or '#C0C0C0')
+    end
+    ui.leftColumn:setVisible(not isDailyRewards)
+    ui.middleSeparator:setVisible(not isDailyRewards)
+    ui.detailPanel:setVisible(not isDailyRewards)
+    ui.dailyRewardsPanel:setVisible(isDailyRewards)
+    ui.dailyFooterStatsLabel:setVisible(isDailyRewards)
     ui.categoryPanel:setVisible(isItems)
-    ui.monsterPanel:setVisible(not isItems)
+    ui.monsterPanel:setVisible(isMonsters)
     ui.itemsSection:setVisible(isItems)
     ui.resultLabel:setText(getResultLabelText(state.domain) .. ':')
-    ui.detailPlaceholder:setText(getInitialPlaceholder(state.domain))
+    if not isDailyRewards then
+        ui.detailPlaceholder:setText(getInitialPlaceholder(state.domain))
+    end
     ui.topListEmptyLabel:setVisible(false)
     ui.monsterEmptyLabel:setVisible(false)
-    anchorSearchSection(isItems)
+    if not isDailyRewards then
+        anchorSearchSection(isItems)
+    end
 
-    if isItems then
+    if isDailyRewards then
+        ui.resultEmptyLabel:setVisible(false)
+        ui.resultList:destroyChildren()
+        ui.monsterList:destroyChildren()
+    elseif isItems then
         ui.resultEmptyLabel:setVisible(false)
     else
         ui.resultList:destroyChildren()
@@ -1541,6 +1989,27 @@ local function handleDetailResponse(domain, data, requestData)
 end
 
 local function handleLibraryError(domain, action, payload)
+    if domain == DOMAIN_DAILY_REWARDS then
+        state.dailyRewards.statusRequested = false
+        if domain == state.domain then
+            local message = tr('Reward is not available.')
+            local errorCode
+            if type(payload) == 'table' and type(payload.error) == 'table' and type(payload.error.message) == 'string' then
+                message = payload.error.message
+            end
+            if type(payload) == 'table' and type(payload.error) == 'table' and type(payload.error.code) == 'string' then
+                errorCode = payload.error.code
+            end
+            ui.dailyStatusLabel:setText(message)
+            if action == 'claim' and (errorCode == 'ALREADY_CLAIMED' or errorCode == 'REWARD_NOT_AVAILABLE') then
+                requestDailyRewardsStatus(true)
+            else
+                updateDailyClaimButton()
+            end
+        end
+        return
+    end
+
     if domain ~= state.domain then
         return
     end
@@ -1611,10 +2080,16 @@ local function onLibraryOpcode(protocol, opcode, payload)
         handleListResponse(domain, data, requestData)
     elseif action == 'detail' then
         handleDetailResponse(domain, data, requestData)
+    elseif domain == DOMAIN_DAILY_REWARDS and (action == 'status' or action == 'claim') then
+        renderDailyRewardsStatus(data)
     end
 end
 
 local function queueSearch()
+    if state.domain == DOMAIN_DAILY_REWARDS then
+        return
+    end
+
     if searchEvent then
         removeEvent(searchEvent)
         searchEvent = nil
@@ -1622,6 +2097,9 @@ local function queueSearch()
 
     searchEvent = scheduleEvent(function()
         searchEvent = nil
+        if state.domain == DOMAIN_DAILY_REWARDS then
+            return
+        end
         local domainState = getDomainState()
         domainState.search = ui.searchEdit:getText() or ''
         domainState.page = 1
@@ -1630,6 +2108,10 @@ local function queueSearch()
 end
 
 local function clearSearch()
+    if state.domain == DOMAIN_DAILY_REWARDS then
+        return
+    end
+
     if ui.searchEdit:getText() == '' then
         return
     end
@@ -1649,6 +2131,13 @@ local function switchDomain(domain)
     updateDomainUi()
     clearResultSelection(DOMAIN_ITEMS)
     clearResultSelection(DOMAIN_MONSTERS)
+
+    if domain == DOMAIN_DAILY_REWARDS then
+        setResultWidgetsEnabled(false)
+        updatePagination()
+        requestDailyRewardsStatus(true)
+        return
+    end
 
     local domainState = getDomainState()
     ui.searchEdit:setText(domainState.search or '')
@@ -1688,7 +2177,12 @@ local function show()
     end
 
     updateDomainUi()
-    if state.domain == DOMAIN_ITEMS then
+    if state.domain == DOMAIN_DAILY_REWARDS then
+        setResultWidgetsEnabled(false)
+        updatePagination()
+        requestDailyRewardsStatus(true)
+        return
+    elseif state.domain == DOMAIN_ITEMS then
         ensureCategoriesRequested()
         renderCategories()
     else
@@ -1739,6 +2233,11 @@ local function resetUiState()
     ui.searchEdit:setText('')
     ui.resultList:destroyChildren()
     ui.monsterList:destroyChildren()
+    ui.dailyRewardsList:destroyChildren()
+    ui.dailyStatusLabel:setText(tr('Loading daily rewards...'))
+    ui.dailyFooterStatsLabel:setText('')
+    ui.dailyFooterStatsLabel:setVisible(false)
+    ui.dailyClaimButton:setEnabled(false)
     renderCategories()
     renderMonsterCategories()
     ui.detailList:destroyChildren()
@@ -1755,6 +2254,13 @@ end
 
 local function resetDomainState(domain)
     local domainState = getDomainState(domain)
+    if domain == DOMAIN_DAILY_REWARDS then
+        domainState.status = nil
+        domainState.statusRequested = false
+        resetDailyRewardSelection()
+        return
+    end
+
     domainState.search = ''
     domainState.page = 1
     domainState.totalPages = 1
@@ -1783,6 +2289,7 @@ local function resetDataState()
     state.domain = DOMAIN_ITEMS
     resetDomainState(DOMAIN_ITEMS)
     resetDomainState(DOMAIN_MONSTERS)
+    resetDomainState(DOMAIN_DAILY_REWARDS)
     state.pending = {}
 end
 
@@ -1799,7 +2306,11 @@ function init()
     libraryWindow:hide()
     ui.itemsTab.onClick = function() switchDomain(DOMAIN_ITEMS) end
     ui.monstersTab.onClick = function() switchDomain(DOMAIN_MONSTERS) end
+    ui.dailyRewardsTab.onClick = function() switchDomain(DOMAIN_DAILY_REWARDS) end
     ui.closeButton.onClick = hide
+    ui.dailyClaimButton.onClick = claimDailyReward
+    ui.dailyClaimButton:setImageColor(CLAIM_BUTTON_COLOR)
+    ui.dailyClaimButton:setColor('#ffffff')
     libraryWindow.onEscape = hide
     ui.searchEdit.onTextChange = queueSearch
     ui.searchClearButton.onClick = clearSearch
