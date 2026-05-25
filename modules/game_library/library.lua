@@ -10,6 +10,9 @@ local DAILY_TAB_ACTIVE_BACKGROUND = '#585858'
 local DAILY_TAB_DEFAULT_BORDER = '#222222'
 local DAILY_TAB_ACTIVE_BORDER = '#747474'
 local NOTIFICATION_BLINK_INTERVAL = 500
+local VOCATION_FORMULA_POSITIVE_COLOR = '#6fbf5f'
+local VOCATION_FORMULA_NEGATIVE_COLOR = '#e84a4a'
+local VOCATION_FORMULA_NEUTRAL_COLOR = '#BDBDBD'
 
 local libraryWindow = nil
 local libraryButton = nil
@@ -20,6 +23,7 @@ local showDetail = nil
 
 local DOMAIN_ITEMS = 'items'
 local DOMAIN_MONSTERS = 'monsters'
+local DOMAIN_VOCATIONS = 'vocations'
 local DOMAIN_DAILY_REWARDS = 'dailyRewards'
 
 local categories = {
@@ -93,6 +97,21 @@ local state = {
         pageCache = {},
         detailCache = {}
     },
+    vocations = {
+        categoriesLoaded = false,
+        categoriesRequested = false,
+        categories = {},
+        activeCategory = nil,
+        search = '',
+        page = 1,
+        totalPages = 1,
+        totalResults = 0,
+        selectedId = nil,
+        selectedTier = 1,
+        selectedResult = nil,
+        pageCache = {},
+        detailCache = {}
+    },
     dailyRewards = {
         status = nil,
         statusRequested = false,
@@ -129,6 +148,12 @@ local groupOrder = {
         { key = 'loot', label = 'Loot' },
         { key = 'location', label = 'Location' },
         { key = 'skills', label = 'Skills' }
+    },
+    [DOMAIN_VOCATIONS] = {
+        { key = 'basic', label = 'Basic' },
+        { key = 'regeneration', label = 'Regeneration' },
+        { key = 'formula', label = 'Formula' },
+        { key = 'skills', label = 'Skills' }
     }
 }
 
@@ -136,7 +161,8 @@ local groupFieldOrder = {
     basic = {
         'requiredLevel', 'requiredMagicLevel', 'requiredStrength', 'requiredAgility', 'tier', 'weight', 'armor',
         'attack', 'defense', 'extraDefense', 'hitChance', 'attackSpeed', 'containerSize', 'text', 'health',
-        'experience', 'speed', 'mitigation', 'summonCost', 'convinceCost'
+        'experience', 'speed', 'mitigation', 'summonCost', 'convinceCost', 'healthGain', 'manaGain', 'capGain',
+        'soul', 'pvpDamage', 'noPong'
     },
     combat = {
         'range', 'elementDamage', 'elementType', 'criticalhitamount', 'criticalhitchance',
@@ -149,13 +175,25 @@ local groupFieldOrder = {
     },
     skills = {
         'skillSword', 'skillAxe', 'skillClub', 'skillDist', 'skillShield', 'skillFish',
-        'magicLevel', 'speed', 'healthGain', 'manaGain', 'maxHealthPoints', 'maxManaPoints'
+        'magicLevel', 'magicLevelMultiplier', 'speed', 'healthGain', 'manaGain', 'maxHealthPoints', 'maxManaPoints'
     },
     loot = {
         'value', 'count', 'chance', 'difficulty', 'stackable'
     },
     location = {
         'name', 'area', 'places', 'notes'
+    },
+    regeneration = {
+        'healthGain', 'healthTicks', 'manaGain', 'manaTicks'
+    },
+    progression = {
+        'magicLevelMultiplier', 'weaponSkillMultiplier', 'role', 'promotionFrom', 'promotionTo'
+    },
+    formula = {
+        'melee', 'meleeDamage', 'meleeDamageMultiplier',
+        'dist', 'distance', 'distDamage', 'distanceDamage', 'distanceDamageMultiplier',
+        'armor', 'armorMultiplier',
+        'defense', 'defenseMultiplier'
     }
 }
 
@@ -180,6 +218,26 @@ local fieldMeta = {
     mitigation = { label = 'Mitigation' },
     summonCost = { label = 'Summon Cost' },
     convinceCost = { label = 'Convince Cost' },
+    capGain = { label = 'Capacity Gain' },
+    pvpDamage = { label = 'PvP Damage' },
+    noPong = { label = 'No Pong' },
+    healthTicks = { label = 'Health Ticks' },
+    manaTicks = { label = 'Mana Ticks' },
+    magicLevelMultiplier = { label = 'Magic Level' },
+    weaponSkillMultiplier = { label = 'Weapon Learning Speed' },
+    role = { label = 'Role' },
+    promotionFrom = { label = 'Promotion From' },
+    promotionTo = { label = 'Promotion To' },
+    meleeDamage = { label = 'Melee Damage' },
+    meleeDamageMultiplier = { label = 'Melee Damage' },
+    dist = { label = 'Dist Damage' },
+    distanceDamage = { label = 'Dist Damage' },
+    melee = { label = 'Melee Damage' },
+    distance = { label = 'Dist Damage' },
+    distDamage = { label = 'Dist Damage' },
+    distanceDamageMultiplier = { label = 'Dist Damage' },
+    defenseMultiplier = { label = 'Defense' },
+    armorMultiplier = { label = 'Armor' },
     elementDamage = { label = 'Element Damage' },
     elementType = { label = 'Element Type' },
     criticalhitamount = { label = 'Critical Hit Amount' },
@@ -317,8 +375,8 @@ local function bindUi()
     ui = {
         itemsTab = child('itemsTab'),
         monstersTab = child('monstersTab'),
+        vocationsTab = child('vocationsTab'),
         dailyRewardsTab = child('dailyRewardsTab'),
-        dailyRewardsTabText = child('dailyRewardsTab') and child('dailyRewardsTab'):recursiveGetChildById('Text'),
         leftColumn = child('leftColumn'),
         middleSeparator = child('middleSeparator'),
         categoryPanel = child('categoryPanel'),
@@ -364,6 +422,9 @@ local function getResultLabelText(domain)
     if domain == DOMAIN_DAILY_REWARDS then
         return tr('Daily Rewards')
     end
+    if domain == DOMAIN_VOCATIONS then
+        return tr('Vocations')
+    end
     return domain == DOMAIN_MONSTERS and tr('Monsters') or tr('Items')
 end
 
@@ -373,6 +434,9 @@ local function getSelectionPlaceholder(domain)
     end
     if domain == DOMAIN_MONSTERS then
         return tr('Select a monster to see its details here.')
+    end
+    if domain == DOMAIN_VOCATIONS then
+        return tr('Select a vocation to see its details here.')
     end
     return tr('Select an item to see its details here.')
 end
@@ -384,6 +448,9 @@ local function getInitialPlaceholder(domain)
     if domain == DOMAIN_MONSTERS then
         return tr('Choose the monsters tab and select a monster to see its details here.')
     end
+    if domain == DOMAIN_VOCATIONS then
+        return tr('Choose the vocations tab and select a vocation to see its details here.')
+    end
     return tr('Select a category and choose an item to see its details here.')
 end
 
@@ -391,10 +458,16 @@ local function getLoadingText(domain)
     if domain == DOMAIN_DAILY_REWARDS then
         return tr('Loading daily rewards...')
     end
+    if domain == DOMAIN_VOCATIONS then
+        return tr('Loading vocations...')
+    end
     return domain == DOMAIN_MONSTERS and tr('Loading monsters...') or tr('Loading items...')
 end
 
 local function getDetailLoadingText(domain)
+    if domain == DOMAIN_VOCATIONS then
+        return tr('Loading vocation details...')
+    end
     return domain == DOMAIN_MONSTERS and tr('Loading monster details...') or tr('Loading item details...')
 end
 
@@ -404,6 +477,9 @@ local function getNoResultsText(domain)
     end
     if domain == DOMAIN_MONSTERS then
         return tr('No monsters found.')
+    end
+    if domain == DOMAIN_VOCATIONS then
+        return tr('No vocations found.')
     end
     return tr('No items found for this category.')
 end
@@ -428,7 +504,7 @@ local function resetDetailPanel(message, clearSelection)
     ui.detailPlaceholder:setText(message)
     ui.detailPlaceholder:show()
     ui.detailContent:hide()
-    ui.itemName:setText(state.domain == DOMAIN_MONSTERS and tr('Monster') or tr('Item'))
+    ui.itemName:setText(state.domain == DOMAIN_MONSTERS and tr('Monster') or state.domain == DOMAIN_VOCATIONS and tr('Vocation') or tr('Item'))
     ui.tierTabsPanel:hide()
     ui.tierTabs:destroyChildren()
     ui.itemSprite:setItemId(0)
@@ -521,7 +597,7 @@ end
 local function formatScalarValue(key, value)
     local meta = fieldMeta[key] or {}
     if meta.boolean then
-        return value and 'Yes' or 'No'
+        return value and tr('Yes') or tr('No')
     end
     if key == 'tier' then
         local numericValue = tonumber(value)
@@ -544,7 +620,7 @@ local function formatScalarValue(key, value)
         end
     end
     if type(value) == 'boolean' then
-        return value and 'Yes' or 'No'
+        return value and tr('Yes') or tr('No')
     end
     return tostring(value)
 end
@@ -611,6 +687,171 @@ local function formatValue(key, value)
     return formatScalarValue(key, value)
 end
 
+local hiddenVocationFields = {
+    attackSpeed = true,
+    attack_speed = true,
+    allowPvp = true,
+    allowPvP = true,
+    allowPVP = true,
+    allow_pvp = true,
+    baseSpeed = true,
+    base_speed = true,
+    noPongKickTime = true,
+    noPongKick = true,
+    no_pong_kick_time = true,
+    soulGainTicks = true,
+    soulTicks = true,
+    soul_gain_ticks = true,
+    soulMax = true,
+    soul_max = true
+}
+
+local function removeHiddenVocationFields(values)
+    if type(values) ~= 'table' then
+        return
+    end
+    for key in pairs(hiddenVocationFields) do
+        values[key] = nil
+    end
+end
+
+local function formatVocationSkillLearningSpeed(value)
+    local multiplier = tonumber(value)
+    if not multiplier or multiplier <= 0 then
+        return formatValue('', value), VOCATION_FORMULA_NEUTRAL_COLOR
+    end
+
+    local speed = 100 + (1.1 - multiplier) * 1000
+    local color = VOCATION_FORMULA_NEUTRAL_COLOR
+    if speed > 100 then
+        color = VOCATION_FORMULA_POSITIVE_COLOR
+    elseif speed < 100 then
+        color = VOCATION_FORMULA_NEGATIVE_COLOR
+    end
+
+    local text
+    if math.abs(speed - math.floor(speed + 0.5)) < 0.005 then
+        text = string.format('%d%%', math.floor(speed + 0.5))
+    else
+        text = string.format('%.2f%%', speed)
+    end
+    return text, color
+end
+
+local function formatVocationFormulaMultiplier(value)
+    local multiplier = tonumber(value)
+    if not multiplier then
+        return formatValue('', value), VOCATION_FORMULA_NEUTRAL_COLOR
+    end
+
+    local percent = multiplier * 100
+    local color = VOCATION_FORMULA_NEUTRAL_COLOR
+    if percent > 100 then
+        color = VOCATION_FORMULA_POSITIVE_COLOR
+    elseif percent < 100 then
+        color = VOCATION_FORMULA_NEGATIVE_COLOR
+    end
+
+    local text
+    if math.abs(percent - math.floor(percent + 0.5)) < 0.005 then
+        text = string.format('%d%%', math.floor(percent + 0.5))
+    else
+        text = string.format('%.2f%%', percent)
+    end
+    return text, color
+end
+
+local function formatRegenValue(amount, ticks)
+    if amount == nil or ticks == nil then
+        return nil
+    end
+    return string.format('%s/%ss', tostring(amount), tostring(ticks))
+end
+
+local hiddenVocationSkills = {
+    agility = true,
+    skillAgility = true,
+    alchemy = true,
+    skillAlchemy = true,
+    cooking = true,
+    skillCooking = true,
+    fishing = true,
+    skillFishing = true,
+    skillFish = true,
+    fist = true,
+    skillFist = true,
+    hunting = true,
+    skillHunting = true,
+    mining = true,
+    skillMining = true,
+    shield = true,
+    shielding = true,
+    skillShield = true,
+    smithing = true,
+    smith = true,
+    skillSmithing = true,
+    skillSmith = true,
+    strength = true,
+    skillStrength = true
+}
+
+local hiddenVocationFormulaFields = {
+    weaponSkillMultiplier = true
+}
+
+local function removeHiddenVocationSkills(values)
+    if type(values) ~= 'table' then
+        return
+    end
+    for key in pairs(hiddenVocationSkills) do
+        values[key] = nil
+    end
+end
+
+local function removeHiddenVocationFormulaFields(values)
+    if type(values) ~= 'table' then
+        return
+    end
+    for key in pairs(hiddenVocationFormulaFields) do
+        values[key] = nil
+    end
+end
+
+local function normalizeVocationRegeneration(values)
+    if type(values) ~= 'table' then
+        return values
+    end
+
+    local normalized = {}
+    local health = formatRegenValue(values.healthAmount or values.healthGain, values.healthTicks)
+    local mana = formatRegenValue(values.manaAmount or values.manaGain, values.manaTicks)
+    if health then
+        normalized.health = health
+    end
+    if mana then
+        normalized.mana = mana
+    end
+
+    return normalized
+end
+
+local function normalizeVocationDetailGroups(details)
+    if type(details) ~= 'table' or type(details.progression) ~= 'table' then
+        return
+    end
+
+    details.skills = type(details.skills) == 'table' and details.skills or {}
+    details.formula = type(details.formula) == 'table' and details.formula or {}
+
+    if details.progression.magicLevelMultiplier ~= nil then
+        details.skills.magicLevelMultiplier = details.progression.magicLevelMultiplier
+        details.progression.magicLevelMultiplier = nil
+    end
+    details.progression.weaponSkillMultiplier = nil
+
+    details.progression = nil
+end
+
 local function isVisibleLootEntry(entry)
     if type(entry) ~= 'table' then
         return false
@@ -664,7 +905,7 @@ end
 
 local function getFieldLabel(key)
     local meta = fieldMeta[key]
-    return meta and meta.label or humanizeKey(key)
+    return meta and tr(meta.label) or humanizeKey(key)
 end
 
 local function sendRequest(domain, action, data)
@@ -1139,6 +1380,15 @@ local function ensureMonsterCategoriesRequested()
     sendRequest(DOMAIN_MONSTERS, 'categories')
 end
 
+local function ensureVocationCategoriesRequested()
+    local vocationsState = state.vocations
+    if vocationsState.categoriesLoaded or vocationsState.categoriesRequested then
+        return
+    end
+    vocationsState.categoriesRequested = true
+    sendRequest(DOMAIN_VOCATIONS, 'categories')
+end
+
 local function getOrderedGroupEntries(groupKey, values)
     local ordered = {}
     local seen = {}
@@ -1332,6 +1582,10 @@ local function requestDetail(entryId, selector)
         if variant then
             payload.variant = variant
         end
+    elseif state.domain == DOMAIN_VOCATIONS then
+        domainState.selectedId = entryId
+        cacheKey = makeDetailCacheKey(state.domain, entryId, 1)
+        payload = { vocationId = entryId }
     else
         local numericTier = tonumber(selector) or 1
         domainState.selectedId = entryId
@@ -1445,7 +1699,7 @@ local function renderDetailGroups(details)
 
                 if #visibleAttacks > 0 then
                     local heading = g_ui.createWidget('LibrarySectionLabel', list)
-                    heading:setText(group.label .. ':')
+                    heading:setText(tr(group.label) .. ':')
 
                     g_ui.createWidget('LibraryAttackTableHeader', list)
 
@@ -1490,7 +1744,7 @@ local function renderDetailGroups(details)
 
                 if #visibleLoot > 0 then
                     local heading = g_ui.createWidget('LibrarySectionLabel', list)
-                    heading:setText(group.label .. ':')
+                    heading:setText(tr(group.label) .. ':')
 
                     g_ui.createWidget('LibraryLootTableHeader', list)
 
@@ -1530,9 +1784,9 @@ local function renderDetailGroups(details)
                     local heading = g_ui.createWidget('LibrarySectionLabel', list)
                     local maxSummons = tonumber(values.maxSummons)
                     if maxSummons and maxSummons > 0 then
-                        heading:setText(string.format('%s (%s: %d):', group.label, tr('Max'), maxSummons))
+                        heading:setText(string.format('%s (%s: %d):', tr(group.label), tr('Max'), maxSummons))
                     else
-                        heading:setText(group.label .. ':')
+                        heading:setText(tr(group.label) .. ':')
                     end
 
                     g_ui.createWidget('LibrarySummonTableHeader', list)
@@ -1564,6 +1818,16 @@ local function renderDetailGroups(details)
                 end
             else
             local displayValues = copyTable(values)
+            if state.domain == DOMAIN_VOCATIONS then
+                removeHiddenVocationFields(displayValues)
+                if group.key == 'skills' then
+                    removeHiddenVocationSkills(displayValues)
+                elseif group.key == 'formula' then
+                    removeHiddenVocationFormulaFields(displayValues)
+                elseif group.key == 'regeneration' then
+                    displayValues = normalizeVocationRegeneration(displayValues)
+                end
+            end
 
             if group.key == 'basic' then
                 displayValues.range = nil
@@ -1579,7 +1843,7 @@ local function renderDetailGroups(details)
 
             if next(displayValues) ~= nil then
                 local heading = g_ui.createWidget('LibrarySectionLabel', list)
-                heading:setText(group.label .. ':')
+                heading:setText(tr(group.label) .. ':')
 
                 for _, entry in ipairs(getOrderedGroupEntries(group.key, displayValues)) do
                     local key = entry.key
@@ -1588,7 +1852,15 @@ local function renderDetailGroups(details)
                     local background = row:getChildById('background')
                     local nameLabel = background and background:getChildById('name')
                     local valueLabel = background and background:getChildById('value')
-                    local textValue = formatValue(key, value)
+                    local textValue
+                    local valueColor
+                    if state.domain == DOMAIN_VOCATIONS and group.key == 'skills' then
+                        textValue, valueColor = formatVocationSkillLearningSpeed(value)
+                    elseif state.domain == DOMAIN_VOCATIONS and group.key == 'formula' then
+                        textValue, valueColor = formatVocationFormulaMultiplier(value)
+                    else
+                        textValue = formatValue(key, value)
+                    end
                     local lineCount = select(2, textValue:gsub('\n', '\n')) + 1
                     local requiresTallRow = (type(value) == 'string' and #value > 40) or lineCount > 1
                     row:setHeight(requiresTallRow and math.max(34, lineCount * 14) or 20)
@@ -1597,6 +1869,7 @@ local function renderDetailGroups(details)
                     end
                     if valueLabel then
                         valueLabel:setText(textValue)
+                        valueLabel:setColor(valueColor or '#BDBDBD')
                         valueLabel:setTextWrap(type(value) == 'string' or lineCount > 1)
                     end
                 end
@@ -1623,6 +1896,10 @@ showDetail = function(data)
         end
         domainState.availableVariants = normalizeVariantList(data.availableVariants)
         domainState.availableTiers = {}
+    elseif domain == DOMAIN_VOCATIONS then
+        domainState.selectedId = tonumber(data.vocationId) or tonumber(data.id) or domainState.selectedId
+        domainState.availableTiers = {}
+        domainState.availableVariants = {}
     else
         domainState.selectedId = tonumber(data.wareId) or domainState.selectedId
         domainState.selectedTier = tonumber(data.tier) or 1
@@ -1631,10 +1908,13 @@ showDetail = function(data)
     end
     ui.detailPlaceholder:hide()
     ui.detailContent:show()
-    ui.itemName:setText(data.name or (domain == DOMAIN_MONSTERS and tr('Monster') or tr('Item')))
+    ui.itemName:setText(data.name or (domain == DOMAIN_MONSTERS and tr('Monster') or domain == DOMAIN_VOCATIONS and tr('Vocation') or tr('Item')))
 
     local details = copyTable(data.details or {})
     details.__description = data.description
+    if domain == DOMAIN_VOCATIONS then
+        normalizeVocationDetailGroups(details)
+    end
     normalizeDetailGroups(details)
 
     if domain == DOMAIN_MONSTERS then
@@ -1644,6 +1924,10 @@ showDetail = function(data)
         if not visible then
             resetDetailCreature()
         end
+    elseif domain == DOMAIN_VOCATIONS then
+        resetDetailCreature()
+        ui.selectedItem:setVisible(false)
+        ui.itemSprite:setItemId(0)
     else
         resetDetailCreature()
         ui.selectedItem:setVisible(true)
@@ -1652,6 +1936,9 @@ showDetail = function(data)
 
     if domain == DOMAIN_MONSTERS then
         renderVariantTabs(domainState.selectedVariant, domainState.availableVariants)
+    elseif domain == DOMAIN_VOCATIONS then
+        ui.tierTabsPanel:hide()
+        ui.tierTabs:destroyChildren()
     else
         renderTierTabs(domainState.selectedTier, domainState.availableTiers)
     end
@@ -1679,6 +1966,9 @@ local function onResultSelected(widget, entry)
         local variant = type(entry.bossVariant) == 'string' and entry.bossVariant ~= '' and entry.bossVariant or nil
         domainState.selectedVariant = variant
         requestDetail(domainState.selectedId, variant)
+    elseif state.domain == DOMAIN_VOCATIONS then
+        domainState.selectedId = tonumber(entry.vocationId or entry.id)
+        requestDetail(domainState.selectedId, 1)
     else
         domainState.selectedId = tonumber(entry.wareId)
         domainState.selectedTier = 1
@@ -1687,7 +1977,7 @@ local function onResultSelected(widget, entry)
 end
 
 local function renderResults(response)
-    local list = state.domain == DOMAIN_MONSTERS and ui.monsterList or ui.resultList
+    local list = (state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS) and ui.monsterList or ui.resultList
     list:destroyChildren()
     hideAllEmptyLabels()
     clearResultSelection(state.domain)
@@ -1698,10 +1988,10 @@ local function renderResults(response)
     domainState.totalPages = math.max(1, tonumber(response.totalPages) or 1)
     domainState.totalResults = tonumber(response.totalResults) or #items
     updatePagination()
-    setResultWidgetsEnabled(state.domain == DOMAIN_MONSTERS or domainState.activeCategory ~= nil)
+    setResultWidgetsEnabled(state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS or domainState.activeCategory ~= nil)
 
     if #items == 0 then
-        if state.domain == DOMAIN_MONSTERS then
+        if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS then
             updateMonsterEmptyLabel(getNoResultsText(state.domain))
         else
             updateResultEmptyLabel(getNoResultsText(state.domain))
@@ -1711,7 +2001,7 @@ local function renderResults(response)
     end
 
     for _, entry in ipairs(items) do
-        local rowType = state.domain == DOMAIN_MONSTERS and 'LibraryMonsterListItem' or 'LibraryResultItem'
+        local rowType = state.domain == DOMAIN_VOCATIONS and 'LibraryVocationListItem' or state.domain == DOMAIN_MONSTERS and 'LibraryMonsterListItem' or 'LibraryResultItem'
         local row = g_ui.createWidget(rowType, list)
         local sprite = row:recursiveGetChildById('Sprite')
         local creature = row:recursiveGetChildById('Creature')
@@ -1726,6 +2016,14 @@ local function renderResults(response)
             if not applyMonsterPreview(row, entry.raceId, entry.outfit) and creature then
                 creature:setVisible(false)
             end
+        elseif state.domain == DOMAIN_VOCATIONS then
+            if creature then
+                creature:setVisible(false)
+            end
+            if sprite then
+                sprite:setItemId(0)
+                sprite:setVisible(false)
+            end
         else
             if creature then
                 creature:setVisible(false)
@@ -1737,7 +2035,7 @@ local function renderResults(response)
         end
 
         if nameLabel then
-            nameLabel:setText(entry.name or (state.domain == DOMAIN_MONSTERS and tr('Unknown monster') or tr('Unknown item')))
+            nameLabel:setText(entry.name or (state.domain == DOMAIN_MONSTERS and tr('Unknown monster') or state.domain == DOMAIN_VOCATIONS and tr('Unknown vocation') or tr('Unknown item')))
         end
         row.onClick = function()
             onResultSelected(row, entry)
@@ -1761,8 +2059,8 @@ local function requestCurrentPage(force)
 
     local domainState = getDomainState()
     if not domainState.activeCategory then
-        if state.domain == DOMAIN_MONSTERS then
-            updateMonsterEmptyLabel(tr('Select a category to load monsters.'))
+        if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS then
+            updateMonsterEmptyLabel(state.domain == DOMAIN_VOCATIONS and tr('Select a category to load vocations.') or tr('Select a category to load monsters.'))
         else
             updateResultEmptyLabel(tr('Select a category to load items.'))
         end
@@ -1778,7 +2076,7 @@ local function requestCurrentPage(force)
         return
     end
 
-    if state.domain == DOMAIN_MONSTERS then
+    if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS then
         ui.monsterList:destroyChildren()
         updateMonsterEmptyLabel(getLoadingText(state.domain))
     else
@@ -1800,14 +2098,12 @@ end
 local function updateDomainUi()
     local isItems = state.domain == DOMAIN_ITEMS
     local isMonsters = state.domain == DOMAIN_MONSTERS
+    local isVocations = state.domain == DOMAIN_VOCATIONS
     local isDailyRewards = state.domain == DOMAIN_DAILY_REWARDS
     ui.itemsTab:setOn(isItems)
     ui.monstersTab:setOn(isMonsters)
+    ui.vocationsTab:setOn(isVocations)
     ui.dailyRewardsTab:setOn(isDailyRewards)
-    if ui.dailyRewardsTabText then
-        ui.dailyRewardsTabText:setVisible(isDailyRewards)
-        ui.dailyRewardsTabText:setColor(isDailyRewards and '#F6F6F6' or '#C0C0C0')
-    end
     if state.dailyRewards.notificationAvailable then
         setDailyRewardsTabNotifyColor(state.dailyRewards.tabNotificationBlinkOn)
     else
@@ -1819,9 +2115,11 @@ local function updateDomainUi()
     ui.dailyRewardsPanel:setVisible(isDailyRewards)
     ui.dailyFooterStatsLabel:setVisible(isDailyRewards)
     ui.categoryPanel:setVisible(isItems)
-    ui.monsterPanel:setVisible(isMonsters)
+    ui.monsterPanel:setVisible(isMonsters or isVocations)
     ui.itemsSection:setVisible(isItems)
     ui.resultLabel:setText(getResultLabelText(state.domain) .. ':')
+    ui.monsterCategoryLabel:setText(tr('Categories') .. ':')
+    ui.monsterLabel:setText((isVocations and tr('Vocations') or tr('Monsters')) .. ':')
     if not isDailyRewards then
         ui.detailPlaceholder:setText(getInitialPlaceholder(state.domain))
     end
@@ -1839,7 +2137,7 @@ local function updateDomainUi()
         ui.resultEmptyLabel:setVisible(false)
     else
         ui.resultList:destroyChildren()
-        ui.resultEmptyLabel:setText(tr('Select a monster from the list above.'))
+        ui.resultEmptyLabel:setText(isVocations and tr('Select a vocation from the list above.') or tr('Select a monster from the list above.'))
         ui.resultEmptyLabel:setVisible(true)
     end
 end
@@ -1868,6 +2166,23 @@ local function getMonsterCategoryLabel(entry)
     end
     if type(entry.label) == 'string' and entry.label ~= '' then
         return entry.label
+    end
+    return humanizeKey(entry.key)
+end
+
+local function getVocationCategoryLabel(entry)
+    if type(entry) ~= 'table' then
+        return ''
+    end
+    if entry.key == 'NO_CAMP' then
+        return tr('None')
+    elseif entry.key == 'OLD_CAMP' then
+        return tr('Old Camp')
+    elseif entry.key == 'NEW_CAMP' then
+        return tr('New Camp')
+    end
+    if type(entry.label) == 'string' and entry.label ~= '' then
+        return tr(entry.label)
     end
     return humanizeKey(entry.key)
 end
@@ -1919,6 +2234,29 @@ local function setMonsterCategory(categoryKey)
     requestCurrentPage(false)
 end
 
+local function setVocationCategory(categoryKey)
+    local domainState = state.vocations
+    if domainState.activeCategory == categoryKey then
+        return
+    end
+
+    domainState.activeCategory = categoryKey
+    domainState.page = 1
+    domainState.search = ''
+    if domainState.selectedResult and not domainState.selectedResult:isDestroyed() then
+        domainState.selectedResult:setChecked(false)
+    end
+    domainState.selectedResult = nil
+    domainState.selectedId = nil
+    ui.searchEdit:setText('')
+
+    for _, widget in ipairs(ui.monsterCategoryList:getChildren()) do
+        widget:setChecked(widget.categoryKey == categoryKey)
+    end
+
+    requestCurrentPage(false)
+end
+
 local function renderMonsterCategories()
     local list = ui.monsterCategoryList
     list:destroyChildren()
@@ -1930,6 +2268,27 @@ local function renderMonsterCategories()
         widget:setChecked(state.monsters.activeCategory == entry.key)
         widget.onClick = function()
             setMonsterCategory(entry.key)
+        end
+        widget.onMouseRelease = function(self, mousePos, mouseButton)
+            if self:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
+                self:onClick()
+                return true
+            end
+        end
+    end
+end
+
+local function renderVocationCategories()
+    local list = ui.monsterCategoryList
+    list:destroyChildren()
+
+    for _, entry in ipairs(state.vocations.categories) do
+        local widget = g_ui.createWidget('LibraryCategoryItem', list)
+        widget.categoryKey = entry.key
+        widget:setText(getVocationCategoryLabel(entry))
+        widget:setChecked(state.vocations.activeCategory == entry.key)
+        widget.onClick = function()
+            setVocationCategory(entry.key)
         end
         widget.onMouseRelease = function(self, mousePos, mouseButton)
             if self:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
@@ -2006,6 +2365,46 @@ local function normalizeMonsterCategories(serverCategories)
     return normalized, defaultCategory
 end
 
+local function normalizeVocationCategories(serverCategories)
+    local normalized = {}
+    local seen = {}
+    local defaultCategory = nil
+
+    local function addCategory(category)
+        if type(category) ~= 'table' or type(category.key) ~= 'string' or category.key == '' or seen[category.key] then
+            return
+        end
+        local entry = {
+            key = category.key,
+            label = category.label,
+            default = category.default == true
+        }
+        seen[entry.key] = true
+        table.insert(normalized, entry)
+        if entry.default and not defaultCategory then
+            defaultCategory = entry.key
+        end
+    end
+
+    if type(serverCategories) == 'table' then
+        for _, category in ipairs(serverCategories) do
+            addCategory(category)
+        end
+    end
+
+    if #normalized == 0 then
+        addCategory({ key = 'NO_CAMP', label = 'None' })
+        addCategory({ key = 'OLD_CAMP', label = 'Old Camp' })
+        addCategory({ key = 'NEW_CAMP', label = 'New Camp' })
+    end
+
+    if not defaultCategory and normalized[1] then
+        defaultCategory = normalized[1].key
+    end
+
+    return normalized, defaultCategory
+end
+
 local function handleCategoriesResponse(data)
     state.items.categoriesLoaded = true
     state.items.categoriesRequested = false
@@ -2022,6 +2421,19 @@ local function handleMonsterCategoriesResponse(data)
     renderMonsterCategories()
 
     if state.domain == DOMAIN_MONSTERS and monstersState.activeCategory and monstersState.activeCategory ~= previousCategory then
+        requestCurrentPage(false)
+    end
+end
+
+local function handleVocationCategoriesResponse(data)
+    local vocationsState = state.vocations
+    local previousCategory = vocationsState.activeCategory
+    vocationsState.categoriesLoaded = true
+    vocationsState.categoriesRequested = false
+    vocationsState.categories, vocationsState.activeCategory = normalizeVocationCategories(data.categories)
+    renderVocationCategories()
+
+    if state.domain == DOMAIN_VOCATIONS and vocationsState.activeCategory and vocationsState.activeCategory ~= previousCategory then
         requestCurrentPage(false)
     end
 end
@@ -2058,6 +2470,14 @@ local function handleDetailResponse(domain, data, requestData)
             domainState.detailCache[makeDetailCacheKey(domain, familyId, variant or '')] = data
         end
         if domain == state.domain and familyId == domainState.selectedId and (variant or '') == (domainState.selectedVariant or '') then
+            showDetail(data)
+        end
+    elseif domain == DOMAIN_VOCATIONS then
+        local vocationId = tonumber(data.vocationId or data.id or requestData.vocationId or requestData.id)
+        if vocationId then
+            domainState.detailCache[makeDetailCacheKey(domain, vocationId, 1)] = data
+        end
+        if domain == state.domain and vocationId == domainState.selectedId then
             showDetail(data)
         end
     else
@@ -2115,6 +2535,8 @@ local function handleLibraryError(domain, action, payload)
         state.items.categoriesRequested = false
     elseif domain == DOMAIN_MONSTERS and action == 'categories' then
         state.monsters.categoriesRequested = false
+    elseif domain == DOMAIN_VOCATIONS and action == 'categories' then
+        state.vocations.categoriesRequested = false
     end
 
     if domain == DOMAIN_MONSTERS and action == 'detail' and errorCode == 'INVALID_VARIANT' then
@@ -2125,7 +2547,7 @@ local function handleLibraryError(domain, action, payload)
         end
     end
 
-    if domain == DOMAIN_MONSTERS then
+    if domain == DOMAIN_MONSTERS or domain == DOMAIN_VOCATIONS then
         updateMonsterEmptyLabel(message)
     else
         updateResultEmptyLabel(message)
@@ -2162,6 +2584,8 @@ local function onLibraryOpcode(protocol, opcode, payload)
         handleCategoriesResponse(data)
     elseif action == 'categories' and domain == DOMAIN_MONSTERS then
         handleMonsterCategoriesResponse(data)
+    elseif action == 'categories' and domain == DOMAIN_VOCATIONS then
+        handleVocationCategoriesResponse(data)
     elseif action == 'list' then
         handleListResponse(domain, data, requestData)
     elseif action == 'detail' then
@@ -2217,6 +2641,7 @@ local function switchDomain(domain)
     updateDomainUi()
     clearResultSelection(DOMAIN_ITEMS)
     clearResultSelection(DOMAIN_MONSTERS)
+    clearResultSelection(DOMAIN_VOCATIONS)
 
     if domain == DOMAIN_DAILY_REWARDS then
         setResultWidgetsEnabled(false)
@@ -2231,6 +2656,9 @@ local function switchDomain(domain)
     if domain == DOMAIN_ITEMS then
         ensureCategoriesRequested()
         renderCategories()
+    elseif domain == DOMAIN_VOCATIONS then
+        ensureVocationCategoriesRequested()
+        renderVocationCategories()
     else
         ensureMonsterCategoriesRequested()
         renderMonsterCategories()
@@ -2239,8 +2667,8 @@ local function switchDomain(domain)
     if domainState.activeCategory then
         requestCurrentPage(false)
     else
-        if domain == DOMAIN_MONSTERS then
-            updateMonsterEmptyLabel(tr('Select a category to load monsters.'))
+        if domain == DOMAIN_MONSTERS or domain == DOMAIN_VOCATIONS then
+            updateMonsterEmptyLabel(domain == DOMAIN_VOCATIONS and tr('Select a category to load vocations.') or tr('Select a category to load monsters.'))
         else
             updateResultEmptyLabel(tr('Select a category to load items.'))
         end
@@ -2271,6 +2699,9 @@ local function show()
     elseif state.domain == DOMAIN_ITEMS then
         ensureCategoriesRequested()
         renderCategories()
+    elseif state.domain == DOMAIN_VOCATIONS then
+        ensureVocationCategoriesRequested()
+        renderVocationCategories()
     else
         ensureMonsterCategoriesRequested()
         renderMonsterCategories()
@@ -2281,8 +2712,8 @@ local function show()
     if domainState.activeCategory then
         requestCurrentPage(false)
     else
-        if state.domain == DOMAIN_MONSTERS then
-            updateMonsterEmptyLabel(tr('Select a category to load monsters.'))
+        if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS then
+            updateMonsterEmptyLabel(state.domain == DOMAIN_VOCATIONS and tr('Select a category to load vocations.') or tr('Select a category to load monsters.'))
         else
             updateResultEmptyLabel(tr('Select a category to load items.'))
         end
@@ -2316,6 +2747,7 @@ end
 local function resetUiState()
     clearResultSelection(DOMAIN_ITEMS)
     clearResultSelection(DOMAIN_MONSTERS)
+    clearResultSelection(DOMAIN_VOCATIONS)
     ui.searchEdit:setText('')
     ui.resultList:destroyChildren()
     ui.monsterList:destroyChildren()
@@ -2325,11 +2757,15 @@ local function resetUiState()
     ui.dailyFooterStatsLabel:setVisible(false)
     ui.dailyClaimButton:setEnabled(false)
     renderCategories()
-    renderMonsterCategories()
+    if state.domain == DOMAIN_VOCATIONS then
+        renderVocationCategories()
+    else
+        renderMonsterCategories()
+    end
     ui.detailList:destroyChildren()
     updateDomainUi()
-    if state.domain == DOMAIN_MONSTERS then
-        updateMonsterEmptyLabel(tr('Select a category to load monsters.'))
+    if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS then
+        updateMonsterEmptyLabel(state.domain == DOMAIN_VOCATIONS and tr('Select a category to load vocations.') or tr('Select a category to load monsters.'))
     else
         updateResultEmptyLabel(tr('Select a category to load items.'))
     end
@@ -2376,6 +2812,7 @@ local function resetDataState()
     state.domain = DOMAIN_ITEMS
     resetDomainState(DOMAIN_ITEMS)
     resetDomainState(DOMAIN_MONSTERS)
+    resetDomainState(DOMAIN_VOCATIONS)
     resetDomainState(DOMAIN_DAILY_REWARDS)
     state.pending = {}
 end
@@ -2393,6 +2830,7 @@ function init()
     libraryWindow:hide()
     ui.itemsTab.onClick = function() switchDomain(DOMAIN_ITEMS) end
     ui.monstersTab.onClick = function() switchDomain(DOMAIN_MONSTERS) end
+    ui.vocationsTab.onClick = function() switchDomain(DOMAIN_VOCATIONS) end
     ui.dailyRewardsTab.onClick = function() switchDomain(DOMAIN_DAILY_REWARDS) end
     ui.closeButton.onClick = hide
     ui.dailyClaimButton.onClick = claimDailyReward

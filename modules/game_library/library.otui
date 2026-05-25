@@ -15,44 +15,26 @@ LibraryTabButton < UIButton
 
 LibraryDailyTabButton < UIButton
   size: 34 34
+  image-source: /images/game/cyclopedia/daily_off
+  image-clip: 0 0 34 34
   background-color: #484848
   border-width: 1
   border-color: #222222
-
-  UIWidget
-    id: Icon
-    size: 30 30
-    anchors.left: parent.left
-    anchors.top: parent.top
-    margin-left: 2
-    margin-top: 2
-    image-source: /images/game/cyclopedia/charms_off
-    image-clip: 0 0 34 34
-    phantom: true
-
-  Label
-    id: Text
-    anchors.left: parent.left
-    anchors.right: parent.right
-    anchors.verticalCenter: parent.verticalCenter
-    margin-left: 40
-    margin-right: 6
-    !text: tr('Daily rewards')
-    color: #C0C0C0
-    text-align: left
-    visible: false
-    phantom: true
 
   $hover:
     background-color: #525252
 
   $on:
     size: 150 34
+    image-source: /images/game/cyclopedia/daily_on
+    image-clip: 0 0 150 34
     background-color: #585858
     border-color: #747474
 
   $pressed:
     size: 34 34
+    image-source: /images/game/cyclopedia/daily_off
+    image-clip: 0 34 34 34
     background-color: #404040
 
 LibraryCategoryItem < UICheckBox
@@ -94,6 +76,28 @@ LibraryMonsterListItem < UICheckBox
     anchors.bottom: parent.bottom
     margin-top: 4
     margin-bottom: 4
+    margin-left: 8
+    margin-right: 6
+    color: #CFCFCF
+    text-wrap: true
+    text-align: left
+
+  $hover:
+    background-color: #525252
+
+  $checked:
+    background-color: #585858
+
+LibraryVocationListItem < UICheckBox
+  size: 182 24
+  background-color: #484848
+
+  Label
+    id: Name
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
     margin-left: 8
     margin-right: 6
     color: #CFCFCF
@@ -489,10 +493,28 @@ MainWindow
         image-source: /images/game/cyclopedia/bestiary_off
         image-clip: 0 34 34 34
 
+    LibraryTabButton
+      id: vocationsTab
+      anchors.top: parent.top
+      anchors.left: monstersTab.right
+      margin-left: 6
+      image-source: /images/game/cyclopedia/vocation_off
+      image-clip: 0 0 34 34
+
+      $on:
+        size: 150 34
+        image-source: /images/game/cyclopedia/vocation_on
+        image-clip: 0 0 150 34
+
+      $pressed:
+        size: 34 34
+        image-source: /images/game/cyclopedia/vocation_off
+        image-clip: 0 34 34 34
+
     LibraryDailyTabButton
       id: dailyRewardsTab
       anchors.top: parent.top
-      anchors.left: monstersTab.right
+      anchors.left: vocationsTab.right
       margin-left: 6
 
   UIWidget
