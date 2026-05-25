@@ -73,14 +73,25 @@ LibraryMonsterListItem < UICheckBox
     anchors.left: iconBackground.right
     anchors.right: parent.right
     anchors.top: parent.top
-    anchors.bottom: parent.bottom
     margin-top: 4
-    margin-bottom: 4
     margin-left: 8
     margin-right: 6
+    height: 18
     color: #CFCFCF
     text-wrap: true
     text-align: left
+
+  Label
+    id: BestiaryProgress
+    anchors.right: parent.right
+    anchors.top: Name.bottom
+    margin-right: 24
+    width: 82
+    height: 16
+    font: verdana-10px
+    color: #ff8a8a
+    text-align: right
+    visible: false
 
   $hover:
     background-color: #525252
@@ -961,6 +972,15 @@ MainWindow
 
   Label
     id: dailyFooterStatsLabel
+    anchors.left: parent.left
+    anchors.verticalCenter: closeButton.verticalCenter
+    width: 430
+    color: #BDBDBD
+    text-wrap: true
+    visible: false
+
+  Label
+    id: bestiaryFooterStatsLabel
     anchors.left: parent.left
     anchors.verticalCenter: closeButton.verticalCenter
     width: 430

@@ -5,6 +5,10 @@ local CLAIM_BUTTON_COLOR = '#6fbf5f'
 local CLAIMED_BUTTON_COLOR = '#e84a4a'
 local DAILY_REWARD_NOTIFY_COLOR = '#ffd34d'
 local LIBRARY_BUTTON_DEFAULT_COLOR = '#ffffff'
+local MONSTER_ROW_EVEN_COLOR = '#484848'
+local MONSTER_ROW_ODD_COLOR = '#565656'
+local MONSTER_ROW_HOVER_COLOR = '#525252'
+local MONSTER_ROW_SELECTED_COLOR = '#585858'
 local DAILY_TAB_DEFAULT_BACKGROUND = '#484848'
 local DAILY_TAB_ACTIVE_BACKGROUND = '#585858'
 local DAILY_TAB_DEFAULT_BORDER = '#222222'
@@ -89,11 +93,13 @@ local state = {
         totalPages = 1,
         totalResults = 0,
         selectedId = nil,
+        selectedDetailMonsterId = nil,
         selectedTier = 1,
         selectedVariant = nil,
         availableTiers = {},
         availableVariants = {},
         selectedResult = nil,
+        totalBestiaryPoints = nil,
         pageCache = {},
         detailCache = {}
     },
@@ -414,6 +420,7 @@ local function bindUi()
         dailyClaimButton = child('dailyClaimButton'),
         dailyRewardsList = child('dailyRewardsList'),
         dailyFooterStatsLabel = child('dailyFooterStatsLabel'),
+        bestiaryFooterStatsLabel = child('bestiaryFooterStatsLabel'),
         closeButton = child('closeButton')
     }
 end
@@ -1565,6 +1572,153 @@ local function applyMonsterPreview(widget, raceId, outfitData)
     return true
 end
 
+local function getBestiaryData(entry)
+    if type(entry) ~= 'table' or type(entry.bestiary) ~= 'table' then
+        return nil
+    end
+    if entry.bestiary.enabled == false then
+        return nil
+    end
+    return entry.bestiary
+end
+
+local function getBestiaryProgressText(bestiary)
+    if type(bestiary) ~= 'table' then
+        return ''
+    end
+
+    local progressKills = tonumber(bestiary.progressKills) or tonumber(bestiary.kills) or 0
+    local requiredKills = tonumber(bestiary.requiredKills) or 0
+    if requiredKills <= 0 then
+        return tr('Bestiary unavailable')
+    end
+
+    return string.format('%d/%d', math.min(progressKills, requiredKills), requiredKills)
+end
+
+local function getBestiaryStatusText(bestiary)
+    if type(bestiary) ~= 'table' then
+        return tr('Unavailable')
+    end
+    if bestiary.claimed == true then
+        return tr('Reward claimed')
+    elseif bestiary.claimable == true then
+        return tr('Reward available')
+    elseif bestiary.completed == true then
+        return tr('Completed')
+    end
+    return tr('In progress')
+end
+
+local function getBestiaryTotalPoints(data)
+    if type(data) ~= 'table' then
+        return nil
+    end
+    local totalPoints = tonumber(data.totalBestiaryPoints)
+    if totalPoints then
+        return totalPoints
+    end
+    if type(data.bestiary) == 'table' then
+        return tonumber(data.bestiary.totalPoints)
+    end
+    return nil
+end
+
+local function updateBestiaryPoints(points)
+    local numericPoints = tonumber(points)
+    if not numericPoints then
+        return
+    end
+    state.monsters.totalBestiaryPoints = numericPoints
+    if ui and ui.bestiaryFooterStatsLabel and state.domain == DOMAIN_MONSTERS then
+        ui.bestiaryFooterStatsLabel:setText(string.format('%s: %d', tr('Bestiary points'), numericPoints))
+        ui.bestiaryFooterStatsLabel:setVisible(true)
+    end
+end
+
+local function updateBestiaryFooterVisibility()
+    if not ui or not ui.bestiaryFooterStatsLabel then
+        return
+    end
+
+    local points = tonumber(state.monsters.totalBestiaryPoints)
+    local visible = state.domain == DOMAIN_MONSTERS and points ~= nil
+    ui.bestiaryFooterStatsLabel:setVisible(visible)
+    if visible then
+        ui.bestiaryFooterStatsLabel:setText(string.format('%s: %d', tr('Bestiary points'), points))
+    end
+end
+
+local function updateCachedMonsterBestiary(monsterId, bestiary)
+    if not monsterId or type(bestiary) ~= 'table' then
+        return
+    end
+
+    local domainState = state.monsters
+    for _, pageData in pairs(domainState.pageCache) do
+        if type(pageData) == 'table' and type(pageData.items) == 'table' then
+            for _, entry in ipairs(pageData.items) do
+                if type(entry) == 'table' and (entry.monsterId == monsterId or entry.id == monsterId) then
+                    entry.bestiary = copyTable(bestiary)
+                end
+            end
+        end
+    end
+
+    for _, detail in pairs(domainState.detailCache) do
+        if type(detail) == 'table' and (detail.monsterId == monsterId or detail.id == monsterId) then
+            detail.bestiary = copyTable(bestiary)
+        end
+    end
+end
+
+local function applyBestiaryProgressToRow(row, bestiary)
+    if type(bestiary) ~= 'table' or not row or row:isDestroyed() then
+        return
+    end
+
+    local progressLabel = row:recursiveGetChildById('BestiaryProgress')
+    if not progressLabel then
+        return
+    end
+
+    progressLabel:setText(getBestiaryProgressText(bestiary))
+    progressLabel:setVisible(true)
+    local progressKills = tonumber(bestiary.progressKills) or tonumber(bestiary.kills) or 0
+    local requiredKills = tonumber(bestiary.requiredKills) or 0
+    if bestiary.completed == true or (requiredKills > 0 and progressKills >= requiredKills) then
+        progressLabel:setColor(CLAIM_BUTTON_COLOR)
+    else
+        progressLabel:setColor('#ff8a8a')
+    end
+end
+
+local function updateVisibleMonsterBestiaryRow(monsterId, bestiary)
+    if not monsterId or type(bestiary) ~= 'table' or not ui or not ui.monsterList then
+        return
+    end
+
+    for _, row in ipairs(ui.monsterList:getChildren()) do
+        if row.monsterId == monsterId then
+            applyBestiaryProgressToRow(row, bestiary)
+        end
+    end
+end
+
+local function updateMonsterRowBackground(row)
+    if not row or row:isDestroyed() or not row.monsterBaseColor then
+        return
+    end
+
+    if row:isChecked() then
+        row:setBackgroundColor(MONSTER_ROW_SELECTED_COLOR)
+    elseif row.monsterHovered then
+        row:setBackgroundColor(MONSTER_ROW_HOVER_COLOR)
+    else
+        row:setBackgroundColor(row.monsterBaseColor)
+    end
+end
+
 local function requestDetail(entryId, selector)
     if not entryId then
         return
@@ -1576,6 +1730,7 @@ local function requestDetail(entryId, selector)
     if state.domain == DOMAIN_MONSTERS then
         local variant = type(selector) == 'string' and selector ~= '' and selector or nil
         domainState.selectedId = entryId
+        domainState.selectedDetailMonsterId = nil
         domainState.selectedVariant = variant
         cacheKey = makeDetailCacheKey(state.domain, entryId, variant or '')
         payload = { monsterId = entryId }
@@ -1664,6 +1819,80 @@ local function renderVariantTabs(currentVariant, availableVariants)
     end
 
     ui.tierTabsPanel:show()
+end
+
+local function claimBestiaryReward()
+    local domainState = state.monsters
+    local monsterId = domainState.selectedDetailMonsterId or domainState.selectedId
+    if not monsterId then
+        return
+    end
+
+    sendRequest(DOMAIN_MONSTERS, 'claim', { monsterId = monsterId })
+end
+
+local function renderBestiaryDetails(data)
+    if state.domain ~= DOMAIN_MONSTERS then
+        return
+    end
+
+    local bestiary = getBestiaryData(data)
+    if not bestiary then
+        return
+    end
+
+    local list = ui.detailList
+    local heading = g_ui.createWidget('LibrarySectionLabel', list)
+    heading:setText(tr('Bestiary') .. ':')
+
+    local progressKills = tonumber(bestiary.progressKills) or tonumber(bestiary.kills) or 0
+    local requiredKills = tonumber(bestiary.requiredKills) or 0
+    local rows = {
+        { label = tr('Progress'), value = string.format('%d/%d', math.min(progressKills, requiredKills), requiredKills) },
+        { label = tr('Kills'), value = tostring(tonumber(bestiary.kills) or 0) },
+        { label = tr('Reward points'), value = tostring(tonumber(bestiary.rewardPoints) or 0) },
+        { label = tr('Status'), value = getBestiaryStatusText(bestiary) }
+    }
+
+    for _, entry in ipairs(rows) do
+        local row = g_ui.createWidget('ItemBasicDetail', list)
+        local background = row:getChildById('background')
+        local nameLabel = background and background:getChildById('name')
+        local valueLabel = background and background:getChildById('value')
+        if nameLabel then
+            nameLabel:setText(entry.label)
+        end
+        if valueLabel then
+            valueLabel:setText(entry.value)
+            valueLabel:setColor('#BDBDBD')
+        end
+    end
+
+    local rewardButton = g_ui.createWidget('Button', list)
+    local rewardPoints = tonumber(bestiary.rewardPoints) or 0
+    rewardButton:setHeight(22)
+    rewardButton:setWidth(180)
+    rewardButton:setColor('#ffffff')
+    rewardButton:setMarginTop(4)
+
+    if bestiary.claimed == true then
+        rewardButton:setText(tr('Reward claimed'))
+        rewardButton:setImageColor(CLAIMED_BUTTON_COLOR)
+        rewardButton:setEnabled(false)
+    elseif bestiary.claimable == true then
+        rewardButton:setText(string.format('%s (+%d)', tr('Claim reward'), rewardPoints))
+        rewardButton:setImageColor(CLAIM_BUTTON_COLOR)
+        rewardButton:setEnabled(true)
+        rewardButton.onClick = claimBestiaryReward
+    elseif bestiary.completed == true then
+        rewardButton:setText(tr('Reward available'))
+        rewardButton:setImageColor(CLAIM_BUTTON_COLOR)
+        rewardButton:setEnabled(false)
+    else
+        rewardButton:setText(tr('Reward locked'))
+        rewardButton:setImageColor(CLAIMED_BUTTON_COLOR)
+        rewardButton:setEnabled(false)
+    end
 end
 
 local function renderDetailGroups(details)
@@ -1891,6 +2120,7 @@ showDetail = function(data)
 
     local domainState = getDomainState(domain)
     if domain == DOMAIN_MONSTERS then
+        domainState.selectedDetailMonsterId = data.monsterId or data.id or domainState.selectedId
         if type(data.bossVariant) == 'string' and data.bossVariant ~= '' then
             domainState.selectedVariant = data.bossVariant
         end
@@ -1943,6 +2173,7 @@ showDetail = function(data)
         renderTierTabs(domainState.selectedTier, domainState.availableTiers)
     end
     renderDetailGroups(details)
+    renderBestiaryDetails(data)
 end
 
 local function clearResultSelection(domain)
@@ -1957,10 +2188,12 @@ local function onResultSelected(widget, entry)
     local domainState = getDomainState()
     if domainState.selectedResult and domainState.selectedResult ~= widget and not domainState.selectedResult:isDestroyed() then
         domainState.selectedResult:setChecked(false)
+        updateMonsterRowBackground(domainState.selectedResult)
     end
 
     domainState.selectedResult = widget
     widget:setChecked(true)
+    updateMonsterRowBackground(widget)
     if state.domain == DOMAIN_MONSTERS then
         domainState.selectedId = entry.monsterId or entry.id
         local variant = type(entry.bossVariant) == 'string' and entry.bossVariant ~= '' and entry.bossVariant or nil
@@ -2000,13 +2233,24 @@ local function renderResults(response)
         return
     end
 
-    for _, entry in ipairs(items) do
+    for index, entry in ipairs(items) do
         local rowType = state.domain == DOMAIN_VOCATIONS and 'LibraryVocationListItem' or state.domain == DOMAIN_MONSTERS and 'LibraryMonsterListItem' or 'LibraryResultItem'
         local row = g_ui.createWidget(rowType, list)
         local sprite = row:recursiveGetChildById('Sprite')
         local creature = row:recursiveGetChildById('Creature')
         local nameLabel = row:recursiveGetChildById('Name')
+        local bestiaryProgressLabel = row:recursiveGetChildById('BestiaryProgress')
         row:setPhantom(false)
+        row.monsterId = entry.monsterId or entry.id
+        if state.domain == DOMAIN_MONSTERS then
+            row.monsterBaseColor = index % 2 == 0 and MONSTER_ROW_EVEN_COLOR or MONSTER_ROW_ODD_COLOR
+            row.monsterHovered = false
+            updateMonsterRowBackground(row)
+            row.onHoverChange = function(widget, hovered)
+                widget.monsterHovered = hovered
+                updateMonsterRowBackground(widget)
+            end
+        end
 
         if state.domain == DOMAIN_MONSTERS then
             if sprite then
@@ -2037,12 +2281,22 @@ local function renderResults(response)
         if nameLabel then
             nameLabel:setText(entry.name or (state.domain == DOMAIN_MONSTERS and tr('Unknown monster') or state.domain == DOMAIN_VOCATIONS and tr('Unknown vocation') or tr('Unknown item')))
         end
+        if bestiaryProgressLabel then
+            local bestiary = getBestiaryData(entry)
+            if state.domain == DOMAIN_MONSTERS and bestiary then
+                applyBestiaryProgressToRow(row, bestiary)
+            else
+                bestiaryProgressLabel:setText('')
+                bestiaryProgressLabel:setVisible(false)
+            end
+        end
         row.onClick = function()
             onResultSelected(row, entry)
         end
         row.onMouseRelease = function(widget, mousePos, mouseButton)
             if widget:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
                 widget:onClick()
+                updateMonsterRowBackground(widget)
                 return true
             end
         end
@@ -2114,6 +2368,7 @@ local function updateDomainUi()
     ui.detailPanel:setVisible(not isDailyRewards)
     ui.dailyRewardsPanel:setVisible(isDailyRewards)
     ui.dailyFooterStatsLabel:setVisible(isDailyRewards)
+    updateBestiaryFooterVisibility()
     ui.categoryPanel:setVisible(isItems)
     ui.monsterPanel:setVisible(isMonsters or isVocations)
     ui.itemsSection:setVisible(isItems)
@@ -2222,6 +2477,7 @@ local function setMonsterCategory(categoryKey)
     end
     domainState.selectedResult = nil
     domainState.selectedId = nil
+    domainState.selectedDetailMonsterId = nil
     domainState.selectedTier = 1
     domainState.selectedVariant = nil
     domainState.availableVariants = {}
@@ -2441,6 +2697,14 @@ end
 local function handleListResponse(domain, data, requestData)
     local domainState = getDomainState(domain)
     requestData = requestData or {}
+    if domain == DOMAIN_MONSTERS then
+        updateBestiaryPoints(getBestiaryTotalPoints(data))
+        if type(data.items) == 'table' then
+            for _, entry in ipairs(data.items) do
+                updateBestiaryPoints(getBestiaryTotalPoints(entry))
+            end
+        end
+    end
     local search = normalizeSearch(data.search or requestData.search or '')
     local category = data.category or requestData.category or domainState.activeCategory or ''
     local page = tonumber(data.page) or tonumber(requestData.page) or 1
@@ -2457,6 +2721,9 @@ local function handleDetailResponse(domain, data, requestData)
     local domainState = getDomainState(domain)
     requestData = requestData or {}
     data.domain = domain
+    if domain == DOMAIN_MONSTERS then
+        updateBestiaryPoints(getBestiaryTotalPoints(data))
+    end
 
     if domain == DOMAIN_MONSTERS then
         local familyId = requestData.monsterId or data.monsterId or data.id
@@ -2489,6 +2756,69 @@ local function handleDetailResponse(domain, data, requestData)
         if domain == state.domain and id == domainState.selectedId and tier == tonumber(domainState.selectedTier) then
             showDetail(data)
         end
+    end
+end
+
+local function handleBestiaryClaimResponse(data, requestData)
+    local domainState = state.monsters
+    requestData = requestData or {}
+    data.domain = DOMAIN_MONSTERS
+
+    local monsterId = data.monsterId or requestData.monsterId or data.id
+    if monsterId and type(data.bestiary) == 'table' then
+        updateCachedMonsterBestiary(monsterId, data.bestiary)
+        updateVisibleMonsterBestiaryRow(monsterId, data.bestiary)
+    end
+
+    updateBestiaryPoints(getBestiaryTotalPoints(data))
+
+    if monsterId and (domainState.selectedDetailMonsterId == monsterId or domainState.selectedId == monsterId) then
+        local cacheKey = makeDetailCacheKey(DOMAIN_MONSTERS, domainState.selectedId or monsterId, domainState.selectedVariant or '')
+        local detail = cacheKey and domainState.detailCache[cacheKey] or nil
+        if type(detail) == 'table' then
+            detail.bestiary = copyTable(data.bestiary)
+            detail.totalBestiaryPoints = data.totalBestiaryPoints
+            showDetail(detail)
+        else
+            showDetail(data)
+        end
+    end
+
+end
+
+local function handleBestiaryUpdate(data)
+    if type(data) ~= 'table' then
+        return
+    end
+
+    local domainState = state.monsters
+    local monsterId = data.monsterId or data.id
+    local bestiary = data.bestiary
+    if not monsterId or type(bestiary) ~= 'table' then
+        return
+    end
+
+    updateCachedMonsterBestiary(monsterId, bestiary)
+    updateVisibleMonsterBestiaryRow(monsterId, bestiary)
+    updateBestiaryPoints(getBestiaryTotalPoints(data))
+
+    if domainState.selectedDetailMonsterId ~= monsterId then
+        return
+    end
+
+    local cacheKey = makeDetailCacheKey(DOMAIN_MONSTERS, domainState.selectedId or monsterId, domainState.selectedVariant or '')
+    local detail = domainState.detailCache[cacheKey]
+    if type(detail) ~= 'table' then
+        return
+    end
+
+    detail.bestiary = copyTable(bestiary)
+    if data.totalBestiaryPoints ~= nil then
+        detail.totalBestiaryPoints = data.totalBestiaryPoints
+    end
+
+    if state.domain == DOMAIN_MONSTERS then
+        showDetail(detail)
     end
 end
 
@@ -2547,6 +2877,15 @@ local function handleLibraryError(domain, action, payload)
         end
     end
 
+    if domain == DOMAIN_MONSTERS and action == 'claim' then
+        local domainState = state.monsters
+        if domainState.selectedId then
+            domainState.detailCache[makeDetailCacheKey(DOMAIN_MONSTERS, domainState.selectedId, domainState.selectedVariant or '')] = nil
+            requestDetail(domainState.selectedId, domainState.selectedVariant)
+            return
+        end
+    end
+
     if domain == DOMAIN_MONSTERS or domain == DOMAIN_VOCATIONS then
         updateMonsterEmptyLabel(message)
     else
@@ -2590,6 +2929,10 @@ local function onLibraryOpcode(protocol, opcode, payload)
         handleListResponse(domain, data, requestData)
     elseif action == 'detail' then
         handleDetailResponse(domain, data, requestData)
+    elseif domain == DOMAIN_MONSTERS and action == 'claim' then
+        handleBestiaryClaimResponse(data, requestData)
+    elseif domain == DOMAIN_MONSTERS and action == 'bestiaryUpdate' then
+        handleBestiaryUpdate(data)
     elseif domain == DOMAIN_DAILY_REWARDS and (action == 'status' or action == 'claim') then
         renderDailyRewardsStatus(data)
     end
@@ -2755,6 +3098,8 @@ local function resetUiState()
     ui.dailyStatusLabel:setText(tr('Loading daily rewards...'))
     ui.dailyFooterStatsLabel:setText('')
     ui.dailyFooterStatsLabel:setVisible(false)
+    ui.bestiaryFooterStatsLabel:setText('')
+    ui.bestiaryFooterStatsLabel:setVisible(false)
     ui.dailyClaimButton:setEnabled(false)
     renderCategories()
     if state.domain == DOMAIN_VOCATIONS then
@@ -2805,6 +3150,10 @@ local function resetDomainState(domain)
         domainState.activeCategory = nil
         domainState.selectedVariant = nil
         domainState.availableVariants = {}
+        domainState.selectedDetailMonsterId = nil
+        if domain == DOMAIN_MONSTERS then
+            domainState.totalBestiaryPoints = nil
+        end
     end
 end
 
