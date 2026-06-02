@@ -1,6 +1,5 @@
 local iconTopMenu = nil
 
-local inventoryShrink = false
 local itemSlotsWithDuration = {}
 local updateSlotsDurationEvent = nil
 local DURATION_UPDATE_INTERVAL = 1000
@@ -17,10 +16,6 @@ local tierFrameImages = {
 local CAPACITY_LABEL = string.char(0xA3) .. 'adowno' .. string.char(0x9C, 0xE6) .. ': '
 
 local function getInventoryUi()
-    if inventoryShrink then
-        return inventoryController.ui.offPanel
-    end
-
     return inventoryController.ui.onPanel
 end
 
@@ -78,10 +73,6 @@ local function applyTierFrame(slotPanel, slot, item)
 end
 
 local function updateSlotTierFrame(slot, item)
-    if inventoryShrink then
-        return
-    end
-
     local ui = getInventoryUi()
     local getSlotInfo = getSlotPanelBySlot[slot]
     if not getSlotInfo then
@@ -104,10 +95,6 @@ local function updateSlotTierFrame(slot, item)
 end
 
 local function refreshTierFrames()
-    if inventoryShrink then
-        return
-    end
-
     for slot = InventorySlotFirst, InventorySlotLast do
         updateSlotTierFrame(slot)
     end
@@ -249,10 +236,6 @@ local function combatEvent()
 end
 
 local function inventoryEvent(player, slot, item, oldItem)
-    if inventoryShrink then
-        return
-    end
-
     local ui = getInventoryUi()
     local getSlotInfo = getSlotPanelBySlot[slot]
     if not getSlotInfo then
@@ -305,9 +288,6 @@ local function onSoulChange(localPlayer, soul)
         ui.soulPanel.soul:setText(soul)
     end
 
-    if ui.soulAndCapacity and ui.soulAndCapacity.soul then
-        ui.soulAndCapacity.soul:setText(soul)
-    end
 end
 
 local function onFreeCapacityChange(player, freeCapacity)
@@ -329,17 +309,10 @@ local function onFreeCapacityChange(player, freeCapacity)
     if ui.capacityBar and ui.capacityBar.capacity then
         ui.capacityBar.capacity:setText(CAPACITY_LABEL .. freeCapacity)
     end
-    if ui.soulAndCapacity and ui.soulAndCapacity.capacity then
-        ui.soulAndCapacity.capacity:setText(freeCapacity)
-    end
 end
 
 function getIconsPanelOn()
     return inventoryController.ui.onPanel.icons
-end
-
-function getIconsPanelOff()
-    return inventoryController.ui.offPanel.icons
 end
 
 local function refreshInventory_panel()
@@ -348,10 +321,6 @@ local function refreshInventory_panel()
         onSoulChange(player, player:getSoul())
         onFreeCapacityChange(player, player:getFreeCapacity())
     end
-    if inventoryShrink then
-        return
-    end
-
     for i = InventorySlotFirst, InventorySlotPurse do
         if g_game.isOnline() then
             inventoryEvent(player, i, player:getInventoryItem(i))
@@ -362,16 +331,9 @@ local function refreshInventory_panel()
 end
 
 local function refreshInventorySizes()
-    if inventoryShrink then
-        inventoryController.ui:setOn(false)
-        inventoryController.ui.onPanel:hide()
-        inventoryController.ui.offPanel:show()
-    else
-        inventoryController.ui:setOn(true)
-        inventoryController.ui.onPanel:show()
-        inventoryController.ui.offPanel:hide()
-        refreshInventory_panel()
-    end
+    inventoryController.ui:setOn(true)
+    inventoryController.ui.onPanel:show()
+    refreshInventory_panel()
     combatEvent()
     walkEvent()
     modules.game_mainpanel.reloadMainPanelSizes()
@@ -400,9 +362,6 @@ function inventoryController:onInit()
     local ui = getInventoryUi()
 
     connect(inventoryController.ui.onPanel.pvp, {
-        onCheckChange = onSetSafeFight
-    })
-    connect(inventoryController.ui.offPanel.pvp, {
         onCheckChange = onSetSafeFight
     })
     connect(inventoryController.ui.onPanel.expert, {
@@ -455,24 +414,21 @@ function inventoryController:onGameStart()
         onPVPModeChange = combatEvent
     }):execute()
 
-    inventoryShrink = g_settings.getBoolean('mainpanel_shrink_inventory')
     refreshInventorySizes()
     refreshInventory_panel()
 
     local elements = {
-        {inventoryController.ui.offPanel.blessings, inventoryController.ui.onPanel.blessings},
-        {inventoryController.ui.offPanel.expert, inventoryController.ui.onPanel.expert},
+        {inventoryController.ui.onPanel.expert},
         {inventoryController.ui.onPanel.whiteDoveBox},
         {inventoryController.ui.onPanel.whiteHandBox},
         {inventoryController.ui.onPanel.yellowHandBox},
         {inventoryController.ui.onPanel.redFistBox}
     }
     
-    local showBlessings = g_game.getClientVersion() >= 1000
     local showPVPMode = g_game.getFeature(GamePVPMode)
     
-    for i, elementGroup in ipairs(elements) do
-        local show = (i == 1 and showBlessings) or (i > 1 and showPVPMode)
+    for _, elementGroup in ipairs(elements) do
+        local show = showPVPMode
         for _, element in ipairs(elementGroup) do
             if show then
                 element:show()
@@ -532,10 +488,8 @@ end
 function onSetSafeFight(self, checked)
     if not checked then
         inventoryController.ui.onPanel.pvp:setChecked(false)
-        inventoryController.ui.offPanel.pvp:setChecked(false)
       else
         inventoryController.ui.onPanel.pvp:setChecked(true)  
-        inventoryController.ui.offPanel.pvp:setChecked(true)  
       end
     g_game.setSafeFight(not checked)
     if not checked then
@@ -613,18 +567,6 @@ function onSetPVPMode(self, selectedPVPButton)
         pvpMode = PVPRedFist
     end
     g_game.setPVPMode(pvpMode)
-end
-
-function changeInventorySize()
-    inventoryShrink = not inventoryShrink
-    g_settings.set('mainpanel_shrink_inventory', inventoryShrink)
-    refreshInventorySizes()
-    modules.game_mainpanel.reloadMainPanelSizes()
-    local player = g_game.getLocalPlayer()
-    if player and g_game.isOnline() then
-        onFreeCapacityChange(player, player:getFreeCapacity())
-        onSoulChange(player, player:getSoul())
-    end
 end
 
 function getSlot5()

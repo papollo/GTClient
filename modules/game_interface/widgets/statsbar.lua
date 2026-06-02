@@ -276,7 +276,6 @@ local function getStatsBarsIconContent()
     end
 
     iconContents[#iconContents+1] = { content = modules.game_inventory.getIconsPanelOn(), loadIconTransparent = false }
-    iconContents[#iconContents+1] = { content = modules.game_inventory.getIconsPanelOff(), loadIconTransparent = false }
 
     return iconContents
 end
@@ -549,7 +548,6 @@ function StatsBar.OnGameEnd()
     StatsBar.hideAll()
 
     modules.game_inventory.getIconsPanelOn():destroyChildren()
-    modules.game_inventory.getIconsPanelOff():destroyChildren()
 
     StatsBar.destroyAllIcons()
 end
