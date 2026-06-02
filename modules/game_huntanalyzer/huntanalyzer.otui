@@ -59,6 +59,22 @@ HuntAnalyzerKillSeparator < HorizontalSeparator
   margin-top: 1
   margin-bottom: 2
 
+HuntAnalyzerGraphLabel < GameLabel
+  font: verdana-10px
+  color: #bbbbbb
+  text-align: center
+
+HuntAnalyzerGraphLine < UIWidget
+  background-color: #66666666
+
+HuntAnalyzerExpGraph < UIGraph
+  padding-left: 1
+  padding-right: 1
+  padding-top: 5
+  padding-bottom: 2
+  show-labels: false
+  show-info: false
+
 MiniWindow
   id: huntAnalyzerWindow
   !text: tr('Hunt Analyzer')
@@ -80,13 +96,6 @@ MiniWindow
       margin-bottom: 5
       !text: tr('Start')
       @onClick: modules.game_huntanalyzer.onStartStopClick()
-
-    HuntAnalyzerStatRow
-      id: huntTime
-      HuntAnalyzerStatName
-        !text: tr('Hunt time')
-      HuntAnalyzerStatValue
-        text: 00:00:00
 
     HuntAnalyzerStatRow
       id: expGain
@@ -116,6 +125,164 @@ MiniWindow
       HuntAnalyzerStatValue
         text: 0
 
+    Panel
+      id: expGraphPanel
+      height: 92
+      margin-top: 4
+      margin-bottom: 3
+      background-color: #00000022
+
+      Panel
+        id: expGraphAxis
+        width: 18
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        margin-left: 2
+        margin-top: 14
+        margin-bottom: 13
+
+        GameLabel
+          id: expGraphAxisMax
+          width: 34
+          height: 12
+          font: verdana-10px
+          color: #bbbbbb
+          anchors.left: parent.left
+          anchors.top: parent.top
+          margin-left: -9
+          rotation: -90
+          text-align: center
+          text: 0
+
+        GameLabel
+          id: expGraphAxisMid
+          width: 34
+          height: 12
+          font: verdana-10px
+          color: #bbbbbb
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          margin-left: -9
+          rotation: -90
+          text-align: center
+          text: 0
+
+        GameLabel
+          id: expGraphAxisMin
+          width: 34
+          height: 12
+          font: verdana-10px
+          color: #bbbbbb
+          anchors.left: parent.left
+          anchors.bottom: parent.bottom
+          margin-left: -9
+          rotation: -90
+          text-align: center
+          text: 0
+
+      Panel
+        id: expGraphPlot
+        anchors.left: expGraphAxis.right
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        margin-left: 3
+        margin-top: 4
+        margin-right: 4
+        margin-bottom: 13
+        background-color: #00000033
+
+        HuntAnalyzerGraphLine
+          height: 1
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.top: parent.top
+
+        HuntAnalyzerGraphLine
+          height: 1
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+
+        HuntAnalyzerGraphLine
+          height: 1
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+
+        HuntAnalyzerGraphLine
+          width: 1
+          anchors.left: parent.left
+          anchors.top: parent.top
+          anchors.bottom: parent.bottom
+
+        HuntAnalyzerGraphLine
+          width: 1
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.top: parent.top
+          anchors.bottom: parent.bottom
+
+        HuntAnalyzerGraphLine
+          width: 1
+          anchors.right: parent.right
+          anchors.top: parent.top
+          anchors.bottom: parent.bottom
+
+        HuntAnalyzerExpGraph
+          id: expGraph
+          anchors.fill: parent
+
+      Panel
+        id: graphTicks
+        height: 12
+        anchors.left: expGraphPlot.left
+        anchors.right: expGraphPlot.right
+        anchors.bottom: parent.bottom
+        layout:
+          type: horizontalBox
+          spacing: 4
+
+        GameLabel
+          width: 20
+          height: 12
+          font: verdana-10px
+          color: #bbbbbb
+          text-align: center
+          text: -60
+
+        GameLabel
+          width: 20
+          height: 12
+          font: verdana-10px
+          color: #bbbbbb
+          text-align: center
+          text: -45
+
+        GameLabel
+          width: 20
+          height: 12
+          font: verdana-10px
+          color: #bbbbbb
+          text-align: center
+          text: -30
+
+        GameLabel
+          width: 20
+          height: 12
+          font: verdana-10px
+          color: #bbbbbb
+          text-align: center
+          text: -15
+
+        GameLabel
+          width: 20
+          height: 12
+          font: verdana-10px
+          color: #bbbbbb
+          text-align: center
+          text: 0
+
     HorizontalSeparator
       id: killedSeparator
       margin-top: 4
@@ -131,7 +298,7 @@ MiniWindow
 
     Panel
       id: killsListBase
-      height: 174
+      height: 100
 
       UIScrollArea
         id: killsList

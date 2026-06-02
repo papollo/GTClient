@@ -14,6 +14,7 @@ local tierFrameImages = {
     [4] = '/images/ui/rarity_purple',
     [5] = '/images/ui/rarity_yellow'
 }
+local CAPACITY_LABEL = string.char(0xA3) .. 'adowno' .. string.char(0x9C, 0xE6) .. ': '
 
 local function getInventoryUi()
     if inventoryShrink then
@@ -325,8 +326,8 @@ local function onFreeCapacityChange(player, freeCapacity)
         freeCapacity = math.floor(freeCapacity * 10) / 10
     end
     local ui = getInventoryUi()
-    if ui.capacityPanel and ui.capacityPanel.capacity then
-        ui.capacityPanel.capacity:setText(freeCapacity)
+    if ui.capacityBar and ui.capacityBar.capacity then
+        ui.capacityBar.capacity:setText(CAPACITY_LABEL .. freeCapacity)
     end
     if ui.soulAndCapacity and ui.soulAndCapacity.capacity then
         ui.soulAndCapacity.capacity:setText(freeCapacity)

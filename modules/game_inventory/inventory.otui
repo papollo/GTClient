@@ -33,8 +33,8 @@ PhantomMiniWindow
   id: maininventorypanel
   draggable: true
   phantom: false
-  height: 162
-  &panelHeight: 162
+  height: 192
+  &panelHeight: 192
   on: true
 
   $!on:
@@ -235,7 +235,7 @@ PhantomMiniWindow
       !text: tr('Stop')
       anchors.left: defense.left
       anchors.right: standPosture.right
-      anchors.bottom: parent.bottom
+      anchors.bottom: icons.bottom
       font: cipsoftFont
       color: #c0c0c0ff
       size: 44 13
@@ -252,8 +252,9 @@ PhantomMiniWindow
       image-border: 3
       anchors.left: changeSize.left
       anchors.right: backpack.right
-      anchors.bottom: parent.bottom
-      anchors.top: stop.top
+      anchors.top: capacityBar.bottom
+      margin-top: 3
+      height: 18
       layout:
         type: horizontalBox
 
@@ -353,30 +354,22 @@ PhantomMiniWindow
         anchors.bottom: parent.bottom
         color: #c0c0c0ff
 
-    MainInventoryItem
-      id: capacityPanel
-      anchors.left: backpack.left
+    Panel
+      id: capacityBar
+      image-source: /images/ui/containerslot
+      image-border: 3
+      anchors.left: changeSize.left
       anchors.right: backpack.right
-      anchors.bottom: boots.bottom
-      anchors.top: tools.bottom
+      anchors.top: boots.bottom
       margin-top: 3
-
-      Label
-        !text: tr('Cap')
-        text.align: center
-        font: cipsoftFont
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        color: #c0c0c0ff
-        margin-top: 1
+      height: 18
 
       Label
         id: capacity
-        !text: '10000'
-        font: cipsoftFont
+        !text: 'Ladownosc: 10000'
+        font: verdana-11px-antialised
         text-align: center
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
+        anchors.fill: parent
         color: #c0c0c0ff
 
   UIWidget

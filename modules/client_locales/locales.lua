@@ -97,7 +97,7 @@ function terminate()
     installedLocales = nil
     currentLocale = nil
 
-    ProtocolGame.unregisterExtendedOpcode(ExtendedIds.Locale)
+    pcall(ProtocolGame.unregisterExtendedOpcode, ExtendedIds.Locale)
     if g_app.hasUpdater() then
         disconnect(g_app, {
             onUpdateFinished = createWindow,

@@ -396,7 +396,7 @@ local function setupLockerBankSlot(containerPanel)
         else
             g_logger.warning('Cannot open bank modal: no protocol game available.')
         end
-    end, MouseLeftButton)
+    end, MouseRightButton)
 
     return bankItem
 end

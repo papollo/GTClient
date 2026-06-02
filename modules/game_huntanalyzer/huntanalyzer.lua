@@ -1,10 +1,15 @@
+-- Hunt Analyzer opcode 202: client sends action request_state/start/stop.
+-- Server responds with state; kill pushes may include event='kill',
+-- request_state may include expPerHourHistory with up to 60 graph samples.
 local HUNT_ANALYZER_OPCODE = 202
 local MIN_CONTENT_HEIGHT = 202
 local CONTENT_HEIGHT = 326
 local KILL_ROW_HEIGHT = 14
+local GRAPH_CAPACITY = 60
 local DEFAULT_COLOR = '#bbbbbb'
 local WARNING_COLOR = '#e5c300'
 local GOOD_COLOR = '#89F013'
+local GRAPH_COLOR = '#89F013'
 local START_BUTTON_COLOR = '#6fbf5f'
 local STOP_BUTTON_COLOR = '#e84a4a'
 
@@ -12,25 +17,13 @@ local huntAnalyzerWindow
 local huntAnalyzerButton
 local lastState = {
     active = false,
-    elapsedSeconds = 0,
     expGain = 0,
     expPerHour = 0,
     damage = 0,
     damagePerHour = 0,
-    kills = {}
+    kills = {},
+    expPerHourHistory = {}
 }
-
-local function formatDuration(seconds)
-    seconds = tonumber(seconds) or 0
-    if seconds < 0 then
-        seconds = 0
-    end
-
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    local secs = math.floor(seconds % 60)
-    return string.format('%02d:%02d:%02d', hours, minutes, secs)
-end
 
 local function formatNumber(value)
     value = math.floor(tonumber(value) or 0)
@@ -49,6 +42,27 @@ local function formatNumber(value)
         end
     end
     return sign .. text
+end
+
+local function formatShortNumber(value)
+    value = math.floor(tonumber(value) or 0)
+    local sign = ''
+    if value < 0 then
+        sign = '-'
+        value = math.abs(value)
+    end
+
+    if value >= 1000000 then
+        local rounded = math.floor(value / 100000 + 0.5) / 10
+        if rounded == math.floor(rounded) then
+            rounded = math.floor(rounded)
+        end
+        return sign .. rounded .. 'm'
+    elseif value >= 1000 then
+        return sign .. math.floor(value / 1000 + 0.5) .. 'k'
+    end
+
+    return sign .. value
 end
 
 local function getStatValueLabel(id)
@@ -169,6 +183,100 @@ local function getRateColor(value, warningThreshold, goodThreshold)
     return DEFAULT_COLOR
 end
 
+local function getExpGraph()
+    if not huntAnalyzerWindow then
+        return nil
+    end
+
+    return huntAnalyzerWindow:recursiveGetChildById('expGraph')
+end
+
+local function setupExpGraph()
+    local graph = getExpGraph()
+    if not graph then
+        return nil
+    end
+
+    graph:clear()
+    graph:createGraph()
+    graph:setCapacity(GRAPH_CAPACITY)
+    graph:setLineWidth(1, 1)
+    graph:setLineColor(1, GRAPH_COLOR)
+    graph:setInfoText(1, tr('XP/h:'))
+    graph:setShowLabels(false)
+    graph:setShowInfo(false)
+    return graph
+end
+
+local function setGraphAxisValue(id, value)
+    if not huntAnalyzerWindow then
+        return
+    end
+
+    local label = huntAnalyzerWindow:recursiveGetChildById(id)
+    if label then
+        label:setText(formatShortNumber(value))
+    end
+end
+
+local function renderExpGraphAxis(history)
+    local minValue = 0
+    local maxValue = tonumber(lastState.expPerHour) or 0
+
+    if type(history) == 'table' then
+        for _, value in ipairs(history) do
+            value = tonumber(value) or 0
+            if value > maxValue then
+                maxValue = value
+            end
+            if value < minValue then
+                minValue = value
+            end
+        end
+    end
+
+    local midValue = math.floor((minValue + maxValue) / 2)
+    setGraphAxisValue('expGraphAxisMax', maxValue)
+    setGraphAxisValue('expGraphAxisMid', midValue)
+    setGraphAxisValue('expGraphAxisMin', minValue)
+end
+
+local function renderExpGraphHistory(history)
+    local graph = setupExpGraph()
+    if not graph then
+        return
+    end
+
+    if type(history) ~= 'table' then
+        return
+    end
+
+    for _, value in ipairs(history) do
+        graph:addValue(1, tonumber(value) or 0)
+    end
+    renderExpGraphAxis(history)
+end
+
+local function appendExpGraphValue(value)
+    local graph = getExpGraph()
+    if not graph then
+        return
+    end
+
+    if graph:getGraphsCount() == 0 then
+        setupExpGraph()
+    end
+
+    value = tonumber(value) or 0
+    table.insert(lastState.expPerHourHistory, value)
+    while #lastState.expPerHourHistory > GRAPH_CAPACITY do
+        table.remove(lastState.expPerHourHistory, 1)
+    end
+
+    graph:addValue(1, value)
+    renderExpGraphAxis(lastState.expPerHourHistory)
+end
+
 local function renderState()
     if not huntAnalyzerWindow then
         return
@@ -182,24 +290,34 @@ local function renderState()
         button:setEnabled(g_game.isOnline())
     end
 
-    setStatValue('huntTime', formatDuration(lastState.elapsedSeconds))
     setStatValue('expGain', formatNumber(lastState.expGain))
     setStatValue('expGainHour', formatNumber(lastState.expPerHour), getRateColor(lastState.expPerHour, 50000, 100000))
     setStatValue('damage', formatNumber(lastState.damage))
     setStatValue('damageHour', formatNumber(lastState.damagePerHour), getRateColor(lastState.damagePerHour, 20000, 50000))
+    renderExpGraphAxis(lastState.expPerHourHistory)
     renderKills(lastState.kills)
 end
 
 local function normalizeState(data)
     lastState = {
         active = data.active == true,
-        elapsedSeconds = tonumber(data.elapsedSeconds) or 0,
         expGain = tonumber(data.expGain) or 0,
         expPerHour = tonumber(data.expPerHour) or 0,
         damage = tonumber(data.damage) or 0,
         damagePerHour = tonumber(data.damagePerHour) or 0,
-        kills = type(data.kills) == 'table' and data.kills or {}
+        kills = type(data.kills) == 'table' and data.kills or {},
+        expPerHourHistory = type(data.expPerHourHistory) == 'table' and data.expPerHourHistory or lastState.expPerHourHistory
     }
+end
+
+local function updateExpGraph(data)
+    if type(data.expPerHourHistory) == 'table' then
+        renderExpGraphHistory(data.expPerHourHistory)
+    elseif data.event == 'kill' or data.addGraphPoint == true then
+        appendExpGraphValue(data.expPerHour)
+    elseif data.resetGraph == true then
+        renderExpGraphHistory({})
+    end
 end
 
 local function sendAction(action)
@@ -228,6 +346,7 @@ local function onExtendedOpcode(protocol, opcode, data)
 
     if data.type == 'state' then
         normalizeState(data)
+        updateExpGraph(data)
         renderState()
     elseif data.type == 'error' and data.message then
         print('[Hunt Analyzer] ' .. data.message)
@@ -241,6 +360,7 @@ function init()
     huntAnalyzerWindow:setContentMaximumHeight(CONTENT_HEIGHT)
     huntAnalyzerWindow:setHeight(huntAnalyzerWindow:getMaximumHeight())
     huntAnalyzerWindow:close()
+    setupExpGraph()
 
     huntAnalyzerButton = modules.game_mainpanel.addToggleButton('huntAnalyzerButton', tr('Hunt Analyzer'),
         '/images/options/button_huntanalyzer_', toggle, false, 6)
@@ -318,6 +438,8 @@ function onStartStopClick()
     if lastState.active then
         sendAction('stop')
     else
+        lastState.expPerHourHistory = {}
+        renderExpGraphHistory(lastState.expPerHourHistory)
         sendAction('start')
     end
 end
