@@ -29,6 +29,14 @@ local DOMAIN_ITEMS = 'items'
 local DOMAIN_MONSTERS = 'monsters'
 local DOMAIN_VOCATIONS = 'vocations'
 local DOMAIN_DAILY_REWARDS = 'dailyRewards'
+local DOMAIN_BLESSINGS = 'blessings'
+
+local BLESSING_IMAGE_BY_KEY = {
+    ADANOS = '/images/game/gothic_tales/bless_gods/adanos',
+    INNOS = '/images/game/gothic_tales/bless_gods/innos',
+    BELIAR = '/images/game/gothic_tales/bless_gods/beliar',
+    SLEEPER = '/images/game/gothic_tales/bless_gods/sleeper'
+}
 
 local categories = {
     { key = 'ARMORS', label = 'Armors' },
@@ -134,6 +142,10 @@ local state = {
             free = {},
             premium = {}
         }
+    },
+    blessings = {
+        status = nil,
+        statusRequested = false
     },
     pending = {}
 }
@@ -383,6 +395,7 @@ local function bindUi()
         monstersTab = child('monstersTab'),
         vocationsTab = child('vocationsTab'),
         dailyRewardsTab = child('dailyRewardsTab'),
+        blessingsTab = child('blessingsTab'),
         leftColumn = child('leftColumn'),
         middleSeparator = child('middleSeparator'),
         categoryPanel = child('categoryPanel'),
@@ -419,6 +432,9 @@ local function bindUi()
         dailyStatusLabel = child('dailyStatusLabel'),
         dailyClaimButton = child('dailyClaimButton'),
         dailyRewardsList = child('dailyRewardsList'),
+        blessingsPanel = child('blessingsPanel'),
+        blessingsStatusLabel = child('blessingsStatusLabel'),
+        blessingsList = child('blessingsList'),
         dailyFooterStatsLabel = child('dailyFooterStatsLabel'),
         bestiaryFooterStatsLabel = child('bestiaryFooterStatsLabel'),
         closeButton = child('closeButton')
@@ -429,6 +445,9 @@ local function getResultLabelText(domain)
     if domain == DOMAIN_DAILY_REWARDS then
         return tr('Daily Rewards')
     end
+    if domain == DOMAIN_BLESSINGS then
+        return tr('Blessings')
+    end
     if domain == DOMAIN_VOCATIONS then
         return tr('Vocations')
     end
@@ -438,6 +457,9 @@ end
 local function getSelectionPlaceholder(domain)
     if domain == DOMAIN_DAILY_REWARDS then
         return tr('Daily rewards are shown in this tab.')
+    end
+    if domain == DOMAIN_BLESSINGS then
+        return tr('Blessings are shown in this tab.')
     end
     if domain == DOMAIN_MONSTERS then
         return tr('Select a monster to see its details here.')
@@ -452,6 +474,9 @@ local function getInitialPlaceholder(domain)
     if domain == DOMAIN_DAILY_REWARDS then
         return tr('Loading daily rewards...')
     end
+    if domain == DOMAIN_BLESSINGS then
+        return tr('Loading blessings...')
+    end
     if domain == DOMAIN_MONSTERS then
         return tr('Choose the monsters tab and select a monster to see its details here.')
     end
@@ -464,6 +489,9 @@ end
 local function getLoadingText(domain)
     if domain == DOMAIN_DAILY_REWARDS then
         return tr('Loading daily rewards...')
+    end
+    if domain == DOMAIN_BLESSINGS then
+        return tr('Loading blessings...')
     end
     if domain == DOMAIN_VOCATIONS then
         return tr('Loading vocations...')
@@ -503,7 +531,7 @@ local function resetDetailPanel(message, clearSelection)
         clearSelection = true
     end
 
-    if state.domain == DOMAIN_DAILY_REWARDS then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
         return
     end
 
@@ -558,7 +586,7 @@ local function hideAllEmptyLabels()
 end
 
 local function updatePagination()
-    if state.domain == DOMAIN_DAILY_REWARDS then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
         ui.pageLabel:setText(tr('Page 1 / 1'))
         ui.prevPageButton:setEnabled(false)
         ui.nextPageButton:setEnabled(false)
@@ -575,7 +603,7 @@ local function updatePagination()
 end
 
 local function setResultWidgetsEnabled(enabled)
-    if state.domain == DOMAIN_DAILY_REWARDS then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
         ui.searchEdit:setEnabled(false)
         ui.searchClearButton:setEnabled(false)
         ui.prevPageButton:setEnabled(false)
@@ -1334,6 +1362,85 @@ local function requestDailyRewardsStatus(force)
     ui.dailyClaimButton:setEnabled(false)
     if not sendRequest(DOMAIN_DAILY_REWARDS, 'status') then
         domainState.statusRequested = false
+    end
+end
+
+local function getBlessingDescription(blessing)
+    local locale = modules.client_locales and modules.client_locales.getCurrentLocale
+        and modules.client_locales.getCurrentLocale()
+    if locale and locale.name == 'pl' and type(blessing.description_pl) == 'string'
+        and blessing.description_pl:trim() ~= '' then
+        return blessing.description_pl
+    end
+    return type(blessing.description) == 'string' and blessing.description or ''
+end
+
+local function renderBlessingsStatus(data)
+    local domainState = state.blessings
+    domainState.status = data
+    domainState.statusRequested = false
+    ui.blessingsList:destroyChildren()
+
+    local blessings = type(data) == 'table' and data.blessings or nil
+    if type(blessings) ~= 'table' then
+        ui.blessingsStatusLabel:setText(tr('Blessings are not available.'))
+        return
+    end
+
+    local activeCount = 0
+    local renderedCount = 0
+    for _, blessing in ipairs(blessings) do
+        if type(blessing) == 'table' then
+            local key = type(blessing.key) == 'string' and blessing.key:upper() or ''
+            local imageSource = BLESSING_IMAGE_BY_KEY[key]
+            local active = blessing.active == true
+            local item = g_ui.createWidget('LibraryBlessingItem', ui.blessingsList)
+            local image = item:recursiveGetChildById('godImage')
+            local nameLabel = item:recursiveGetChildById('blessingName')
+            local statusLabel = item:recursiveGetChildById('blessingStatus')
+            local descriptionLabel = item:recursiveGetChildById('blessingDescription')
+
+            if imageSource then
+                image:setImageSource(imageSource)
+            end
+            image:setOpacity(active and 1 or 0.35)
+            nameLabel:setText(type(blessing.name) == 'string' and blessing.name or '')
+            descriptionLabel:setText(getBlessingDescription(blessing))
+            statusLabel:setText(active and tr('Active') or tr('Inactive'))
+            statusLabel:setColor(active and '#6fbf5f' or '#e84a4a')
+            item:setBackgroundColor(active and '#4f6244' or '#484848')
+            item:setBorderColor(active and '#6f8a5f' or '#222222')
+
+            renderedCount = renderedCount + 1
+            if active then
+                activeCount = activeCount + 1
+            end
+        end
+    end
+
+    if renderedCount == 0 then
+        ui.blessingsStatusLabel:setText(tr('Blessings are not available.'))
+        return
+    end
+    ui.blessingsStatusLabel:setText(string.format('%s: %d / %d', tr('Active blessings'), activeCount, renderedCount))
+end
+
+local function requestBlessingsStatus(force)
+    local domainState = state.blessings
+    if domainState.statusRequested then
+        return
+    end
+    if domainState.status and not force then
+        renderBlessingsStatus(domainState.status)
+        return
+    end
+
+    domainState.statusRequested = true
+    ui.blessingsStatusLabel:setText(tr('Loading blessings...'))
+    ui.blessingsList:destroyChildren()
+    if not sendRequest(DOMAIN_BLESSINGS, 'status') then
+        domainState.statusRequested = false
+        ui.blessingsStatusLabel:setText(tr('Blessings are not available.'))
     end
 end
 
@@ -2309,6 +2416,9 @@ local function requestCurrentPage(force)
     if state.domain == DOMAIN_DAILY_REWARDS then
         requestDailyRewardsStatus(force)
         return
+    elseif state.domain == DOMAIN_BLESSINGS then
+        requestBlessingsStatus(force)
+        return
     end
 
     local domainState = getDomainState()
@@ -2354,19 +2464,23 @@ local function updateDomainUi()
     local isMonsters = state.domain == DOMAIN_MONSTERS
     local isVocations = state.domain == DOMAIN_VOCATIONS
     local isDailyRewards = state.domain == DOMAIN_DAILY_REWARDS
+    local isBlessings = state.domain == DOMAIN_BLESSINGS
+    local isFullWidthPanel = isDailyRewards or isBlessings
     ui.itemsTab:setOn(isItems)
     ui.monstersTab:setOn(isMonsters)
     ui.vocationsTab:setOn(isVocations)
     ui.dailyRewardsTab:setOn(isDailyRewards)
+    ui.blessingsTab:setOn(isBlessings)
     if state.dailyRewards.notificationAvailable then
         setDailyRewardsTabNotifyColor(state.dailyRewards.tabNotificationBlinkOn)
     else
         setDailyRewardsTabNotifyColor(false)
     end
-    ui.leftColumn:setVisible(not isDailyRewards)
-    ui.middleSeparator:setVisible(not isDailyRewards)
-    ui.detailPanel:setVisible(not isDailyRewards)
+    ui.leftColumn:setVisible(not isFullWidthPanel)
+    ui.middleSeparator:setVisible(not isFullWidthPanel)
+    ui.detailPanel:setVisible(not isFullWidthPanel)
     ui.dailyRewardsPanel:setVisible(isDailyRewards)
+    ui.blessingsPanel:setVisible(isBlessings)
     ui.dailyFooterStatsLabel:setVisible(isDailyRewards)
     updateBestiaryFooterVisibility()
     ui.categoryPanel:setVisible(isItems)
@@ -2375,16 +2489,20 @@ local function updateDomainUi()
     ui.resultLabel:setText(getResultLabelText(state.domain) .. ':')
     ui.monsterCategoryLabel:setText(tr('Categories') .. ':')
     ui.monsterLabel:setText((isVocations and tr('Vocations') or tr('Monsters')) .. ':')
-    if not isDailyRewards then
+    if not isFullWidthPanel then
         ui.detailPlaceholder:setText(getInitialPlaceholder(state.domain))
     end
     ui.topListEmptyLabel:setVisible(false)
     ui.monsterEmptyLabel:setVisible(false)
-    if not isDailyRewards then
+    if not isFullWidthPanel then
         anchorSearchSection(isItems)
     end
 
     if isDailyRewards then
+        ui.resultEmptyLabel:setVisible(false)
+        ui.resultList:destroyChildren()
+        ui.monsterList:destroyChildren()
+    elseif isBlessings then
         ui.resultEmptyLabel:setVisible(false)
         ui.resultList:destroyChildren()
         ui.monsterList:destroyChildren()
@@ -2846,6 +2964,19 @@ local function handleLibraryError(domain, action, payload)
         return
     end
 
+    if domain == DOMAIN_BLESSINGS then
+        state.blessings.statusRequested = false
+        if domain == state.domain then
+            local message = tr('Blessings are not available.')
+            if type(payload) == 'table' and type(payload.error) == 'table' and type(payload.error.message) == 'string' then
+                message = payload.error.message
+            end
+            ui.blessingsStatusLabel:setText(message)
+            ui.blessingsList:destroyChildren()
+        end
+        return
+    end
+
     if domain ~= state.domain then
         return
     end
@@ -2935,11 +3066,13 @@ local function onLibraryOpcode(protocol, opcode, payload)
         handleBestiaryUpdate(data)
     elseif domain == DOMAIN_DAILY_REWARDS and (action == 'status' or action == 'claim') then
         renderDailyRewardsStatus(data)
+    elseif domain == DOMAIN_BLESSINGS and action == 'status' then
+        renderBlessingsStatus(data)
     end
 end
 
 local function queueSearch()
-    if state.domain == DOMAIN_DAILY_REWARDS then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
         return
     end
 
@@ -2950,7 +3083,7 @@ local function queueSearch()
 
     searchEvent = scheduleEvent(function()
         searchEvent = nil
-        if state.domain == DOMAIN_DAILY_REWARDS then
+        if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
             return
         end
         local domainState = getDomainState()
@@ -2961,7 +3094,7 @@ local function queueSearch()
 end
 
 local function clearSearch()
-    if state.domain == DOMAIN_DAILY_REWARDS then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
         return
     end
 
@@ -2990,6 +3123,11 @@ local function switchDomain(domain)
         setResultWidgetsEnabled(false)
         updatePagination()
         requestDailyRewardsStatus(true)
+        return
+    elseif domain == DOMAIN_BLESSINGS then
+        setResultWidgetsEnabled(false)
+        updatePagination()
+        requestBlessingsStatus(true)
         return
     end
 
@@ -3038,6 +3176,11 @@ local function show()
         setResultWidgetsEnabled(false)
         updatePagination()
         requestDailyRewardsStatus(true)
+        return
+    elseif state.domain == DOMAIN_BLESSINGS then
+        setResultWidgetsEnabled(false)
+        updatePagination()
+        requestBlessingsStatus(true)
         return
     elseif state.domain == DOMAIN_ITEMS then
         ensureCategoriesRequested()
@@ -3095,7 +3238,9 @@ local function resetUiState()
     ui.resultList:destroyChildren()
     ui.monsterList:destroyChildren()
     ui.dailyRewardsList:destroyChildren()
+    ui.blessingsList:destroyChildren()
     ui.dailyStatusLabel:setText(tr('Loading daily rewards...'))
+    ui.blessingsStatusLabel:setText(tr('Loading blessings...'))
     ui.dailyFooterStatsLabel:setText('')
     ui.dailyFooterStatsLabel:setVisible(false)
     ui.bestiaryFooterStatsLabel:setText('')
@@ -3126,6 +3271,10 @@ local function resetDomainState(domain)
         domainState.status = nil
         domainState.statusRequested = false
         resetDailyRewardSelection()
+        return
+    elseif domain == DOMAIN_BLESSINGS then
+        domainState.status = nil
+        domainState.statusRequested = false
         return
     end
 
@@ -3163,6 +3312,7 @@ local function resetDataState()
     resetDomainState(DOMAIN_MONSTERS)
     resetDomainState(DOMAIN_VOCATIONS)
     resetDomainState(DOMAIN_DAILY_REWARDS)
+    resetDomainState(DOMAIN_BLESSINGS)
     state.pending = {}
 end
 
@@ -3181,6 +3331,7 @@ function init()
     ui.monstersTab.onClick = function() switchDomain(DOMAIN_MONSTERS) end
     ui.vocationsTab.onClick = function() switchDomain(DOMAIN_VOCATIONS) end
     ui.dailyRewardsTab.onClick = function() switchDomain(DOMAIN_DAILY_REWARDS) end
+    ui.blessingsTab.onClick = function() switchDomain(DOMAIN_BLESSINGS) end
     ui.closeButton.onClick = hide
     ui.dailyClaimButton.onClick = claimDailyReward
     ui.dailyClaimButton:setImageColor(CLAIM_BUTTON_COLOR)

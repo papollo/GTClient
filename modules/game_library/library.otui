@@ -458,6 +458,56 @@ DailyRewardGrid < UIWidget
     cell-spacing: 6
     flow: true
 
+LibraryBlessingItem < UIWidget
+  height: 104
+  background-color: #484848
+  border-width: 1
+  border-color: #222222
+
+  UIWidget
+    id: godImage
+    size: 88 88
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 8
+    image-size: 88 88
+    image-fixed-ratio: true
+    image-smooth: true
+    phantom: true
+
+  Label
+    id: blessingName
+    anchors.top: parent.top
+    anchors.left: godImage.right
+    margin-top: 10
+    margin-left: 12
+    color: #D7D7D7
+    text-auto-resize: true
+    phantom: true
+
+  Label
+    id: blessingStatus
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: 10
+    margin-right: 12
+    text-auto-resize: true
+    phantom: true
+
+  Label
+    id: blessingDescription
+    anchors.top: blessingName.bottom
+    anchors.left: blessingName.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    margin-top: 8
+    margin-right: 12
+    margin-bottom: 10
+    color: #BDBDBD
+    text-wrap: true
+    text-align: left
+    phantom: true
+
 MainWindow
   id: libraryWindow
   size: 700 560
@@ -527,6 +577,24 @@ MainWindow
       anchors.top: parent.top
       anchors.left: vocationsTab.right
       margin-left: 6
+
+    LibraryTabButton
+      id: blessingsTab
+      anchors.top: parent.top
+      anchors.left: dailyRewardsTab.right
+      margin-left: 6
+      image-source: /images/game/cyclopedia/bless
+      image-clip: 0 0 34 34
+
+      $on:
+        size: 150 34
+        image-source: /images/game/cyclopedia/bless_on
+        image-clip: 0 0 150 34
+
+      $pressed:
+        size: 34 34
+        image-source: /images/game/cyclopedia/bless
+        image-clip: 0 34 34 34
 
   UIWidget
     id: contentContainer
@@ -960,6 +1028,43 @@ MainWindow
         anchors.top: dailyRewardsList.top
         anchors.right: dailyRewardsList.right
         anchors.bottom: dailyRewardsList.bottom
+        step: 60
+        pixel-scroll: true
+
+    UIWidget
+      id: blessingsPanel
+      anchors.fill: parent
+      visible: false
+
+      Label
+        id: blessingsStatusLabel
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 28
+        color: #BDBDBD
+        text-align: center
+        !text: tr('Loading blessings...')
+
+      UIScrollArea
+        id: blessingsList
+        anchors.top: blessingsStatusLabel.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        margin-top: 6
+        vertical-scrollbar: blessingsScrollbar
+        padding-right: 18
+        padding-bottom: 6
+        layout:
+          type: verticalBox
+          spacing: 8
+
+      VerticalScrollBar
+        id: blessingsScrollbar
+        anchors.top: blessingsList.top
+        anchors.right: blessingsList.right
+        anchors.bottom: blessingsList.bottom
         step: 60
         pixel-scroll: true
 
