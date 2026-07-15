@@ -197,12 +197,14 @@ TargetBot.Looting.getLootContainers = function(containers)
     end
     -- can't find any lootContainer, let's check slots, maybe there's one
     for slot = InventorySlotFirst, InventorySlotLast do
-      local item = getInventoryItem(slot)
-      if item and item:isContainer() and not openedContainersById[item:getId()] then
-        -- container which is not opened yet, let's open it
-        g_game.open(item)
-        waitTill = now + 500 -- wait 0.5s
-        return lootContainers
+      if slot ~= InventorySlotPurse then
+        local item = getInventoryItem(slot)
+        if item and item:isContainer() and not openedContainersById[item:getId()] then
+          -- container which is not opened yet, let's open it
+          g_game.open(item)
+          waitTill = now + 500 -- wait 0.5s
+          return lootContainers
+        end
       end
     end
   end

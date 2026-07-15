@@ -3,7 +3,7 @@ SELL = 2
 CURRENCY = 'gold'
 CURRENCY_DECIMAL = false
 WEIGHT_UNIT = 'oz'
-LAST_INVENTORY = 10
+LAST_INVENTORY = InventorySlotLast
 
 npcWindow = nil
 itemsPanel = nil
@@ -282,10 +282,12 @@ function getSellQuantity(item)
     local removeAmount = 0
     if ignoreEquipped:isChecked() then
         local localPlayer = g_game.getLocalPlayer()
-        for i = 1, LAST_INVENTORY do
-            local inventoryItem = localPlayer:getInventoryItem(i)
-            if inventoryItem and inventoryItem:getId() == item:getId() then
-                removeAmount = removeAmount + inventoryItem:getCount()
+        for i = InventorySlotFirst, LAST_INVENTORY do
+            if i ~= InventorySlotPurse then
+                local inventoryItem = localPlayer:getInventoryItem(i)
+                if inventoryItem and inventoryItem:getId() == item:getId() then
+                    removeAmount = removeAmount + inventoryItem:getCount()
+                end
             end
         end
     end

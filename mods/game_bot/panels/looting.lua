@@ -333,9 +333,11 @@ Panel
     end
     if #lootContainersCandidates == 0 then
       for slot = InventorySlotFirst, InventorySlotLast do
-        local item = context.getInventoryItem(slot)
-        if item and item:isContainer() and containers[item:getId()] ~= nil then
-          table.insert(lootContainersCandidates, item)
+        if slot ~= InventorySlotPurse then
+          local item = context.getInventoryItem(slot)
+          if item and item:isContainer() and containers[item:getId()] ~= nil then
+            table.insert(lootContainersCandidates, item)
+          end
         end
       end
       if #lootContainersCandidates > 0 then

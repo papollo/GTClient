@@ -33,8 +33,8 @@ PhantomMiniWindow
   id: maininventorypanel
   draggable: true
   phantom: false
-  height: 192
-  &panelHeight: 192
+  height: 229
+  &panelHeight: 229
   on: true
 
   UIWidget
@@ -273,6 +273,13 @@ PhantomMiniWindow
       &slotPosition: {x = 65535, y = 9, z = 0}
 
     MainInventoryItem
+      id: ring2
+      anchors.top: ring.bottom
+      anchors.left: ring.left
+      margin-top: 3
+      &slotPosition: {x = 65535, y = 12, z = 0}
+
+    MainInventoryItem
       id: armor
       anchors.top: helmet.bottom
       anchors.left: helmet.left
@@ -311,9 +318,9 @@ PhantomMiniWindow
       id: soulPanel
       anchors.left: amulet.left
       anchors.right: amulet.right
-      anchors.bottom: boots.bottom
-      anchors.top: ring.bottom
+      anchors.top: ring2.bottom
       margin-top: 3
+      height: 19
 
       Label
         !text: tr('Soul')
@@ -339,7 +346,7 @@ PhantomMiniWindow
       image-border: 3
       anchors.left: inventoryAnchor.left
       anchors.right: backpack.right
-      anchors.top: boots.bottom
+      anchors.top: soulPanel.bottom
       margin-top: 3
       height: 18
 

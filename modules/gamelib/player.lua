@@ -81,9 +81,10 @@ InventorySlotFeet = 8
 InventorySlotFinger = 9
 InventorySlotAmmo = 10
 InventorySlotPurse = 11
+InventorySlotFinger2 = 12
 
 InventorySlotFirst = 1
-InventorySlotLast = 10
+InventorySlotLast = InventorySlotFinger2
 
 vocationNamesByClientId = {
     [0] = "No Vocation",
@@ -158,9 +159,11 @@ function Player:getItems(itemId, subType)
 
     local items = {}
     for i = InventorySlotFirst, InventorySlotLast do
-        local item = self:getInventoryItem(i)
-        if item and item:getId() == itemId and (subType == -1 or item:getSubType() == subType) then
-            table.insert(items, item)
+        if i ~= InventorySlotPurse then
+            local item = self:getInventoryItem(i)
+            if item and item:getId() == itemId and (subType == -1 or item:getSubType() == subType) then
+                table.insert(items, item)
+            end
         end
     end
 

@@ -6,9 +6,11 @@ function g_game.findPlayerItem(itemId, subType, tier)
     local localPlayer = g_game.getLocalPlayer()
     if localPlayer then
         for slot = InventorySlotFirst, InventorySlotLast do
-            local item = localPlayer:getInventoryItem(slot)
-            if item and item:getId() == itemId and (subType == -1 or item:getSubType() == subType) then
-                return item
+            if slot ~= InventorySlotPurse then
+                local item = localPlayer:getInventoryItem(slot)
+                if item and item:getId() == itemId and (subType == -1 or item:getSubType() == subType) then
+                    return item
+                end
             end
         end
     end

@@ -29,8 +29,13 @@ local getSlotPanelBySlot = {
     [InventorySlotLeg] = function(ui) return ui.legs, ui.legs.legs end,
     [InventorySlotFeet] = function(ui) return ui.boots, ui.boots.boots end,
     [InventorySlotFinger] = function(ui) return ui.ring, ui.ring.ring end,
+    [InventorySlotFinger2] = function(ui) return ui.ring2, ui.ring2.ring end,
     [InventorySlotAmmo] = function(ui) return ui.tools, ui.tools.tools end
 }
+
+local function isEquipmentSlot(slot)
+    return slot and slot >= InventorySlotFirst and slot <= InventorySlotLast and slot ~= InventorySlotPurse
+end
 
 local function formatDuration(duration)
     return string.format("%dm%02d", duration / 60, duration % 60)
@@ -95,7 +100,7 @@ local function updateSlotTierFrame(slot, item)
 end
 
 local function refreshTierFrames()
-    for slot = InventorySlotFirst, InventorySlotLast do
+    for slot in pairs(getSlotPanelBySlot) do
         updateSlotTierFrame(slot)
     end
 end
@@ -116,7 +121,7 @@ local function onInventoryTierOpcode(protocol, opcode, data)
         if type(data.inv) == 'table' then
             for _, entry in ipairs(data.inv) do
                 local slot = tonumber(entry.slot)
-                if slot and slot >= InventorySlotFirst and slot <= InventorySlotLast then
+                if isEquipmentSlot(slot) then
                     local tier = normalizeTier(entry.tier)
                     if tier and tier > 1 then
                         inventoryTierBySlot[slot] = tier
@@ -130,7 +135,7 @@ local function onInventoryTierOpcode(protocol, opcode, data)
 
     if msgType == 'set' then
         local slot = tonumber(data.slot)
-        if not slot or slot < InventorySlotFirst or slot > InventorySlotLast then
+        if not isEquipmentSlot(slot) then
             return
         end
 
@@ -147,7 +152,7 @@ local function onInventoryTierOpcode(protocol, opcode, data)
 
     if msgType == 'clear' then
         local slot = tonumber(data.slot)
-        if slot and slot >= InventorySlotFirst and slot <= InventorySlotLast then
+        if isEquipmentSlot(slot) then
             inventoryTierBySlot[slot] = nil
             updateSlotTierFrame(slot)
         end
@@ -321,11 +326,11 @@ local function refreshInventory_panel()
         onSoulChange(player, player:getSoul())
         onFreeCapacityChange(player, player:getFreeCapacity())
     end
-    for i = InventorySlotFirst, InventorySlotPurse do
+    for slot in pairs(getSlotPanelBySlot) do
         if g_game.isOnline() then
-            inventoryEvent(player, i, player:getInventoryItem(i))
+            inventoryEvent(player, slot, player:getInventoryItem(slot))
         else
-            inventoryEvent(player, i, nil)
+            inventoryEvent(player, slot, nil)
         end
     end
 end
