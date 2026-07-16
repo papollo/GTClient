@@ -30,7 +30,8 @@ local getSlotPanelBySlot = {
     [InventorySlotFeet] = function(ui) return ui.boots, ui.boots.boots end,
     [InventorySlotFinger] = function(ui) return ui.ring, ui.ring.ring end,
     [InventorySlotFinger2] = function(ui) return ui.ring2, ui.ring2.ring end,
-    [InventorySlotAmmo] = function(ui) return ui.tools, ui.tools.tools end
+    [InventorySlotAmmo] = function(ui) return ui.tools, ui.tools.tools end,
+    [InventorySlotBelt] = function(ui) return ui.belt, ui.belt.belt end
 }
 
 local function isEquipmentSlot(slot)

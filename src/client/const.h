@@ -103,7 +103,7 @@ namespace Otc
         InventorySlotAmmo,
         InventorySlotPurse,
         InventorySlotRing2,
-        InventorySlotExt2,
+        InventorySlotBelt = 13,
         InventorySlotExt3,
         InventorySlotExt4,
         LastInventorySlot

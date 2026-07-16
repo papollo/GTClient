@@ -114,6 +114,20 @@ MainInventoryItem < UIWidget
       opacity: 1
 
   UIWidget
+    id: belt
+    image-source: /images/inventory/inventory_belt
+    anchors.centerIn: parent
+    phantom: true
+    enabled: false
+    size: 32 32
+
+    $disabled:
+      opacity: 0
+
+    $!disabled:
+      opacity: 1
+
+  UIWidget
     id: sword
     image-source: /images/inventory/inventory_left_hand
     anchors.centerIn: parent

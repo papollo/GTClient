@@ -315,6 +315,13 @@ PhantomMiniWindow
       &slotPosition: {x = 65535, y = 10, z = 0}
 
     MainInventoryItem
+      id: belt
+      anchors.top: tools.bottom
+      anchors.left: tools.left
+      margin-top: 3
+      &slotPosition: {x = 65535, y = 13, z = 0}
+
+    MainInventoryItem
       id: soulPanel
       anchors.left: amulet.left
       anchors.right: amulet.right
