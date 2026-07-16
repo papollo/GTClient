@@ -132,10 +132,30 @@ function generateNewTranslationTable(localename)
     end
 end
 
+local function normalizeLocaleEncoding(locale)
+    if locale.charset ~= 'cp1250' or locale.charsetNormalized then
+        return
+    end
+
+    if type(locale.languageName) == 'string' then
+        locale.languageName = utf8ToCp1250(locale.languageName)
+    end
+
+    for word, translation in pairs(locale.translation) do
+        if type(translation) == 'string' then
+            locale.translation[word] = utf8ToCp1250(translation)
+        end
+    end
+
+    locale.charsetNormalized = true
+end
+
 function installLocale(locale)
     if not locale or not locale.name then
         error('Unable to install locale.')
     end
+
+    normalizeLocaleEncoding(locale)
 
     if _G.allowedLocales and not _G.allowedLocales[locale.name] then
         return

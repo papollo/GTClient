@@ -167,7 +167,7 @@ std::string InputMessage::getString()
                 text = maybeDoubleEncoded;
             }
         }
-        text = utf8ToCp1250Polish(text);
+        text = stdext::utf8_to_cp1250(text);
     }
     return text;
 }

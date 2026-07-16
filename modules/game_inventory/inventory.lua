@@ -13,7 +13,7 @@ local tierFrameImages = {
     [4] = '/images/ui/rarity_purple',
     [5] = '/images/ui/rarity_yellow'
 }
-local CAPACITY_LABEL = string.char(0xA3) .. 'adowno' .. string.char(0x9C, 0xE6) .. ': '
+local CAPACITY_LABEL = tr('Capacity') .. ': '
 
 local function getInventoryUi()
     return inventoryController.ui.onPanel

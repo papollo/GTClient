@@ -50,6 +50,7 @@ namespace stdext
 
     [[nodiscard]] bool is_valid_utf8(std::string_view src);
     [[nodiscard]] std::string utf8_to_latin1(std::string_view src);
+    [[nodiscard]] std::string utf8_to_cp1250(std::string_view src);
     [[nodiscard]] std::string latin1_to_utf8(std::string_view src);
 
 #ifdef WIN32
