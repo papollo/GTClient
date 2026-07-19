@@ -37,6 +37,21 @@ LibraryDailyTabButton < UIButton
     image-clip: 0 34 34 34
     background-color: #404040
 
+LibraryDamageTabButton < UIButton
+  size: 34 34
+  image-source: /images/game/cyclopedia/calc
+  image-clip: 0 0 34 34
+
+  $on:
+    size: 150 34
+    image-source: /images/game/cyclopedia/calc_on
+    image-clip: 0 0 150 34
+
+  $pressed:
+    size: 34 34
+    image-source: /images/game/cyclopedia/calc
+    image-clip: 0 34 34 34
+
 LibraryCategoryItem < UICheckBox
   size: 182 18
   color: #C0C0C0
@@ -390,6 +405,121 @@ LibrarySummonTableRow < UIWidget
     color: #C8C8C8
     text-align: center
 
+LibraryDamageTableHeader < UIWidget
+  size: 400 20
+  margin-top: 3
+  background-color: #404040
+
+  Label
+    id: name
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 4
+    width: 104
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Name')
+
+  Label
+    id: element
+    anchors.left: name.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 54
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Element')
+
+  Label
+    id: min
+    anchors.left: element.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 50
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Min')
+
+  Label
+    id: max
+    anchors.left: min.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 50
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Max')
+
+  Label
+    id: total
+    anchors.left: max.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 70
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Total')
+
+  Label
+    id: critical
+    anchors.left: total.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 72
+    color: #D7D7D7
+    text-align: center
+    !text: tr('Critical')
+
+LibraryDamageTableRow < UIWidget
+  size: 400 24
+  background-color: #484848
+
+  Label
+    id: name
+    anchors.left: parent.left
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    margin-left: 4
+    width: 104
+    color: #C8C8C8
+    text-wrap: true
+    text-align: center
+
+  Label
+    id: element
+    anchors.left: name.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 54
+    color: #C8C8C8
+    text-align: center
+
+  Label
+    id: min
+    anchors.left: element.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 50
+    color: #C8C8C8
+    text-align: center
+
+  Label
+    id: max
+    anchors.left: min.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 50
+    color: #C8C8C8
+    text-align: center
+
+  Label
+    id: total
+    anchors.left: max.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 70
+    color: #C8C8C8
+    text-align: center
+
+  Label
+    id: critical
+    anchors.left: total.right
+    anchors.verticalCenter: parent.verticalCenter
+    width: 72
+    color: #E6B85C
+    text-align: center
+
 LibraryTierButton < UICheckBox
   size: 72 20
   color: #C0C0C0
@@ -595,6 +725,12 @@ MainWindow
         size: 34 34
         image-source: /images/game/cyclopedia/bless
         image-clip: 0 34 34 34
+
+    LibraryDamageTabButton
+      id: damageCalculatorTab
+      anchors.top: parent.top
+      anchors.left: blessingsTab.right
+      margin-left: 6
 
   UIWidget
     id: contentContainer
@@ -900,6 +1036,12 @@ MainWindow
           anchors.left: parent.left
           image-source: /images/ui/item
 
+          UIWidget
+            id: damageTierFrame
+            anchors.fill: parent
+            visible: false
+            phantom: true
+
           UIItem
             id: sprite
             anchors.fill: parent
@@ -936,9 +1078,80 @@ MainWindow
               type: horizontalBox
               spacing: 4
 
+        UIWidget
+          id: damageSkillPanel
+          anchors.top: tierTabsPanel.bottom
+          anchors.left: parent.left
+          margin-top: 6
+          width: 220
+          height: 0
+          visible: false
+
+          Label
+            id: damageActualSkillLabel
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            margin-top: 2
+            height: 18
+            color: #BDBDBD
+
+          Label
+            id: damageSkillOverrideLabel
+            anchors.left: parent.left
+            anchors.verticalCenter: damageSkillEdit.verticalCenter
+            !text: tr('Simulation skill') .. ':'
+            text-auto-resize: true
+            color: #BDBDBD
+
+          TextEdit
+            id: damageSkillEdit
+            anchors.top: damageActualSkillLabel.bottom
+            anchors.left: damageSkillOverrideLabel.right
+            margin-left: 8
+            width: 64
+            height: 18
+            padding-top: 2
+
+        UIWidget
+          id: damageLevelPanel
+          anchors.top: tierTabsPanel.bottom
+          anchors.left: damageSkillPanel.right
+          anchors.right: parent.right
+          margin-top: 6
+          margin-left: 12
+          height: 0
+          visible: false
+
+          Label
+            id: damageActualLevelLabel
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            margin-top: 2
+            height: 18
+            color: #BDBDBD
+
+          Label
+            id: damageLevelOverrideLabel
+            anchors.left: parent.left
+            anchors.verticalCenter: damageLevelEdit.verticalCenter
+            !text: tr('Simulation level') .. ':'
+            text-auto-resize: true
+            color: #BDBDBD
+
+          TextEdit
+            id: damageLevelEdit
+            anchors.top: damageActualLevelLabel.bottom
+            anchors.left: damageLevelOverrideLabel.right
+            margin-left: 8
+            width: 64
+            height: 18
+            padding-top: 2
+
         Panel
           id: detailListBase
-          anchors.top: tierTabsPanel.bottom
+          anchors.top: damageLevelPanel.bottom
           anchors.left: parent.left
           anchors.right: parent.right
           anchors.bottom: parent.bottom

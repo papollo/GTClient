@@ -30,6 +30,7 @@ local DOMAIN_MONSTERS = 'monsters'
 local DOMAIN_VOCATIONS = 'vocations'
 local DOMAIN_DAILY_REWARDS = 'dailyRewards'
 local DOMAIN_BLESSINGS = 'blessings'
+local DOMAIN_DAMAGE_CALCULATOR = 'damageCalculator'
 
 local BLESSING_IMAGE_BY_KEY = {
     ADANOS = '/images/game/gothic_tales/bless_gods/adanos',
@@ -146,6 +147,37 @@ local state = {
     blessings = {
         status = nil,
         statusRequested = false
+    },
+    damageCalculator = {
+        categoriesLoaded = false,
+        categoriesRequested = false,
+        categories = {},
+        activeCategory = nil,
+        search = '',
+        page = 1,
+        totalPages = 1,
+        totalResults = 0,
+        selectedId = nil,
+        selectedClientId = nil,
+        selectedName = nil,
+        selectedTier = 1,
+        availableTiers = {},
+        runeTierNames = {
+            [1] = 'I',
+            [2] = 'II',
+            [3] = 'III'
+        },
+        skillOverride = nil,
+        calculationSkill = nil,
+        skillOverrideEvent = nil,
+        skillEditUpdating = false,
+        levelOverride = nil,
+        calculationLevel = nil,
+        levelOverrideEvent = nil,
+        levelEditUpdating = false,
+        selectedResult = nil,
+        pageCache = {},
+        detailCache = {}
     },
     pending = {}
 }
@@ -353,6 +385,11 @@ local function getDomainState(domain)
     return state[domain or state.domain]
 end
 
+local function isDamageCalculatorRuneCategory()
+    local category = state.damageCalculator.activeCategory
+    return type(category) == 'string' and category:lower():find('rune', 1, true) ~= nil
+end
+
 local function makeRequestId(domain, action)
     requestCounter = requestCounter + 1
     return string.format('library-%s-%s-%d', domain, action, requestCounter)
@@ -396,6 +433,7 @@ local function bindUi()
         vocationsTab = child('vocationsTab'),
         dailyRewardsTab = child('dailyRewardsTab'),
         blessingsTab = child('blessingsTab'),
+        damageCalculatorTab = child('damageCalculatorTab'),
         leftColumn = child('leftColumn'),
         middleSeparator = child('middleSeparator'),
         categoryPanel = child('categoryPanel'),
@@ -426,8 +464,17 @@ local function bindUi()
         itemSprite = child('sprite'),
         detailCreature = child('detailCreature'),
         selectedItem = child('selectedItem'),
+        damageTierFrame = child('damageTierFrame'),
         detailList = child('detailList'),
         detailPanel = child('detailPanel'),
+        damageSkillPanel = child('damageSkillPanel'),
+        damageActualSkillLabel = child('damageActualSkillLabel'),
+        damageSkillOverrideLabel = child('damageSkillOverrideLabel'),
+        damageSkillEdit = child('damageSkillEdit'),
+        damageLevelPanel = child('damageLevelPanel'),
+        damageActualLevelLabel = child('damageActualLevelLabel'),
+        damageLevelOverrideLabel = child('damageLevelOverrideLabel'),
+        damageLevelEdit = child('damageLevelEdit'),
         dailyRewardsPanel = child('dailyRewardsPanel'),
         dailyStatusLabel = child('dailyStatusLabel'),
         dailyClaimButton = child('dailyClaimButton'),
@@ -451,6 +498,9 @@ local function getResultLabelText(domain)
     if domain == DOMAIN_VOCATIONS then
         return tr('Vocations')
     end
+    if domain == DOMAIN_DAMAGE_CALCULATOR then
+        return tr('Items')
+    end
     return domain == DOMAIN_MONSTERS and tr('Monsters') or tr('Items')
 end
 
@@ -466,6 +516,9 @@ local function getSelectionPlaceholder(domain)
     end
     if domain == DOMAIN_VOCATIONS then
         return tr('Select a vocation to see its details here.')
+    end
+    if domain == DOMAIN_DAMAGE_CALCULATOR then
+        return tr('Select an item to calculate its damage.')
     end
     return tr('Select an item to see its details here.')
 end
@@ -483,6 +536,9 @@ local function getInitialPlaceholder(domain)
     if domain == DOMAIN_VOCATIONS then
         return tr('Choose the vocations tab and select a vocation to see its details here.')
     end
+    if domain == DOMAIN_DAMAGE_CALCULATOR then
+        return tr('Select a category and an item to calculate its damage.')
+    end
     return tr('Select a category and choose an item to see its details here.')
 end
 
@@ -496,12 +552,18 @@ local function getLoadingText(domain)
     if domain == DOMAIN_VOCATIONS then
         return tr('Loading vocations...')
     end
+    if domain == DOMAIN_DAMAGE_CALCULATOR then
+        return tr('Loading calculator items...')
+    end
     return domain == DOMAIN_MONSTERS and tr('Loading monsters...') or tr('Loading items...')
 end
 
 local function getDetailLoadingText(domain)
     if domain == DOMAIN_VOCATIONS then
         return tr('Loading vocation details...')
+    end
+    if domain == DOMAIN_DAMAGE_CALCULATOR then
+        return tr('Calculating damage...')
     end
     return domain == DOMAIN_MONSTERS and tr('Loading monster details...') or tr('Loading item details...')
 end
@@ -516,6 +578,9 @@ local function getNoResultsText(domain)
     if domain == DOMAIN_VOCATIONS then
         return tr('No vocations found.')
     end
+    if domain == DOMAIN_DAMAGE_CALCULATOR then
+        return tr('No calculator items found.')
+    end
     return tr('No items found for this category.')
 end
 
@@ -524,6 +589,72 @@ local function resetDetailCreature()
         ui.detailCreature:setVisible(false)
         ui.detailCreature:setOutfit({ type = 0 })
     end
+end
+
+local function cancelDamageSkillOverrideEvent()
+    local calculatorState = state.damageCalculator
+    if calculatorState.skillOverrideEvent then
+        removeEvent(calculatorState.skillOverrideEvent)
+        calculatorState.skillOverrideEvent = nil
+    end
+end
+
+local function hideDamageSkillPanel()
+    if not ui or not ui.damageSkillPanel then
+        return
+    end
+    ui.damageSkillPanel:setHeight(0)
+    ui.damageSkillPanel:hide()
+end
+
+state.damageCalculator.cancelLevelOverrideEvent = function()
+    local calculatorState = state.damageCalculator
+    if calculatorState.levelOverrideEvent then
+        removeEvent(calculatorState.levelOverrideEvent)
+        calculatorState.levelOverrideEvent = nil
+    end
+end
+
+state.damageCalculator.hideLevelPanel = function()
+    if not ui or not ui.damageLevelPanel then
+        return
+    end
+    ui.damageLevelPanel:setHeight(0)
+    ui.damageLevelPanel:hide()
+end
+
+state.damageCalculator.updateTierFrame = function(tier)
+    if not ui or not ui.damageTierFrame then
+        return
+    end
+    local frameImages = ItemsDatabase and ItemsDatabase.tierFrameImages or {
+        [2] = '/images/ui/rarity_grey',
+        [3] = '/images/ui/rarity_blue',
+        [4] = '/images/ui/rarity_purple',
+        [5] = '/images/ui/rarity_yellow'
+    }
+    local image = frameImages[tonumber(tier) or 1]
+    if image then
+        ui.damageTierFrame:setImageSource(image)
+        ui.damageTierFrame:show()
+    else
+        ui.damageTierFrame:setImageSource('')
+        ui.damageTierFrame:hide()
+    end
+end
+
+local function resetDamageSkillOverride()
+    local calculatorState = state.damageCalculator
+    cancelDamageSkillOverrideEvent()
+    calculatorState.skillOverride = nil
+    calculatorState.calculationSkill = nil
+end
+
+state.damageCalculator.resetLevelOverride = function()
+    local calculatorState = state.damageCalculator
+    state.damageCalculator.cancelLevelOverrideEvent()
+    calculatorState.levelOverride = nil
+    calculatorState.calculationLevel = nil
 end
 
 local function resetDetailPanel(message, clearSelection)
@@ -539,19 +670,36 @@ local function resetDetailPanel(message, clearSelection)
     ui.detailPlaceholder:setText(message)
     ui.detailPlaceholder:show()
     ui.detailContent:hide()
+    hideDamageSkillPanel()
+    state.damageCalculator.hideLevelPanel()
     ui.itemName:setText(state.domain == DOMAIN_MONSTERS and tr('Monster') or state.domain == DOMAIN_VOCATIONS and tr('Vocation') or tr('Item'))
     ui.tierTabsPanel:hide()
     ui.tierTabs:destroyChildren()
     ui.itemSprite:setItemId(0)
-    ui.selectedItem:setVisible(state.domain == DOMAIN_ITEMS)
+    state.damageCalculator.updateTierFrame(nil)
+    ui.selectedItem:setVisible(state.domain == DOMAIN_ITEMS or state.domain == DOMAIN_DAMAGE_CALCULATOR)
     resetDetailCreature()
     ui.detailList:destroyChildren()
     if clearSelection then
         domainState.selectedId = nil
+        if state.domain == DOMAIN_DAMAGE_CALCULATOR then
+            domainState.selectedClientId = nil
+            domainState.selectedName = nil
+        end
         domainState.selectedTier = 1
         domainState.selectedVariant = nil
         domainState.availableTiers = {}
         domainState.availableVariants = {}
+        if state.domain == DOMAIN_DAMAGE_CALCULATOR then
+            if state.damageCalculator.captureSkillOverrideFromInput then
+                state.damageCalculator.captureSkillOverrideFromInput()
+            end
+            if state.damageCalculator.captureLevelOverrideFromInput then
+                state.damageCalculator.captureLevelOverrideFromInput()
+            end
+            domainState.calculationSkill = nil
+            domainState.calculationLevel = nil
+        end
         domainState.selectedResult = nil
     end
 end
@@ -1503,6 +1651,15 @@ local function ensureVocationCategoriesRequested()
     sendRequest(DOMAIN_VOCATIONS, 'categories')
 end
 
+local function ensureDamageCalculatorCategoriesRequested()
+    local calculatorState = state.damageCalculator
+    if calculatorState.categoriesLoaded or calculatorState.categoriesRequested then
+        return
+    end
+    calculatorState.categoriesRequested = true
+    sendRequest(DOMAIN_DAMAGE_CALCULATOR, 'categories')
+end
+
 local function getOrderedGroupEntries(groupKey, values)
     local ordered = {}
     local seen = {}
@@ -1854,9 +2011,15 @@ local function requestDetail(entryId, selector)
         domainState.selectedTier = numericTier
         cacheKey = makeDetailCacheKey(state.domain, entryId, numericTier)
         payload = { wareId = entryId, tier = numericTier }
+        if state.domain == DOMAIN_DAMAGE_CALCULATOR and domainState.skillOverride ~= nil then
+            payload.skillOverride = domainState.skillOverride
+        end
+        if state.domain == DOMAIN_DAMAGE_CALCULATOR and domainState.levelOverride ~= nil then
+            payload.levelOverride = domainState.levelOverride
+        end
     end
 
-    local cached = domainState.detailCache[cacheKey]
+    local cached = state.domain ~= DOMAIN_DAMAGE_CALCULATOR and domainState.detailCache[cacheKey] or nil
     if cached then
         showDetail(cached)
         return
@@ -1869,7 +2032,7 @@ end
 local function renderTierTabs(currentTier, availableTiers)
     ui.tierTabs:destroyChildren()
 
-    if state.domain ~= DOMAIN_ITEMS or #availableTiers <= 1 then
+    if (state.domain ~= DOMAIN_ITEMS and state.domain ~= DOMAIN_DAMAGE_CALCULATOR) or #availableTiers <= 1 then
         ui.tierTabsPanel:hide()
         return
     end
@@ -1877,12 +2040,19 @@ local function renderTierTabs(currentTier, availableTiers)
     for _, tier in ipairs(availableTiers) do
         local button = g_ui.createWidget('LibraryTierButton', ui.tierTabs)
         button.tierValue = tier
-        button:setText(tierNames[tier] or ('Tier ' .. tier))
+        local label = state.domain == DOMAIN_DAMAGE_CALCULATOR and isDamageCalculatorRuneCategory() and state.damageCalculator.runeTierNames[tier] or tierNames[tier]
+        button:setText(label or ('Tier ' .. tier))
         button:setChecked(tier == currentTier)
         button.onClick = function(widget)
             local domainState = getDomainState()
             if widget.tierValue == domainState.selectedTier then
                 return
+            end
+            if state.domain == DOMAIN_DAMAGE_CALCULATOR and state.damageCalculator.captureSkillOverrideFromInput then
+                state.damageCalculator.captureSkillOverrideFromInput()
+            end
+            if state.domain == DOMAIN_DAMAGE_CALCULATOR and state.damageCalculator.captureLevelOverrideFromInput then
+                state.damageCalculator.captureLevelOverrideFromInput()
             end
             requestDetail(domainState.selectedId, widget.tierValue)
         end
@@ -2215,6 +2385,479 @@ local function renderDetailGroups(details)
     end
 end
 
+local function calculatorValueText(value)
+    if value == true then
+        return tr('Yes')
+    elseif value == false then
+        return tr('No')
+    elseif value == nil then
+        return '-'
+    end
+    return tostring(value)
+end
+
+local function calculatorRangeText(range)
+    if type(range) ~= 'table' then
+        return '-'
+    end
+    local minimum = range.min
+    local maximum = range.max
+    if minimum == nil and maximum == nil then
+        return '-'
+    end
+    minimum = minimum ~= nil and minimum or maximum
+    maximum = maximum ~= nil and maximum or minimum
+    return string.format('%s - %s', calculatorValueText(minimum), calculatorValueText(maximum))
+end
+
+local function addCalculatorDetailRow(label, value, color)
+    local row = g_ui.createWidget('ItemBasicDetail', ui.detailList)
+    local background = row:getChildById('background')
+    local nameLabel = background and background:getChildById('name')
+    local valueLabel = background and background:getChildById('value')
+    if nameLabel then
+        nameLabel:setText(label)
+    end
+    if valueLabel then
+        local textValue = calculatorValueText(value)
+        local lineCount = select(2, textValue:gsub('\n', '\n')) + 1
+        local requiresTallRow = #textValue > 40 or lineCount > 1
+        row:setHeight(requiresTallRow and math.max(34, lineCount * 14, math.ceil(#textValue / 42) * 14) or 20)
+        valueLabel:setText(textValue)
+        valueLabel:setColor(color or '#BDBDBD')
+        valueLabel:setTextWrap(requiresTallRow)
+    end
+end
+
+local function addCalculatorSection(title)
+    local heading = g_ui.createWidget('LibrarySectionLabel', ui.detailList)
+    heading:setText(title .. ':')
+end
+
+local function collectCalculatorSnapshotRows(value, prefix, rows, depth)
+    if type(value) ~= 'table' then
+        table.insert(rows, { label = prefix, value = value })
+        return
+    end
+    if depth >= 5 then
+        table.insert(rows, { label = prefix, value = tr('Nested data') })
+        return
+    end
+    local keys = {}
+    for key in pairs(value) do
+        table.insert(keys, key)
+    end
+    table.sort(keys, function(left, right) return tostring(left) < tostring(right) end)
+    for _, key in ipairs(keys) do
+        local label = prefix ~= '' and (prefix .. ' / ' .. humanizeKey(key)) or humanizeKey(key)
+        collectCalculatorSnapshotRows(value[key], label, rows, depth + 1)
+    end
+end
+
+local function getCalculatorRequirementsSummary(requirements)
+    if type(requirements) ~= 'table' then
+        return nil, true
+    end
+
+    local parts = {}
+    local allMet = true
+    local function addRequirement(requirement, fallbackKey)
+        if type(requirement) ~= 'table' then
+            return
+        end
+        local label = requirement.label or requirement.name or requirement.type or fallbackKey or tr('Requirement')
+        local required = requirement.required
+        if required == nil then
+            required = requirement.value ~= nil and requirement.value or requirement.minimum
+        end
+        local current = requirement.current ~= nil and requirement.current or requirement.actual
+        local text = humanizeKey(label)
+        if current ~= nil and required ~= nil then
+            text = string.format('%s %s/%s', text, calculatorValueText(current), calculatorValueText(required))
+        elseif required ~= nil then
+            text = string.format('%s %s', text, calculatorValueText(required))
+        end
+        local met = requirement.met ~= false
+        allMet = allMet and met
+        table.insert(parts, (met and '[OK] ' or '[X] ') .. text)
+    end
+
+    if requirements.met ~= nil and (requirements.required ~= nil or requirements.value ~= nil or requirements.minimum ~= nil or requirements.type ~= nil or requirements.name ~= nil) then
+        addRequirement(requirements)
+    elseif #requirements > 0 then
+        for _, requirement in ipairs(requirements) do
+            addRequirement(requirement)
+        end
+    else
+        local keys = {}
+        for key in pairs(requirements) do
+            table.insert(keys, key)
+        end
+        table.sort(keys, function(left, right) return tostring(left) < tostring(right) end)
+        for _, key in ipairs(keys) do
+            addRequirement(requirements[key], key)
+        end
+    end
+
+    return #parts > 0 and table.concat(parts, '\n') or nil, allMet
+end
+
+local function getCalculatorDamageValue(entry)
+    if type(entry) ~= 'table' then
+        return {}
+    end
+    return type(entry.damage) == 'table' and entry.damage or type(entry.result) == 'table' and entry.result or entry
+end
+
+local function getCalculatorCriticalRange(damage)
+    local critical = damage.critical or damage.crit or damage.criticalPerHit or damage.criticalRange
+    if type(critical) == 'table' and type(critical.perHit) == 'table' then
+        return critical.perHit
+    end
+    return critical
+end
+
+local function addCalculatorDamageRow(entry, fallbackName, hideRequirements)
+    local damage = getCalculatorDamageValue(entry)
+    local row = g_ui.createWidget('LibraryDamageTableRow', ui.detailList)
+    local name = entry.name or entry.label or damage.name or fallbackName or tr('Damage')
+    local element = damage.element or damage.elementType or damage.damageType or entry.element or entry.elementType or '-'
+    if type(element) == 'number' then
+        element = elementNames[element] or tostring(element)
+    else
+        element = humanizeKey(element)
+    end
+
+    local perHit = damage.perHit
+    if type(perHit) ~= 'table' and (damage.min ~= nil or damage.max ~= nil) then
+        perHit = { min = damage.min, max = damage.max }
+    end
+    local total = damage.total
+    local hits = tonumber(damage.hits or damage.hitCount)
+    local totalText = calculatorRangeText(total)
+    if hits then
+        totalText = string.format('%s (%dx)', totalText, hits)
+    end
+
+    local values = {
+        name = name,
+        element = element,
+        min = type(perHit) == 'table' and calculatorValueText(perHit.min ~= nil and perHit.min or perHit.max) or '-',
+        max = type(perHit) == 'table' and calculatorValueText(perHit.max ~= nil and perHit.max or perHit.min) or '-',
+        total = totalText,
+        critical = calculatorRangeText(getCalculatorCriticalRange(damage))
+    }
+    for id, value in pairs(values) do
+        local label = row:getChildById(id)
+        if label then
+            label:setText(value)
+        end
+    end
+
+    if not hideRequirements then
+        local requirements = entry.requirements or damage.requirements
+        local summary, met = getCalculatorRequirementsSummary(requirements)
+        if summary then
+            addCalculatorDetailRow(string.format('%s %s', name, tr('requirements')), summary, met and '#6fbf5f' or '#e84a4a')
+        end
+    end
+    local critical = damage.critical or damage.crit
+    local criticalTotal = type(critical) == 'table' and critical.total or damage.criticalTotal
+    if type(criticalTotal) == 'table' then
+        addCalculatorDetailRow(string.format('%s %s', name, tr('critical total')), calculatorRangeText(criticalTotal), '#E6B85C')
+    end
+end
+
+local function addCalculatorDamageTable(title, entries, fallbackName, hideRequirements)
+    if type(entries) ~= 'table' then
+        return
+    end
+
+    local normalized = {}
+    local function appendEntry(entry, inheritedName)
+        if type(entry) ~= 'table' then
+            return
+        end
+        local nested = entry.results or entry.damages
+        if type(entry.damage) == 'table' and #entry.damage > 0 then
+            nested = entry.damage
+        end
+        if type(nested) == 'table' and #nested > 0 then
+            for _, child in ipairs(nested) do
+                if type(child) == 'table' then
+                    local copy = copyTable(child)
+                    copy.name = copy.name or entry.name or inheritedName
+                    copy.requirements = copy.requirements or entry.requirements
+                    appendEntry(copy, copy.name)
+                end
+            end
+            return
+        end
+        if not entry.name and inheritedName then
+            local copy = copyTable(entry)
+            copy.name = inheritedName
+            entry = copy
+        end
+        table.insert(normalized, entry)
+    end
+
+    if entries.perHit or entries.min ~= nil or entries.max ~= nil or entries.damage or entries.result then
+        appendEntry(entries, fallbackName)
+    elseif #entries > 0 then
+        for _, entry in ipairs(entries) do
+            appendEntry(entry, fallbackName)
+        end
+    else
+        local keys = {}
+        for key, entry in pairs(entries) do
+            if type(entry) == 'table' then
+                table.insert(keys, key)
+            end
+        end
+        table.sort(keys, function(left, right) return tostring(left) < tostring(right) end)
+        for _, key in ipairs(keys) do
+            appendEntry(entries[key], humanizeKey(key))
+        end
+    end
+
+    if #normalized == 0 then
+        return
+    end
+    addCalculatorSection(title)
+    g_ui.createWidget('LibraryDamageTableHeader', ui.detailList)
+    for _, entry in ipairs(normalized) do
+        addCalculatorDamageRow(entry, fallbackName, hideRequirements)
+    end
+end
+
+local function setDamageSkillEditValue(value)
+    if not ui or not ui.damageSkillEdit then
+        return
+    end
+    local calculatorState = state.damageCalculator
+    calculatorState.skillEditUpdating = true
+    ui.damageSkillEdit:setText(value ~= nil and tostring(value) or '')
+    calculatorState.skillEditUpdating = false
+end
+
+local function renderCalculationSkill(calculationSkill)
+    local calculatorState = state.damageCalculator
+    calculatorState.calculationSkill = type(calculationSkill) == 'table' and calculationSkill or nil
+    if not calculatorState.calculationSkill then
+        cancelDamageSkillOverrideEvent()
+        hideDamageSkillPanel()
+        return
+    end
+
+    local skill = calculatorState.calculationSkill
+    local current = tonumber(skill.current or skill.currentValue or skill.playerValue) or 0
+    local used = tonumber(skill.used or skill.usedValue or skill.value) or current
+    local minimum = tonumber(skill.min) or 0
+    local maximum = tonumber(skill.max) or 300
+    local skillType = skill.type or skill.skillType or tr('Weapon skill')
+    calculatorState.skillOverride = skill.overridden == true and used or nil
+
+    local status = skill.overridden == true and ('  |  ' .. tr('Simulated')) or ''
+    ui.damageActualSkillLabel:setText(string.format('%s: %d%s', humanizeKey(skillType), current, status))
+    ui.damageActualSkillLabel:setColor('#BDBDBD')
+    ui.damageSkillEdit:setValidCharacters('0123456789')
+    ui.damageSkillEdit.skillMinimum = minimum
+    ui.damageSkillEdit.skillMaximum = maximum
+    setDamageSkillEditValue(used)
+    ui.damageSkillPanel:setHeight(42)
+    ui.damageSkillPanel:show()
+end
+
+state.damageCalculator.captureSkillOverrideFromInput = function()
+    local calculatorState = state.damageCalculator
+    cancelDamageSkillOverrideEvent()
+    if not calculatorState.calculationSkill then
+        return false
+    end
+
+    local text = ui.damageSkillEdit:getText() or ''
+    local override = tonumber(text)
+    local current = tonumber(calculatorState.calculationSkill.current or calculatorState.calculationSkill.currentValue or calculatorState.calculationSkill.playerValue) or 0
+    if override == nil then
+        if text:trim() ~= '' then
+            setDamageSkillEditValue(calculatorState.skillOverride or current)
+            return false
+        end
+    else
+        override = math.floor(override)
+        local minimum = tonumber(calculatorState.calculationSkill.min) or 0
+        local maximum = tonumber(calculatorState.calculationSkill.max) or 300
+        override = math.max(minimum, math.min(maximum, override))
+        if override == current then
+            override = nil
+        end
+    end
+
+    local changed = override ~= calculatorState.skillOverride
+    calculatorState.skillOverride = override
+    setDamageSkillEditValue(override or current)
+    return changed
+end
+
+local function applyDamageSkillOverrideFromInput()
+    local calculatorState = state.damageCalculator
+    if state.domain ~= DOMAIN_DAMAGE_CALCULATOR or not calculatorState.selectedId or not calculatorState.calculationSkill then
+        cancelDamageSkillOverrideEvent()
+        return
+    end
+    if state.damageCalculator.captureSkillOverrideFromInput() then
+        requestDetail(calculatorState.selectedId, calculatorState.selectedTier)
+    end
+end
+
+local function queueDamageSkillOverride()
+    local calculatorState = state.damageCalculator
+    if calculatorState.skillEditUpdating or not calculatorState.calculationSkill then
+        return
+    end
+    cancelDamageSkillOverrideEvent()
+    calculatorState.skillOverrideEvent = scheduleEvent(function()
+        calculatorState.skillOverrideEvent = nil
+        applyDamageSkillOverrideFromInput()
+    end, 250)
+end
+
+state.damageCalculator.setLevelEditValue = function(value)
+    if not ui or not ui.damageLevelEdit then
+        return
+    end
+    local calculatorState = state.damageCalculator
+    calculatorState.levelEditUpdating = true
+    ui.damageLevelEdit:setText(value ~= nil and tostring(value) or '')
+    calculatorState.levelEditUpdating = false
+end
+
+state.damageCalculator.renderCalculationLevel = function(calculationLevel)
+    local calculatorState = state.damageCalculator
+    calculatorState.calculationLevel = type(calculationLevel) == 'table' and calculationLevel or nil
+    if not calculatorState.calculationLevel then
+        state.damageCalculator.cancelLevelOverrideEvent()
+        state.damageCalculator.hideLevelPanel()
+        return
+    end
+
+    local level = calculatorState.calculationLevel
+    local current = tonumber(level.current or level.currentValue or level.playerValue) or 1
+    local used = tonumber(level.used or level.usedValue or level.value) or current
+    local minimum = tonumber(level.min) or 1
+    local maximum = tonumber(level.max) or 500
+    calculatorState.levelOverride = level.overridden == true and used or nil
+
+    local status = level.overridden == true and ('  |  ' .. tr('Simulated')) or ''
+    ui.damageActualLevelLabel:setText(string.format('%s: %d%s', tr('Level'), current, status))
+    ui.damageActualLevelLabel:setColor('#BDBDBD')
+    ui.damageLevelEdit:setValidCharacters('0123456789')
+    ui.damageLevelEdit.levelMinimum = minimum
+    ui.damageLevelEdit.levelMaximum = maximum
+    state.damageCalculator.setLevelEditValue(used)
+    ui.damageLevelPanel:setHeight(42)
+    ui.damageLevelPanel:show()
+end
+
+state.damageCalculator.captureLevelOverrideFromInput = function()
+    local calculatorState = state.damageCalculator
+    state.damageCalculator.cancelLevelOverrideEvent()
+    if not calculatorState.calculationLevel then
+        return false
+    end
+
+    local text = ui.damageLevelEdit:getText() or ''
+    local override = tonumber(text)
+    local current = tonumber(calculatorState.calculationLevel.current or calculatorState.calculationLevel.currentValue or calculatorState.calculationLevel.playerValue) or 1
+    if override == nil then
+        if text:trim() ~= '' then
+            state.damageCalculator.setLevelEditValue(calculatorState.levelOverride or current)
+            return false
+        end
+    else
+        override = math.floor(override)
+        local minimum = tonumber(calculatorState.calculationLevel.min) or 1
+        local maximum = tonumber(calculatorState.calculationLevel.max) or 500
+        override = math.max(minimum, math.min(maximum, override))
+        if override == current then
+            override = nil
+        end
+    end
+
+    local changed = override ~= calculatorState.levelOverride
+    calculatorState.levelOverride = override
+    state.damageCalculator.setLevelEditValue(override or current)
+    return changed
+end
+
+state.damageCalculator.applyLevelOverrideFromInput = function()
+    local calculatorState = state.damageCalculator
+    if state.domain ~= DOMAIN_DAMAGE_CALCULATOR or not calculatorState.selectedId or not calculatorState.calculationLevel then
+        state.damageCalculator.cancelLevelOverrideEvent()
+        return
+    end
+    if state.damageCalculator.captureLevelOverrideFromInput() then
+        requestDetail(calculatorState.selectedId, calculatorState.selectedTier)
+    end
+end
+
+state.damageCalculator.queueLevelOverride = function()
+    local calculatorState = state.damageCalculator
+    if calculatorState.levelEditUpdating or not calculatorState.calculationLevel then
+        return
+    end
+    state.damageCalculator.cancelLevelOverrideEvent()
+    calculatorState.levelOverrideEvent = scheduleEvent(function()
+        calculatorState.levelOverrideEvent = nil
+        state.damageCalculator.applyLevelOverrideFromInput()
+    end, 250)
+end
+
+local function renderDamageCalculatorDetail(data)
+    local domainState = state.damageCalculator
+    local selectedItem = type(data.selectedItem) == 'table' and data.selectedItem or type(data.item) == 'table' and data.item or data
+    domainState.selectedId = tonumber(data.baseWareId or selectedItem.baseWareId) or domainState.selectedId or tonumber(data.wareId or selectedItem.wareId or selectedItem.id)
+    domainState.selectedTier = tonumber(data.tier or selectedItem.tier) or domainState.selectedTier or 1
+    domainState.availableTiers = normalizeTierList(data.availableTiers or selectedItem.availableTiers)
+    if #domainState.availableTiers == 0 then
+        domainState.availableTiers = { domainState.selectedTier }
+    end
+
+    ui.detailPlaceholder:hide()
+    ui.detailContent:show()
+    resetDetailCreature()
+    ui.selectedItem:show()
+    local clientId = tonumber(selectedItem.clientId or selectedItem.itemClientId or selectedItem.itemId or data.clientId or data.itemClientId or data.itemId)
+    if clientId and clientId > 0 then
+        domainState.selectedClientId = clientId
+    end
+    ui.itemSprite:setItemId(domainState.selectedClientId or 0)
+    state.damageCalculator.updateTierFrame(domainState.selectedTier)
+    local itemName = selectedItem.baseName or data.baseName or selectedItem.name or data.name or domainState.selectedName or tr('Damage Calculator')
+    domainState.selectedName = itemName
+    ui.itemName:setText(itemName)
+    ui.detailList:destroyChildren()
+    renderTierTabs(domainState.selectedTier, domainState.availableTiers)
+    renderCalculationSkill(data.calculationSkill)
+    state.damageCalculator.renderCalculationLevel(data.calculationLevel)
+
+    local requirementSummary, requirementsMet = getCalculatorRequirementsSummary(data.requirements or selectedItem.requirements)
+    if requirementSummary then
+        addCalculatorSection(tr('Item requirements'))
+        addCalculatorDetailRow(tr('Status'), requirementSummary, requirementsMet and '#6fbf5f' or '#e84a4a')
+    end
+
+    addCalculatorDamageTable(tr('Basic attack'), data.basicAttack, tr('Basic attack'))
+    addCalculatorDamageTable(tr('Ammunition'), data.ammunition, tr('Ammunition'))
+    addCalculatorDamageTable(tr('Spells'), data.spells, tr('Spell'))
+    addCalculatorDamageTable(tr('Runes'), data.runes or data.rune or data.runeDamage or data.magicRunes or data.magicRune, tr('Rune'), true)
+    addCalculatorDamageTable(tr('Damage'), data.damageResults or data.results or data.damages or data.damage, tr('Damage'))
+
+    if #ui.detailList:getChildren() == 0 then
+        addCalculatorDetailRow(tr('Result'), tr('No damage data available.'))
+    end
+end
+
 showDetail = function(data)
     if not data then
         return
@@ -2224,6 +2867,12 @@ showDetail = function(data)
     if domain ~= state.domain then
         return
     end
+
+    if domain == DOMAIN_DAMAGE_CALCULATOR then
+        renderDamageCalculatorDetail(data)
+        return
+    end
+    state.damageCalculator.updateTierFrame(nil)
 
     local domainState = getDomainState(domain)
     if domain == DOMAIN_MONSTERS then
@@ -2310,14 +2959,25 @@ local function onResultSelected(widget, entry)
         domainState.selectedId = tonumber(entry.vocationId or entry.id)
         requestDetail(domainState.selectedId, 1)
     else
-        domainState.selectedId = tonumber(entry.wareId)
-        domainState.selectedTier = 1
-        requestDetail(domainState.selectedId, 1)
+        if state.domain == DOMAIN_DAMAGE_CALCULATOR then
+            state.damageCalculator.captureSkillOverrideFromInput()
+            state.damageCalculator.captureLevelOverrideFromInput()
+            domainState.calculationSkill = nil
+            domainState.calculationLevel = nil
+        end
+        domainState.selectedId = tonumber(entry.wareId or entry.id)
+        if state.domain == DOMAIN_DAMAGE_CALCULATOR then
+            domainState.selectedClientId = tonumber(entry.clientId or entry.itemClientId or entry.itemId)
+            domainState.selectedName = entry.baseName or entry.name or entry.label or entry.title
+        end
+        domainState.selectedTier = tonumber(entry.tier) or 1
+        requestDetail(domainState.selectedId, domainState.selectedTier)
     end
 end
 
 local function renderResults(response)
-    local list = (state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS) and ui.monsterList or ui.resultList
+    local usesCombinedList = state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS or state.domain == DOMAIN_DAMAGE_CALCULATOR
+    local list = usesCombinedList and ui.monsterList or ui.resultList
     list:destroyChildren()
     hideAllEmptyLabels()
     clearResultSelection(state.domain)
@@ -2331,7 +2991,7 @@ local function renderResults(response)
     setResultWidgetsEnabled(state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS or domainState.activeCategory ~= nil)
 
     if #items == 0 then
-        if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS then
+        if usesCombinedList then
             updateMonsterEmptyLabel(getNoResultsText(state.domain))
         else
             updateResultEmptyLabel(getNoResultsText(state.domain))
@@ -2343,6 +3003,9 @@ local function renderResults(response)
     for index, entry in ipairs(items) do
         local rowType = state.domain == DOMAIN_VOCATIONS and 'LibraryVocationListItem' or state.domain == DOMAIN_MONSTERS and 'LibraryMonsterListItem' or 'LibraryResultItem'
         local row = g_ui.createWidget(rowType, list)
+        if state.domain == DOMAIN_DAMAGE_CALCULATOR then
+            row:setWidth(182)
+        end
         local sprite = row:recursiveGetChildById('Sprite')
         local creature = row:recursiveGetChildById('Creature')
         local nameLabel = row:recursiveGetChildById('Name')
@@ -2423,7 +3086,7 @@ local function requestCurrentPage(force)
 
     local domainState = getDomainState()
     if not domainState.activeCategory then
-        if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS then
+        if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS or state.domain == DOMAIN_DAMAGE_CALCULATOR then
             updateMonsterEmptyLabel(state.domain == DOMAIN_VOCATIONS and tr('Select a category to load vocations.') or tr('Select a category to load monsters.'))
         else
             updateResultEmptyLabel(tr('Select a category to load items.'))
@@ -2440,7 +3103,7 @@ local function requestCurrentPage(force)
         return
     end
 
-    if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS then
+    if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS or state.domain == DOMAIN_DAMAGE_CALCULATOR then
         ui.monsterList:destroyChildren()
         updateMonsterEmptyLabel(getLoadingText(state.domain))
     else
@@ -2465,12 +3128,14 @@ local function updateDomainUi()
     local isVocations = state.domain == DOMAIN_VOCATIONS
     local isDailyRewards = state.domain == DOMAIN_DAILY_REWARDS
     local isBlessings = state.domain == DOMAIN_BLESSINGS
+    local isDamageCalculator = state.domain == DOMAIN_DAMAGE_CALCULATOR
     local isFullWidthPanel = isDailyRewards or isBlessings
     ui.itemsTab:setOn(isItems)
     ui.monstersTab:setOn(isMonsters)
     ui.vocationsTab:setOn(isVocations)
     ui.dailyRewardsTab:setOn(isDailyRewards)
     ui.blessingsTab:setOn(isBlessings)
+    ui.damageCalculatorTab:setOn(isDamageCalculator)
     if state.dailyRewards.notificationAvailable then
         setDailyRewardsTabNotifyColor(state.dailyRewards.tabNotificationBlinkOn)
     else
@@ -2484,11 +3149,14 @@ local function updateDomainUi()
     ui.dailyFooterStatsLabel:setVisible(isDailyRewards)
     updateBestiaryFooterVisibility()
     ui.categoryPanel:setVisible(isItems)
-    ui.monsterPanel:setVisible(isMonsters or isVocations)
+    ui.monsterPanel:setVisible(isMonsters or isVocations or isDamageCalculator)
     ui.itemsSection:setVisible(isItems)
     ui.resultLabel:setText(getResultLabelText(state.domain) .. ':')
     ui.monsterCategoryLabel:setText(tr('Categories') .. ':')
-    ui.monsterLabel:setText((isVocations and tr('Vocations') or tr('Monsters')) .. ':')
+    ui.monsterLabel:setText((isVocations and tr('Vocations') or isDamageCalculator and tr('Items') or tr('Monsters')) .. ':')
+    if not isDamageCalculator then
+        hideDamageSkillPanel()
+    end
     if not isFullWidthPanel then
         ui.detailPlaceholder:setText(getInitialPlaceholder(state.domain))
     end
@@ -2507,6 +3175,9 @@ local function updateDomainUi()
         ui.resultList:destroyChildren()
         ui.monsterList:destroyChildren()
     elseif isItems then
+        ui.resultEmptyLabel:setVisible(false)
+    elseif isDamageCalculator then
+        ui.resultList:destroyChildren()
         ui.resultEmptyLabel:setVisible(false)
     else
         ui.resultList:destroyChildren()
@@ -2553,6 +3224,16 @@ local function getVocationCategoryLabel(entry)
         return tr('Old Camp')
     elseif entry.key == 'NEW_CAMP' then
         return tr('New Camp')
+    end
+    if type(entry.label) == 'string' and entry.label ~= '' then
+        return tr(entry.label)
+    end
+    return humanizeKey(entry.key)
+end
+
+local function getDamageCalculatorCategoryLabel(entry)
+    if type(entry) ~= 'table' then
+        return ''
     end
     if type(entry.label) == 'string' and entry.label ~= '' then
         return tr(entry.label)
@@ -2673,6 +3354,53 @@ local function renderVocationCategories()
     end
 end
 
+local function setDamageCalculatorCategory(categoryKey)
+    local domainState = state.damageCalculator
+    if domainState.activeCategory == categoryKey then
+        return
+    end
+
+    domainState.activeCategory = categoryKey
+    domainState.page = 1
+    domainState.search = ''
+    clearResultSelection(DOMAIN_DAMAGE_CALCULATOR)
+    domainState.selectedId = nil
+    domainState.selectedTier = 1
+    domainState.availableTiers = {}
+    state.damageCalculator.captureSkillOverrideFromInput()
+    state.damageCalculator.captureLevelOverrideFromInput()
+    domainState.calculationSkill = nil
+    domainState.calculationLevel = nil
+    ui.searchEdit:setText('')
+
+    for _, widget in ipairs(ui.monsterCategoryList:getChildren()) do
+        widget:setChecked(widget.categoryKey == categoryKey)
+    end
+
+    requestCurrentPage(false)
+end
+
+local function renderDamageCalculatorCategories()
+    local list = ui.monsterCategoryList
+    list:destroyChildren()
+
+    for _, entry in ipairs(state.damageCalculator.categories) do
+        local widget = g_ui.createWidget('LibraryCategoryItem', list)
+        widget.categoryKey = entry.key
+        widget:setText(getDamageCalculatorCategoryLabel(entry))
+        widget:setChecked(state.damageCalculator.activeCategory == entry.key)
+        widget.onClick = function()
+            setDamageCalculatorCategory(entry.key)
+        end
+        widget.onMouseRelease = function(self, mousePos, mouseButton)
+            if self:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
+                self:onClick()
+                return true
+            end
+        end
+    end
+end
+
 local function mergeServerCategories(serverCategories)
     if type(serverCategories) ~= 'table' then
         return
@@ -2779,6 +3507,34 @@ local function normalizeVocationCategories(serverCategories)
     return normalized, defaultCategory
 end
 
+local function normalizeDamageCalculatorCategories(serverCategories)
+    local normalized = {}
+    local seen = {}
+    local defaultCategory = nil
+
+    if type(serverCategories) == 'table' then
+        for _, category in ipairs(serverCategories) do
+            local entry = type(category) == 'string' and { key = category } or category
+            if type(entry) == 'table' and type(entry.key) == 'string' and entry.key ~= '' and not seen[entry.key] then
+                seen[entry.key] = true
+                table.insert(normalized, {
+                    key = entry.key,
+                    label = entry.label,
+                    default = entry.default == true
+                })
+                if entry.default == true and not defaultCategory then
+                    defaultCategory = entry.key
+                end
+            end
+        end
+    end
+
+    if not defaultCategory and normalized[1] then
+        defaultCategory = normalized[1].key
+    end
+    return normalized, defaultCategory
+end
+
 local function handleCategoriesResponse(data)
     state.items.categoriesLoaded = true
     state.items.categoriesRequested = false
@@ -2808,6 +3564,19 @@ local function handleVocationCategoriesResponse(data)
     renderVocationCategories()
 
     if state.domain == DOMAIN_VOCATIONS and vocationsState.activeCategory and vocationsState.activeCategory ~= previousCategory then
+        requestCurrentPage(false)
+    end
+end
+
+local function handleDamageCalculatorCategoriesResponse(data)
+    local calculatorState = state.damageCalculator
+    local previousCategory = calculatorState.activeCategory
+    calculatorState.categoriesLoaded = true
+    calculatorState.categoriesRequested = false
+    calculatorState.categories, calculatorState.activeCategory = normalizeDamageCalculatorCategories(data.categories)
+    renderDamageCalculatorCategories()
+
+    if state.domain == DOMAIN_DAMAGE_CALCULATOR and calculatorState.activeCategory and calculatorState.activeCategory ~= previousCategory then
         requestCurrentPage(false)
     end
 end
@@ -2866,12 +3635,18 @@ local function handleDetailResponse(domain, data, requestData)
             showDetail(data)
         end
     else
-        local id = tonumber(data.wareId or requestData.wareId)
+        local id = domain == DOMAIN_DAMAGE_CALCULATOR and tonumber(requestData.wareId or data.baseWareId or data.wareId) or tonumber(data.wareId or requestData.wareId)
         local tier = tonumber(data.tier or requestData.tier) or 1
         if id then
             domainState.detailCache[makeDetailCacheKey(domain, id, tier)] = data
         end
-        if domain == state.domain and id == domainState.selectedId and tier == tonumber(domainState.selectedTier) then
+        local overrideMatches = true
+        if domain == DOMAIN_DAMAGE_CALCULATOR then
+            local requestedOverride = requestData.skillOverride ~= nil and tonumber(requestData.skillOverride) or nil
+            local requestedLevelOverride = requestData.levelOverride ~= nil and tonumber(requestData.levelOverride) or nil
+            overrideMatches = requestedOverride == domainState.skillOverride and requestedLevelOverride == domainState.levelOverride
+        end
+        if domain == state.domain and id == domainState.selectedId and tier == tonumber(domainState.selectedTier) and overrideMatches then
             showDetail(data)
         end
     end
@@ -2998,6 +3773,8 @@ local function handleLibraryError(domain, action, payload)
         state.monsters.categoriesRequested = false
     elseif domain == DOMAIN_VOCATIONS and action == 'categories' then
         state.vocations.categoriesRequested = false
+    elseif domain == DOMAIN_DAMAGE_CALCULATOR and action == 'categories' then
+        state.damageCalculator.categoriesRequested = false
     end
 
     if domain == DOMAIN_MONSTERS and action == 'detail' and errorCode == 'INVALID_VARIANT' then
@@ -3017,7 +3794,52 @@ local function handleLibraryError(domain, action, payload)
         end
     end
 
-    if domain == DOMAIN_MONSTERS or domain == DOMAIN_VOCATIONS then
+    if domain == DOMAIN_DAMAGE_CALCULATOR and action == 'detail' and errorCode == 'INVALID_SKILL_OVERRIDE' then
+        local calculatorState = state.damageCalculator
+        cancelDamageSkillOverrideEvent()
+        calculatorState.skillOverride = nil
+        local calculationSkill = calculatorState.calculationSkill
+        if type(calculationSkill) == 'table' then
+            local current = calculationSkill.current or calculationSkill.currentValue or calculationSkill.playerValue or 0
+            setDamageSkillEditValue(current)
+            ui.damageActualSkillLabel:setText(message)
+            ui.damageActualSkillLabel:setColor('#e84a4a')
+            ui.detailPlaceholder:hide()
+            ui.detailContent:show()
+            ui.damageSkillPanel:setHeight(42)
+            ui.damageSkillPanel:show()
+        else
+            resetDetailPanel(message, false)
+        end
+        return
+    end
+
+    if domain == DOMAIN_DAMAGE_CALCULATOR and action == 'detail' and errorCode == 'INVALID_LEVEL_OVERRIDE' then
+        local calculatorState = state.damageCalculator
+        state.damageCalculator.cancelLevelOverrideEvent()
+        calculatorState.levelOverride = nil
+        local calculationLevel = calculatorState.calculationLevel
+        if type(calculationLevel) == 'table' then
+            local current = calculationLevel.current or calculationLevel.currentValue or calculationLevel.playerValue or 1
+            state.damageCalculator.setLevelEditValue(current)
+            ui.damageActualLevelLabel:setText(message)
+            ui.damageActualLevelLabel:setColor('#e84a4a')
+            ui.detailPlaceholder:hide()
+            ui.detailContent:show()
+            ui.damageLevelPanel:setHeight(42)
+            ui.damageLevelPanel:show()
+        else
+            resetDetailPanel(message, false)
+        end
+        return
+    end
+
+    if domain == DOMAIN_DAMAGE_CALCULATOR and action == 'detail' then
+        resetDetailPanel(message, false)
+        return
+    end
+
+    if domain == DOMAIN_MONSTERS or domain == DOMAIN_VOCATIONS or domain == DOMAIN_DAMAGE_CALCULATOR then
         updateMonsterEmptyLabel(message)
     else
         updateResultEmptyLabel(message)
@@ -3056,6 +3878,8 @@ local function onLibraryOpcode(protocol, opcode, payload)
         handleMonsterCategoriesResponse(data)
     elseif action == 'categories' and domain == DOMAIN_VOCATIONS then
         handleVocationCategoriesResponse(data)
+    elseif action == 'categories' and domain == DOMAIN_DAMAGE_CALCULATOR then
+        handleDamageCalculatorCategoriesResponse(data)
     elseif action == 'list' then
         handleListResponse(domain, data, requestData)
     elseif action == 'detail' then
@@ -3113,11 +3937,18 @@ local function switchDomain(domain)
         return
     end
 
+    if state.domain == DOMAIN_DAMAGE_CALCULATOR then
+        state.damageCalculator.captureSkillOverrideFromInput()
+        state.damageCalculator.captureLevelOverrideFromInput()
+        state.damageCalculator.calculationSkill = nil
+        state.damageCalculator.calculationLevel = nil
+    end
     state.domain = domain
     updateDomainUi()
     clearResultSelection(DOMAIN_ITEMS)
     clearResultSelection(DOMAIN_MONSTERS)
     clearResultSelection(DOMAIN_VOCATIONS)
+    clearResultSelection(DOMAIN_DAMAGE_CALCULATOR)
 
     if domain == DOMAIN_DAILY_REWARDS then
         setResultWidgetsEnabled(false)
@@ -3140,6 +3971,9 @@ local function switchDomain(domain)
     elseif domain == DOMAIN_VOCATIONS then
         ensureVocationCategoriesRequested()
         renderVocationCategories()
+    elseif domain == DOMAIN_DAMAGE_CALCULATOR then
+        ensureDamageCalculatorCategoriesRequested()
+        renderDamageCalculatorCategories()
     else
         ensureMonsterCategoriesRequested()
         renderMonsterCategories()
@@ -3148,7 +3982,7 @@ local function switchDomain(domain)
     if domainState.activeCategory then
         requestCurrentPage(false)
     else
-        if domain == DOMAIN_MONSTERS or domain == DOMAIN_VOCATIONS then
+        if domain == DOMAIN_MONSTERS or domain == DOMAIN_VOCATIONS or domain == DOMAIN_DAMAGE_CALCULATOR then
             updateMonsterEmptyLabel(domain == DOMAIN_VOCATIONS and tr('Select a category to load vocations.') or tr('Select a category to load monsters.'))
         else
             updateResultEmptyLabel(tr('Select a category to load items.'))
@@ -3188,6 +4022,9 @@ local function show()
     elseif state.domain == DOMAIN_VOCATIONS then
         ensureVocationCategoriesRequested()
         renderVocationCategories()
+    elseif state.domain == DOMAIN_DAMAGE_CALCULATOR then
+        ensureDamageCalculatorCategoriesRequested()
+        renderDamageCalculatorCategories()
     else
         ensureMonsterCategoriesRequested()
         renderMonsterCategories()
@@ -3198,7 +4035,7 @@ local function show()
     if domainState.activeCategory then
         requestCurrentPage(false)
     else
-        if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS then
+        if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS or state.domain == DOMAIN_DAMAGE_CALCULATOR then
             updateMonsterEmptyLabel(state.domain == DOMAIN_VOCATIONS and tr('Select a category to load vocations.') or tr('Select a category to load monsters.'))
         else
             updateResultEmptyLabel(tr('Select a category to load items.'))
@@ -3234,6 +4071,7 @@ local function resetUiState()
     clearResultSelection(DOMAIN_ITEMS)
     clearResultSelection(DOMAIN_MONSTERS)
     clearResultSelection(DOMAIN_VOCATIONS)
+    clearResultSelection(DOMAIN_DAMAGE_CALCULATOR)
     ui.searchEdit:setText('')
     ui.resultList:destroyChildren()
     ui.monsterList:destroyChildren()
@@ -3249,12 +4087,14 @@ local function resetUiState()
     renderCategories()
     if state.domain == DOMAIN_VOCATIONS then
         renderVocationCategories()
+    elseif state.domain == DOMAIN_DAMAGE_CALCULATOR then
+        renderDamageCalculatorCategories()
     else
         renderMonsterCategories()
     end
     ui.detailList:destroyChildren()
     updateDomainUi()
-    if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS then
+    if state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS or state.domain == DOMAIN_DAMAGE_CALCULATOR then
         updateMonsterEmptyLabel(state.domain == DOMAIN_VOCATIONS and tr('Select a category to load vocations.') or tr('Select a category to load monsters.'))
     else
         updateResultEmptyLabel(tr('Select a category to load items.'))
@@ -3283,8 +4123,18 @@ local function resetDomainState(domain)
     domainState.totalPages = 1
     domainState.totalResults = 0
     domainState.selectedId = nil
+    if domain == DOMAIN_DAMAGE_CALCULATOR then
+        domainState.selectedClientId = nil
+        domainState.selectedName = nil
+    end
     domainState.selectedTier = 1
     domainState.availableTiers = {}
+    if domain == DOMAIN_DAMAGE_CALCULATOR then
+        resetDamageSkillOverride()
+        domainState.resetLevelOverride()
+        domainState.skillEditUpdating = false
+        domainState.levelEditUpdating = false
+    end
     domainState.selectedResult = nil
     domainState.pageCache = {}
     domainState.detailCache = {}
@@ -3313,6 +4163,7 @@ local function resetDataState()
     resetDomainState(DOMAIN_VOCATIONS)
     resetDomainState(DOMAIN_DAILY_REWARDS)
     resetDomainState(DOMAIN_BLESSINGS)
+    resetDomainState(DOMAIN_DAMAGE_CALCULATOR)
     state.pending = {}
 end
 
@@ -3332,8 +4183,37 @@ function init()
     ui.vocationsTab.onClick = function() switchDomain(DOMAIN_VOCATIONS) end
     ui.dailyRewardsTab.onClick = function() switchDomain(DOMAIN_DAILY_REWARDS) end
     ui.blessingsTab.onClick = function() switchDomain(DOMAIN_BLESSINGS) end
+    ui.damageCalculatorTab.onClick = function() switchDomain(DOMAIN_DAMAGE_CALCULATOR) end
     ui.closeButton.onClick = hide
     ui.dailyClaimButton.onClick = claimDailyReward
+    ui.damageSkillEdit:setValidCharacters('0123456789')
+    ui.damageSkillEdit.onTextChange = queueDamageSkillOverride
+    ui.damageSkillEdit.onKeyPress = function(widget, keyCode, keyboardModifiers)
+        if keyCode == KeyEnter and keyboardModifiers == KeyboardNoModifier then
+            applyDamageSkillOverrideFromInput()
+            return true
+        end
+        return false
+    end
+    ui.damageSkillEdit.onFocusChange = function(widget, focused)
+        if not focused then
+            applyDamageSkillOverrideFromInput()
+        end
+    end
+    ui.damageLevelEdit:setValidCharacters('0123456789')
+    ui.damageLevelEdit.onTextChange = state.damageCalculator.queueLevelOverride
+    ui.damageLevelEdit.onKeyPress = function(widget, keyCode, keyboardModifiers)
+        if keyCode == KeyEnter and keyboardModifiers == KeyboardNoModifier then
+            state.damageCalculator.applyLevelOverrideFromInput()
+            return true
+        end
+        return false
+    end
+    ui.damageLevelEdit.onFocusChange = function(widget, focused)
+        if not focused then
+            state.damageCalculator.applyLevelOverrideFromInput()
+        end
+    end
     ui.dailyClaimButton:setImageColor(CLAIM_BUTTON_COLOR)
     ui.dailyClaimButton:setColor('#ffffff')
     libraryWindow.onEscape = hide
@@ -3378,6 +4258,8 @@ function terminate()
     })
 
     stopDailyRewardNotification()
+    cancelDamageSkillOverrideEvent()
+    state.damageCalculator.cancelLevelOverrideEvent()
 
     if searchEvent then
         removeEvent(searchEvent)
