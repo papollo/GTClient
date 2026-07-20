@@ -1030,6 +1030,10 @@ function onBattleButtonMouseRelease(self, mousePosition, mouseButton) -- Interac
         g_game.look(self.creature, true)
         return true
     elseif mouseButton == MouseRightButton and not g_mouse.isPressed(MouseLeftButton) then
+        if g_keyboard.getModifiers() == KeyboardNoModifier and
+            modules.game_interface.startNpcTalk(self.creature) then
+            return true
+        end
         modules.game_interface.createThingMenu(mousePosition, nil, nil, self.creature)
         return true
     elseif mouseButton == MouseLeftButton and not g_mouse.isPressed(MouseRightButton) then

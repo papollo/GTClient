@@ -27,6 +27,7 @@ rightIncreaseSidePanels = nil
 rightDecreaseSidePanels = nil
 hookedMenuOptions = {}
 local lastStopAction = 0
+local NPC_TALK_OPCODE = 216
 local mobileConfig = {
     mobileWidthJoystick = 0,
     mobileWidthShortcuts = 0,
@@ -555,6 +556,20 @@ function removeMenuHook(category, name)
     end
 end
 
+function startNpcTalk(creature)
+    if not g_game.isOnline() or not creature or not creature:isNpc() then
+        return false
+    end
+
+    local protocolGame = g_game.getProtocolGame()
+    if not protocolGame then
+        return false
+    end
+
+    protocolGame:sendExtendedOpcode(NPC_TALK_OPCODE, tostring(creature:getId()))
+    return true
+end
+
 function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
     if not g_game.isOnline() then
         return
@@ -856,6 +871,15 @@ end
 
 function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, useThing, creatureThing, attackCreature)
     local keyboardModifiers = g_keyboard.getModifiers()
+
+    if keyboardModifiers == KeyboardNoModifier and mouseButton == MouseRightButton and
+        not g_mouse.isPressed(MouseLeftButton) then
+        local npc = creatureThing and creatureThing:isNpc() and creatureThing or
+            (attackCreature and attackCreature:isNpc() and attackCreature or nil)
+        if startNpcTalk(npc) then
+            return true
+        end
+    end
 
     if g_platform.isMobile() then
         if mouseButton == MouseRightButton then
