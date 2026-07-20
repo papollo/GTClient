@@ -390,6 +390,33 @@ local function isDamageCalculatorRuneCategory()
     return type(category) == 'string' and category:lower():find('rune', 1, true) ~= nil
 end
 
+state.items.isTierFramedCategory = function(category)
+    if type(category) ~= 'string' then
+        return false
+    end
+    return category == 'ARMORS' or category:find('WEAPONS_', 1, true) == 1
+end
+
+state.items.setTierFrameImage = function(frameWidget, tier)
+    if not frameWidget then
+        return
+    end
+    local frameImages = ItemsDatabase and ItemsDatabase.tierFrameImages or {
+        [2] = '/images/ui/rarity_grey',
+        [3] = '/images/ui/rarity_blue',
+        [4] = '/images/ui/rarity_purple',
+        [5] = '/images/ui/rarity_yellow'
+    }
+    local image = frameImages[tonumber(tier) or 1]
+    if image then
+        frameWidget:setImageSource(image)
+        frameWidget:show()
+    else
+        frameWidget:setImageSource('')
+        frameWidget:hide()
+    end
+end
+
 local function makeRequestId(domain, action)
     requestCounter = requestCounter + 1
     return string.format('library-%s-%s-%d', domain, action, requestCounter)
@@ -627,20 +654,7 @@ state.damageCalculator.updateTierFrame = function(tier)
     if not ui or not ui.damageTierFrame then
         return
     end
-    local frameImages = ItemsDatabase and ItemsDatabase.tierFrameImages or {
-        [2] = '/images/ui/rarity_grey',
-        [3] = '/images/ui/rarity_blue',
-        [4] = '/images/ui/rarity_purple',
-        [5] = '/images/ui/rarity_yellow'
-    }
-    local image = frameImages[tonumber(tier) or 1]
-    if image then
-        ui.damageTierFrame:setImageSource(image)
-        ui.damageTierFrame:show()
-    else
-        ui.damageTierFrame:setImageSource('')
-        ui.damageTierFrame:hide()
-    end
+    state.items.setTierFrameImage(ui.damageTierFrame, tier)
 end
 
 local function resetDamageSkillOverride()
@@ -2517,7 +2531,7 @@ local function getCalculatorCriticalRange(damage)
     return critical
 end
 
-local function addCalculatorDamageRow(entry, fallbackName, hideRequirements)
+local function addCalculatorDamageRow(entry, fallbackName, hideRequirements, requirementsLabel)
     local damage = getCalculatorDamageValue(entry)
     local row = g_ui.createWidget('LibraryDamageTableRow', ui.detailList)
     local name = entry.name or entry.label or damage.name or fallbackName or tr('Damage')
@@ -2558,7 +2572,7 @@ local function addCalculatorDamageRow(entry, fallbackName, hideRequirements)
         local requirements = entry.requirements or damage.requirements
         local summary, met = getCalculatorRequirementsSummary(requirements)
         if summary then
-            addCalculatorDetailRow(string.format('%s %s', name, tr('requirements')), summary, met and '#6fbf5f' or '#e84a4a')
+            addCalculatorDetailRow(requirementsLabel or string.format('%s %s', name, tr('requirements')), summary, met and '#6fbf5f' or '#e84a4a')
         end
     end
     local critical = damage.critical or damage.crit
@@ -2568,7 +2582,7 @@ local function addCalculatorDamageRow(entry, fallbackName, hideRequirements)
     end
 end
 
-local function addCalculatorDamageTable(title, entries, fallbackName, hideRequirements)
+local function addCalculatorDamageTable(title, entries, fallbackName, hideRequirements, requirementsLabel)
     if type(entries) ~= 'table' then
         return
     end
@@ -2626,7 +2640,7 @@ local function addCalculatorDamageTable(title, entries, fallbackName, hideRequir
     addCalculatorSection(title)
     g_ui.createWidget('LibraryDamageTableHeader', ui.detailList)
     for _, entry in ipairs(normalized) do
-        addCalculatorDamageRow(entry, fallbackName, hideRequirements)
+        addCalculatorDamageRow(entry, fallbackName, hideRequirements, requirementsLabel)
     end
 end
 
@@ -2849,7 +2863,7 @@ local function renderDamageCalculatorDetail(data)
 
     addCalculatorDamageTable(tr('Basic attack'), data.basicAttack, tr('Basic attack'))
     addCalculatorDamageTable(tr('Ammunition'), data.ammunition, tr('Ammunition'))
-    addCalculatorDamageTable(tr('Spells'), data.spells, tr('Spell'))
+    addCalculatorDamageTable(tr('Spells'), data.spells, tr('Spell'), false, tr('Requirements'))
     addCalculatorDamageTable(tr('Runes'), data.runes or data.rune or data.runeDamage or data.magicRunes or data.magicRune, tr('Rune'), true)
     addCalculatorDamageTable(tr('Damage'), data.damageResults or data.results or data.damages or data.damage, tr('Damage'))
 
@@ -2918,6 +2932,9 @@ showDetail = function(data)
         resetDetailCreature()
         ui.selectedItem:setVisible(true)
         ui.itemSprite:setItemId(tonumber(data.clientId) or 0)
+        if domain == DOMAIN_ITEMS and state.items.isTierFramedCategory(data.category or domainState.activeCategory) then
+            state.items.setTierFrameImage(ui.damageTierFrame, domainState.selectedTier)
+        end
     end
 
     if domain == DOMAIN_MONSTERS then
@@ -3008,6 +3025,7 @@ local function renderResults(response)
         end
         local sprite = row:recursiveGetChildById('Sprite')
         local creature = row:recursiveGetChildById('Creature')
+        local tierFrame = row:recursiveGetChildById('tierFrame')
         local nameLabel = row:recursiveGetChildById('Name')
         local bestiaryProgressLabel = row:recursiveGetChildById('BestiaryProgress')
         row:setPhantom(false)
@@ -3045,6 +3063,13 @@ local function renderResults(response)
             if sprite then
                 sprite:setVisible(true)
                 sprite:setItemId(tonumber(entry.clientId) or 0)
+            end
+            if tierFrame then
+                if state.domain == DOMAIN_ITEMS and state.items.isTierFramedCategory(entry.category or domainState.activeCategory) then
+                    state.items.setTierFrameImage(tierFrame, entry.tier)
+                else
+                    state.items.setTierFrameImage(tierFrame, nil)
+                end
             end
         end
 
