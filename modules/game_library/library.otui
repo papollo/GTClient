@@ -188,6 +188,53 @@ LibrarySectionLabel < Label
   text-auto-resize: true
   margin-top: 10
 
+LibraryUpgradeSeparator < HorizontalSeparator
+  width: 360
+  margin-top: 12
+  margin-bottom: 2
+
+LibraryUpgradeRequirement < Label
+  height: 20
+  color: #BDBDBD
+  text-auto-resize: true
+  margin-top: 2
+  margin-bottom: 2
+
+LibraryUpgradeMaterialRow < UIWidget
+  size: 360 36
+  background-color: #484848
+
+  UIWidget
+    id: iconBackground
+    size: 32 32
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 2
+    image-source: /images/ui/item
+
+    UIItem
+      id: icon
+      anchors.fill: parent
+
+  Label
+    id: name
+    anchors.left: iconBackground.right
+    anchors.right: amount.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 8
+    margin-right: 8
+    color: #C8C8C8
+    text-wrap: true
+
+  Label
+    id: amount
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 10
+    width: 60
+    color: #D7D7D7
+    text-align: right
+
 LibraryLootTableHeader < UIWidget
   size: 260 18
   margin-top: 3

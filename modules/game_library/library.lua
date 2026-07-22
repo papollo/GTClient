@@ -2186,7 +2186,61 @@ local function renderBestiaryDetails(data)
     end
 end
 
-local function renderDetailGroups(details)
+state.items.renderNextUpgrade = function(nextUpgrade)
+    if state.domain ~= DOMAIN_ITEMS or type(nextUpgrade) ~= 'table' then
+        return
+    end
+
+    local materials = nextUpgrade.materials
+    if type(materials) ~= 'table' then
+        return
+    end
+
+    local tier = tonumber(nextUpgrade.tier)
+    local tierLabel = tier and tierNames[tier] or nil
+    if not tierLabel then
+        tierLabel = tostring(nextUpgrade.tier or '')
+    end
+    if tierLabel == '' then
+        return
+    end
+
+    g_ui.createWidget('LibraryUpgradeSeparator', ui.detailList)
+
+    local heading = g_ui.createWidget('LibrarySectionLabel', ui.detailList)
+    heading:setText(string.format('%s: %s', tr('Upgrade to'), tierLabel))
+
+    local requiredSkill = nextUpgrade.requiredSkill
+    if type(requiredSkill) == 'table' then
+        local skillName = type(requiredSkill.name) == 'string' and requiredSkill.name:trim() or ''
+        local skillLevel = tonumber(requiredSkill.level)
+        if skillName ~= '' and skillLevel then
+            local requirement = g_ui.createWidget('LibraryUpgradeRequirement', ui.detailList)
+            requirement:setText(string.format('%s %s: %d', tr('Required'), skillName, skillLevel))
+        end
+    end
+
+    for _, material in ipairs(materials) do
+        if type(material) == 'table' then
+            local row = g_ui.createWidget('LibraryUpgradeMaterialRow', ui.detailList)
+            local icon = row:recursiveGetChildById('icon')
+            local nameLabel = row:recursiveGetChildById('name')
+            local amountLabel = row:recursiveGetChildById('amount')
+
+            if icon then
+                icon:setItemId(tonumber(material.clientId) or 0)
+            end
+            if nameLabel then
+                nameLabel:setText(tostring(material.name or ''))
+            end
+            if amountLabel then
+                amountLabel:setText(string.format('x%s', tostring(material.amount or 0)))
+            end
+        end
+    end
+end
+
+local function renderDetailGroups(details, nextUpgrade)
     local list = ui.detailList
     list:destroyChildren()
 
@@ -2397,6 +2451,8 @@ local function renderDetailGroups(details)
             end
         end
     end
+
+    state.items.renderNextUpgrade(nextUpgrade)
 end
 
 local function calculatorValueText(value)
@@ -2945,7 +3001,7 @@ showDetail = function(data)
     else
         renderTierTabs(domainState.selectedTier, domainState.availableTiers)
     end
-    renderDetailGroups(details)
+    renderDetailGroups(details, data.nextUpgrade)
     renderBestiaryDetails(data)
 end
 
