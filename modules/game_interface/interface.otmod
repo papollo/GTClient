@@ -37,6 +37,7 @@ Module
     - game_market
     - game_spelllist
     - game_library
+    - game_crafting
     - game_cooldown
     - game_modaldialog
     - game_unjustifiedpoints

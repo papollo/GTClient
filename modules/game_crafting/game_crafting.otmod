@@ -1,0 +1,8 @@
+Module
+  name: game_crafting
+  description: Standalone server-driven crafting window
+  author: Gothic Tales
+  sandboxed: true
+  scripts: [ crafting ]
+  @onLoad: init()
+  @onUnload: terminate()

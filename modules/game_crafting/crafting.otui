@@ -1,0 +1,355 @@
+CraftingRecipeRow < UICheckBox
+  size: 220 46
+  background-color: #454545
+  border-width: 1
+  border-color: #303030
+
+  UIWidget
+    id: iconBackground
+    size: 36 36
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 5
+    image-source: /images/ui/item
+
+    UIItem
+      id: icon
+      anchors.centerIn: parent
+      size: 32 32
+      virtual: true
+      draggable: false
+
+  Label
+    id: name
+    anchors.left: iconBackground.right
+    anchors.right: parent.right
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    margin-left: 8
+    margin-right: 7
+    color: #D4D4D4
+    text-align: left
+    text-wrap: true
+
+  $hover:
+    background-color: #515151
+    border-color: #666666
+
+  $checked:
+    background-color: #5B5B5B
+    border-color: #8A8A8A
+
+CraftingSectionLabel < Label
+  height: 22
+  width: 438
+  color: #E0E0E0
+  background-color: #3E3E3E
+  padding-left: 6
+  text-align: left
+
+CraftingRequirementRow < UIWidget
+  size: 438 30
+  background-color: #484848
+
+  Label
+    id: name
+    anchors.left: parent.left
+    anchors.right: value.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 8
+    margin-right: 8
+    color: #CFCFCF
+    text-wrap: true
+
+  Label
+    id: value
+    anchors.right: status.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 8
+    width: 72
+    color: #D7D7D7
+    text-align: right
+
+  Label
+    id: status
+    anchors.right: parent.right
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    margin-top: 1
+    margin-bottom: 1
+    margin-right: 8
+    width: 132
+    color: #E86A6A
+    text-align: right
+    text-wrap: true
+
+CraftingMaterialRow < UIWidget
+  size: 438 44
+  background-color: #484848
+
+  UIWidget
+    id: iconBackground
+    size: 36 36
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 4
+    image-source: /images/ui/item
+
+    UIItem
+      id: icon
+      anchors.centerIn: parent
+      size: 32 32
+      virtual: true
+      draggable: false
+
+  Label
+    id: name
+    anchors.left: iconBackground.right
+    anchors.right: amount.left
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    margin-left: 8
+    margin-right: 8
+    color: #CFCFCF
+    text-align: left
+    text-wrap: true
+
+  Label
+    id: amount
+    anchors.right: status.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-right: 8
+    width: 68
+    color: #D7D7D7
+    text-align: right
+
+  Label
+    id: status
+    anchors.right: parent.right
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    margin-top: 4
+    margin-bottom: 4
+    margin-right: 8
+    width: 150
+    color: #E86A6A
+    text-align: right
+    text-wrap: true
+
+CraftingEmptyRow < Label
+  size: 438 26
+  color: #999999
+  text-align: center
+
+MainWindow
+  id: craftingWindow
+  size: 760 520
+  !text: tr('Crafting')
+  @onEscape: modules.game_crafting.closeWindow()
+
+  UIWidget
+    id: contentPanel
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: bottomSeparator.top
+    margin-bottom: 9
+
+    Panel
+      id: recipePanel
+      width: 238
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.bottom: parent.bottom
+      background-color: #363636
+
+      Label
+        id: recipesTitle
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 25
+        color: #E0E0E0
+        text-align: center
+        !text: tr('Recipes')
+
+      ScrollablePanel
+        id: recipeList
+        anchors.top: recipesTitle.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        margin-left: 5
+        margin-right: 5
+        margin-bottom: 5
+        padding-right: 14
+        vertical-scrollbar: recipeScrollbar
+        layout:
+          type: verticalBox
+          spacing: 3
+
+      VerticalScrollBar
+        id: recipeScrollbar
+        anchors.top: recipeList.top
+        anchors.right: recipeList.right
+        anchors.bottom: recipeList.bottom
+        step: 48
+        pixel-scroll: true
+
+      Label
+        id: recipesEmptyLabel
+        anchors.centerIn: recipeList
+        width: 190
+        height: 48
+        color: #999999
+        text-align: center
+        text-wrap: true
+        !text: tr('No unlocked recipes')
+        visible: false
+
+    VerticalSeparator
+      id: columnSeparator
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.left: recipePanel.right
+      margin-left: 8
+      margin-right: 8
+
+    Panel
+      id: detailPanel
+      anchors.top: parent.top
+      anchors.left: columnSeparator.right
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin-left: 8
+      background-color: #363636
+
+      Label
+        id: stationLabel
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 20
+        color: #BEBEBE
+        text-align: center
+
+      Label
+        id: chanceLabel
+        anchors.top: stationLabel.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 20
+        color: #D7D7D7
+        text-align: center
+        visible: false
+
+      Label
+        id: blockLabel
+        anchors.top: chanceLabel.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 28
+        color: #E86A6A
+        text-align: center
+        text-wrap: true
+        visible: false
+
+      Panel
+        id: detailsBase
+        anchors.top: blockLabel.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: resultPanel.top
+        margin-top: 4
+        margin-bottom: 7
+        background-color: #303030
+
+        ScrollablePanel
+          id: detailList
+          anchors.fill: parent
+          padding: 5
+          padding-right: 18
+          vertical-scrollbar: detailScrollbar
+          layout:
+            type: verticalBox
+            spacing: 3
+
+        VerticalScrollBar
+          id: detailScrollbar
+          anchors.top: detailList.top
+          anchors.right: detailList.right
+          anchors.bottom: detailList.bottom
+          step: 45
+          pixel-scroll: true
+
+      Panel
+        id: resultPanel
+        height: 151
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        background-color: #3B3B3B
+
+        UIWidget
+          id: resultIconBackground
+          size: 52 52
+          anchors.top: parent.top
+          anchors.horizontalCenter: parent.horizontalCenter
+          margin-top: 5
+          image-source: /images/ui/item
+
+          UIItem
+            id: resultIcon
+            anchors.centerIn: parent
+            size: 48 48
+            virtual: true
+            draggable: false
+
+        Label
+          id: resultName
+          anchors.top: resultIconBackground.bottom
+          anchors.left: parent.left
+          anchors.right: parent.right
+          margin-top: 2
+          height: 20
+          color: #E0E0E0
+          text-align: center
+          text-wrap: true
+
+        Button
+          id: craftButton
+          size: 112 24
+          anchors.top: resultName.bottom
+          anchors.horizontalCenter: parent.horizontalCenter
+          margin-top: 3
+          !text: tr('Craft')
+          enabled: false
+          @onClick: modules.game_crafting.craftSelected()
+
+        Label
+          id: feedbackLabel
+          anchors.top: craftButton.bottom
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          margin-top: 3
+          margin-left: 8
+          margin-right: 8
+          color: #CFCFCF
+          text-align: center
+          text-wrap: true
+
+  HorizontalSeparator
+    id: bottomSeparator
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: closeButton.top
+    margin-bottom: 8
+
+  Button
+    id: closeButton
+    size: 76 22
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    !text: tr('Close')
+    @onClick: modules.game_crafting.closeWindow()
