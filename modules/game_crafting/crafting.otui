@@ -173,12 +173,24 @@ MainWindow
         text-align: center
         !text: tr('Recipes')
 
-      ScrollablePanel
-        id: recipeList
+      TextEdit
+        id: recipeSearch
         anchors.top: recipesTitle.bottom
         anchors.left: parent.left
         anchors.right: parent.right
+        height: 22
+        margin-left: 5
+        margin-right: 5
+        !placeholder: tr('Search')
+        @onTextChange: modules.game_crafting.filterRecipes(self:getText())
+
+      ScrollablePanel
+        id: recipeList
+        anchors.top: recipeSearch.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.bottom: parent.bottom
+        margin-top: 5
         margin-left: 5
         margin-right: 5
         margin-bottom: 5
@@ -233,111 +245,159 @@ MainWindow
         color: #BEBEBE
         text-align: center
 
-      Label
-        id: chanceLabel
+      Panel
+        id: detailsBase
         anchors.top: stationLabel.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 20
-        color: #D7D7D7
-        text-align: center
-        visible: false
-
-      Label
-        id: blockLabel
-        anchors.top: chanceLabel.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: 28
-        color: #E86A6A
-        text-align: center
-        text-wrap: true
-        visible: false
-
-      Panel
-        id: detailsBase
-        anchors.top: blockLabel.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: resultPanel.top
+        anchors.bottom: parent.bottom
         margin-top: 4
-        margin-bottom: 7
         background-color: #303030
 
         ScrollablePanel
-          id: detailList
+          id: detailScroll
           anchors.fill: parent
           padding: 5
           padding-right: 18
           vertical-scrollbar: detailScrollbar
-          layout:
-            type: verticalBox
-            spacing: 3
+
+          Panel
+            id: scrollContent
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            layout:
+              type: verticalBox
+              spacing: 4
+              fit-children: true
+
+            Label
+              id: chanceLabel
+              height: 20
+              color: #D7D7D7
+              text-align: center
+              visible: false
+
+            Label
+              id: blockLabel
+              height: 30
+              color: #E86A6A
+              text-align: center
+              text-wrap: true
+              visible: false
+
+            Panel
+              id: resultPanel
+              height: 80
+              background-color: #3B3B3B
+
+              UIWidget
+                id: resultIconBackground
+                size: 52 52
+                anchors.top: parent.top
+                anchors.horizontalCenter: parent.horizontalCenter
+                margin-top: 3
+                image-source: /images/ui/item
+
+                UIItem
+                  id: resultIcon
+                  anchors.centerIn: parent
+                  size: 48 48
+                  virtual: true
+                  draggable: false
+
+              Label
+                id: resultName
+                anchors.top: resultIconBackground.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                margin-top: 2
+                height: 20
+                color: #E0E0E0
+                text-align: center
+                text-wrap: true
+
+            Panel
+              id: detailList
+              layout:
+                type: verticalBox
+                spacing: 3
+                fit-children: true
+
+            Panel
+              id: quantityPanel
+              height: 32
+              visible: false
+
+              Label
+                id: quantityLabel
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                margin-left: 8
+                width: 52
+                color: #D7D7D7
+                !text: tr('Quantity')
+
+              Label
+                id: quantityValueLabel
+                anchors.left: quantityLabel.right
+                anchors.verticalCenter: parent.verticalCenter
+                margin-left: 5
+                width: 28
+                color: #E0E0E0
+                text-align: center
+                text: 1
+
+              HorizontalScrollBar
+                id: quantitySlider
+                anchors.left: quantityValueLabel.right
+                anchors.right: quantityMaxButton.left
+                anchors.verticalCenter: parent.verticalCenter
+                margin-left: 7
+                margin-right: 7
+                minimum: 1
+                maximum: 1
+                value: 1
+                step: 1
+                @onValueChange: modules.game_crafting.onQuantityChange(self:getValue())
+
+              Button
+                id: quantityMaxButton
+                size: 62 22
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                margin-right: 8
+                !text: tr('Max')
+                @onClick: modules.game_crafting.selectMaxQuantity()
+
+            Panel
+              id: craftButtonPanel
+              height: 30
+
+              Button
+                id: craftButton
+                size: 112 24
+                anchors.centerIn: parent
+                !text: tr('Craft')
+                enabled: false
+                @onClick: modules.game_crafting.craftSelected()
+
+            Label
+              id: feedbackLabel
+              height: 52
+              margin-left: 8
+              margin-right: 8
+              color: #CFCFCF
+              text-align: center
+              text-wrap: true
 
         VerticalScrollBar
           id: detailScrollbar
-          anchors.top: detailList.top
-          anchors.right: detailList.right
-          anchors.bottom: detailList.bottom
+          anchors.top: detailScroll.top
+          anchors.right: detailScroll.right
+          anchors.bottom: detailScroll.bottom
           step: 45
           pixel-scroll: true
-
-      Panel
-        id: resultPanel
-        height: 151
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        background-color: #3B3B3B
-
-        UIWidget
-          id: resultIconBackground
-          size: 52 52
-          anchors.top: parent.top
-          anchors.horizontalCenter: parent.horizontalCenter
-          margin-top: 5
-          image-source: /images/ui/item
-
-          UIItem
-            id: resultIcon
-            anchors.centerIn: parent
-            size: 48 48
-            virtual: true
-            draggable: false
-
-        Label
-          id: resultName
-          anchors.top: resultIconBackground.bottom
-          anchors.left: parent.left
-          anchors.right: parent.right
-          margin-top: 2
-          height: 20
-          color: #E0E0E0
-          text-align: center
-          text-wrap: true
-
-        Button
-          id: craftButton
-          size: 112 24
-          anchors.top: resultName.bottom
-          anchors.horizontalCenter: parent.horizontalCenter
-          margin-top: 3
-          !text: tr('Craft')
-          enabled: false
-          @onClick: modules.game_crafting.craftSelected()
-
-        Label
-          id: feedbackLabel
-          anchors.top: craftButton.bottom
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.bottom: parent.bottom
-          margin-top: 3
-          margin-left: 8
-          margin-right: 8
-          color: #CFCFCF
-          text-align: center
-          text-wrap: true
 
   HorizontalSeparator
     id: bottomSeparator

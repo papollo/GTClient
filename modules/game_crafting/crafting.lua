@@ -1,6 +1,7 @@
 local CRAFTING_OPCODE = 219
-local CONTRACT_VERSION = 1
+local CONTRACT_VERSION = 2
 local REFRESH_DEBOUNCE = 100
+local MAX_BATCH_QUANTITY = 100
 
 local COLOR_NORMAL = '#CFCFCF'
 local COLOR_MUTED = '#7F7F7F'
@@ -16,15 +17,21 @@ local stationType = nil
 local recipes = {}
 local selectedRecipeId = nil
 local selectedDetail = nil
+local selectedQuantity = 1
+local updatingQuantity = false
+local renderedMaterialRows = {}
+local detailLoading = false
 local craftPending = false
 local pendingRequestId = nil
+local pendingQuantity = nil
 local requestCounter = 0
 local closeSent = false
-local unknownCodesLogged = {}
 
 local RESULT_MESSAGES = {
     SUCCESS = 'Item crafted successfully.',
+    PARTIAL_SUCCESS = 'Partial success',
     CRAFT_FAILED = 'Crafting attempt failed.',
+    INVALID_QUANTITY = 'Invalid crafting quantity.',
     NOT_ENOUGH_MATERIALS = 'Not enough materials.',
     MISSING_SOURCE_ITEM = 'Required source item is missing.',
     LOW_SKILL = 'Required skill level is too low.',
@@ -56,20 +63,22 @@ end
 local function bindUi()
     ui = {
         recipeList = child('recipeList'),
+        recipeSearch = child('recipeSearch'),
         recipesEmptyLabel = child('recipesEmptyLabel'),
         stationLabel = child('stationLabel'),
         chanceLabel = child('chanceLabel'),
         blockLabel = child('blockLabel'),
+        detailScrollbar = child('detailScrollbar'),
         detailList = child('detailList'),
         resultIcon = child('resultIcon'),
         resultName = child('resultName'),
+        quantityPanel = child('quantityPanel'),
+        quantityValueLabel = child('quantityValueLabel'),
+        quantitySlider = child('quantitySlider'),
+        quantityMaxButton = child('quantityMaxButton'),
         craftButton = child('craftButton'),
         feedbackLabel = child('feedbackLabel')
     }
-end
-
-local function logError(message)
-    g_logger.error('[Crafting] ' .. tostring(message))
 end
 
 local function isFiniteNumber(value)
@@ -80,8 +89,16 @@ local function isNonNegativeNumber(value)
     return isFiniteNumber(value) and value >= 0
 end
 
+local function isInteger(value)
+    return isFiniteNumber(value) and math.floor(value) == value
+end
+
+local function isNonNegativeInteger(value)
+    return isInteger(value) and value >= 0
+end
+
 local function isPositiveInteger(value)
-    return isFiniteNumber(value) and value >= 1 and math.floor(value) == value
+    return isInteger(value) and value >= 1
 end
 
 local function isNonEmptyString(value)
@@ -140,6 +157,8 @@ end
 local function validateDetail(detail)
     if not validateRecipeSummary(detail)
         or type(detail.canCraft) ~= 'boolean'
+        or not isNonNegativeInteger(detail.maxQuantity)
+        or detail.maxQuantity > MAX_BATCH_QUANTITY
         or (detail.blockCode ~= nil and not isNonEmptyString(detail.blockCode))
         or (detail.chance ~= nil and (not isFiniteNumber(detail.chance) or detail.chance < 0
             or detail.chance > 100000 or math.floor(detail.chance) ~= detail.chance))
@@ -150,6 +169,11 @@ local function validateDetail(detail)
 
     if (detail.canCraft and detail.blockCode ~= nil)
         or (not detail.canCraft and not isNonEmptyString(detail.blockCode)) then
+        return false
+    end
+
+    if detail.canCraft ~= (detail.maxQuantity >= 1)
+        or (detail.recipeType == 'upgrade' and detail.maxQuantity > 1) then
         return false
     end
 
@@ -194,11 +218,6 @@ end
 local function getMessage(code)
     local key = RESULT_MESSAGES[code]
     if not key then
-        local codeKey = tostring(code)
-        if not unknownCodesLogged[codeKey] then
-            unknownCodesLogged[codeKey] = true
-            logError('Unknown response code: ' .. codeKey)
-        end
         key = 'Unknown crafting response.'
     end
     return tr(key)
@@ -208,8 +227,10 @@ local function setFeedback(text, color)
     if not ui or not ui.feedbackLabel then
         return
     end
-    ui.feedbackLabel:setText(text or '')
+    local feedback = text or ''
+    ui.feedbackLabel:setText(feedback)
     ui.feedbackLabel:setColor(color or COLOR_NORMAL)
+    ui.feedbackLabel:setVisible(feedback ~= '')
 end
 
 local function setBlockCode(code)
@@ -232,17 +253,30 @@ local function clearItem(widget)
     end
 end
 
+local function setQuantityControlsEnabled(enabled)
+    if not ui then
+        return
+    end
+    ui.quantitySlider:setEnabled(enabled)
+    ui.quantityMaxButton:setEnabled(enabled and selectedDetail ~= nil
+        and selectedQuantity < selectedDetail.maxQuantity)
+end
+
 local function clearDetails()
     selectedDetail = nil
+    renderedMaterialRows = {}
     if not ui then
         return
     end
     ui.detailList:destroyChildren()
+    ui.detailScrollbar:setValue(0)
     ui.chanceLabel:setText('')
     ui.chanceLabel:hide()
     setBlockCode(nil)
     clearItem(ui.resultIcon)
     ui.resultName:setText('')
+    ui.quantityPanel:hide()
+    setQuantityControlsEnabled(false)
     ui.craftButton:setEnabled(false)
 end
 
@@ -280,6 +314,17 @@ local function sendStatus()
     })
 end
 
+local function requestSelectedDetail()
+    clearDetails()
+    detailLoading = true
+    setFeedback(tr('Loading...'), COLOR_MUTED)
+
+    if not sendStatus() then
+        detailLoading = false
+        setFeedback(tr('The crafting session is no longer valid.'), COLOR_ERROR)
+    end
+end
+
 local function scheduleInventoryRefresh()
     cancelScheduledRefresh()
     if not craftingWindow or not craftingWindow:isVisible() or not sessionId or not selectedRecipeId or craftPending then
@@ -301,12 +346,18 @@ local function resetSession()
     recipes = {}
     selectedRecipeId = nil
     selectedDetail = nil
+    selectedQuantity = 1
+    updatingQuantity = false
+    renderedMaterialRows = {}
+    detailLoading = false
     craftPending = false
     pendingRequestId = nil
+    pendingQuantity = nil
     closeSent = false
 
     if ui then
         ui.recipeList:destroyChildren()
+        ui.recipeSearch:setText('')
         ui.recipesEmptyLabel:hide()
         ui.stationLabel:setText('')
         clearDetails()
@@ -329,9 +380,31 @@ local function setRecipeChecked(recipeId)
     end
 end
 
+local function applyRecipeFilter(filterText)
+    if not ui or not ui.recipeList then
+        return
+    end
+
+    local searchText = tostring(filterText or ''):lower():trim()
+    local visibleCount = 0
+    for _, widget in ipairs(ui.recipeList:getChildren()) do
+        local matches = searchText == '' or widget.recipeNameLower:find(searchText, 1, true) ~= nil
+        widget:setVisible(matches)
+        if matches then
+            visibleCount = visibleCount + 1
+        end
+    end
+
+    if #recipes == 0 then
+        ui.recipesEmptyLabel:setText(tr('No unlocked recipes'))
+    else
+        ui.recipesEmptyLabel:setText(tr('No recipes found'))
+    end
+    ui.recipesEmptyLabel:setVisible(visibleCount == 0)
+end
+
 local function renderRecipeList()
     ui.recipeList:destroyChildren()
-    ui.recipesEmptyLabel:setVisible(#recipes == 0)
 
     for _, recipe in ipairs(recipes) do
         local recipeId = recipe.id
@@ -344,19 +417,23 @@ local function renderRecipeList()
         end
 
         row.recipeId = recipeId
+        row.recipeNameLower = recipe.name:lower()
         icon:setItemId(recipe.clientId)
         icon:setItemCount(recipe.resultCount)
         name:setText(displayName)
         row:setTooltip(displayName)
         row:setChecked(recipeId == selectedRecipeId)
         row.onClick = function()
+            if selectedRecipeId ~= recipeId then
+                selectedQuantity = 1
+            end
             selectedRecipeId = recipeId
             setRecipeChecked(selectedRecipeId)
-            clearDetails()
-            setFeedback('', COLOR_NORMAL)
-            sendStatus()
+            requestSelectedDetail()
         end
     end
+
+    applyRecipeFilter(ui.recipeSearch:getText())
 end
 
 local function createSection(text)
@@ -383,30 +460,44 @@ local function renderRequirement(requirement)
     end
 end
 
-local function renderItemRequirement(item, missingText)
-    local row = g_ui.createWidget('CraftingMaterialRow', ui.detailList)
-    local icon = row:recursiveGetChildById('icon')
-    local name = row:recursiveGetChildById('name')
-    local amount = row:recursiveGetChildById('amount')
-    local status = row:recursiveGetChildById('status')
+local function updateItemRequirementRow(rowData, multiplier)
+    local item = rowData.item
+    local required = item.required * (multiplier or 1)
+    local enough = item.owned >= required
 
-    icon:setItemId(item.clientId)
-    icon:setItemCount(item.required)
-    name:setText(item.name)
-    amount:setText(string.format('%s / %s', tostring(item.owned), tostring(item.required)))
-    row:setTooltip(item.name)
+    rowData.icon:setItemCount(required)
+    rowData.amount:setText(string.format('%s / %s', tostring(item.owned), tostring(required)))
 
-    if item.enough then
-        icon:setOpacity(1.0)
-        name:setColor(COLOR_NORMAL)
-        amount:setColor(COLOR_NORMAL)
-        status:setText('')
+    if enough then
+        rowData.icon:setOpacity(1.0)
+        rowData.name:setColor(COLOR_NORMAL)
+        rowData.amount:setColor(COLOR_NORMAL)
+        rowData.status:setText('')
     else
-        icon:setOpacity(0.4)
-        name:setColor(COLOR_MUTED)
-        amount:setColor(COLOR_MUTED)
-        status:setText(tr(missingText))
+        rowData.icon:setOpacity(0.4)
+        rowData.name:setColor(COLOR_MUTED)
+        rowData.amount:setColor(COLOR_MUTED)
+        rowData.status:setText(tr(rowData.missingText))
     end
+end
+
+local function renderItemRequirement(item, missingText, multiplier)
+    local row = g_ui.createWidget('CraftingMaterialRow', ui.detailList)
+    local rowData = {
+        item = item,
+        missingText = missingText,
+        row = row,
+        icon = row:recursiveGetChildById('icon'),
+        name = row:recursiveGetChildById('name'),
+        amount = row:recursiveGetChildById('amount'),
+        status = row:recursiveGetChildById('status')
+    }
+
+    rowData.icon:setItemId(item.clientId)
+    rowData.name:setText(item.name)
+    rowData.row:setTooltip(item.name)
+    updateItemRequirementRow(rowData, multiplier)
+    return rowData
 end
 
 local function formatChance(chance)
@@ -419,9 +510,64 @@ local function formatChance(chance)
     return text .. '%'
 end
 
+local function configureQuantity(detail)
+    local supportsQuantity = detail.recipeType == 'craft'
+    ui.quantityPanel:setVisible(supportsQuantity)
+
+    updatingQuantity = true
+    if supportsQuantity then
+        local maximum = math.max(detail.maxQuantity, 1)
+        selectedQuantity = math.max(1, math.min(selectedQuantity, maximum))
+        ui.quantitySlider:setMinimum(1)
+        ui.quantitySlider:setMaximum(maximum)
+        ui.quantitySlider:setValue(selectedQuantity)
+    else
+        selectedQuantity = 1
+        ui.quantitySlider:setMinimum(1)
+        ui.quantitySlider:setMaximum(1)
+        ui.quantitySlider:setValue(1)
+    end
+    ui.quantityValueLabel:setText(tostring(selectedQuantity))
+    updatingQuantity = false
+
+    setQuantityControlsEnabled(supportsQuantity and detail.canCraft
+        and detail.maxQuantity >= 1 and not craftPending)
+end
+
+local function updateResultPreview(detail)
+    local displayCount = detail.resultCount * selectedQuantity
+    ui.resultIcon:setItemId(detail.clientId)
+    ui.resultIcon:setItemCount(displayCount)
+    if stationType == 'alchemy' and selectedQuantity > 1 then
+        ui.resultName:setText(string.format('%s: %s x%d', tr('Estimated result'), detail.name, displayCount))
+    elseif displayCount > 1 then
+        ui.resultName:setText(string.format('%s x%d', detail.name, displayCount))
+    else
+        ui.resultName:setText(detail.name)
+    end
+    ui.resultIcon:setTooltip(ui.resultName:getText())
+end
+
+local function refreshQuantityPreview()
+    if not selectedDetail then
+        return
+    end
+
+    for _, rowData in ipairs(renderedMaterialRows) do
+        updateItemRequirementRow(rowData, selectedQuantity)
+    end
+    updateResultPreview(selectedDetail)
+    ui.quantityMaxButton:setEnabled(not craftPending and selectedDetail.canCraft
+        and selectedQuantity < selectedDetail.maxQuantity)
+    ui.craftButton:setEnabled(not craftPending and selectedDetail.canCraft
+        and selectedDetail.maxQuantity >= selectedQuantity)
+end
+
 local function renderDetail(detail)
     selectedDetail = detail
+    configureQuantity(detail)
     ui.detailList:destroyChildren()
+    renderedMaterialRows = {}
 
     if detail.chance ~= nil then
         ui.chanceLabel:setText(string.format('%s: %s', tr('Success chance'), formatChance(detail.chance)))
@@ -451,26 +597,22 @@ local function renderDetail(detail)
         empty:setText(tr('No materials required'))
     else
         for _, material in ipairs(detail.materials) do
-            renderItemRequirement(material, 'Not enough materials')
+            table.insert(renderedMaterialRows,
+                renderItemRequirement(material, 'Not enough materials', selectedQuantity))
         end
     end
 
-    ui.resultIcon:setItemId(detail.clientId)
-    ui.resultIcon:setItemCount(detail.resultCount)
-    if detail.resultCount > 1 then
-        ui.resultName:setText(string.format('%s x%d', detail.name, detail.resultCount))
-    else
-        ui.resultName:setText(detail.name)
-    end
-    ui.resultIcon:setTooltip(ui.resultName:getText())
-    ui.craftButton:setEnabled(detail.canCraft and not craftPending)
+    updateResultPreview(detail)
+    ui.craftButton:setEnabled(detail.canCraft and detail.maxQuantity >= selectedQuantity and not craftPending)
 end
 
-local function showInvalidData(message, showDialog)
-    logError(message)
+local function showInvalidData(showDialog)
+    detailLoading = false
     craftPending = false
     pendingRequestId = nil
+    pendingQuantity = nil
     if ui then
+        setQuantityControlsEnabled(false)
         ui.craftButton:setEnabled(false)
         setFeedback(tr('Invalid crafting data received.'), COLOR_ERROR)
     end
@@ -485,7 +627,6 @@ local function handleOpen(data)
         or not isNonEmptyString(data.stationType)
         or not validateRecipes(data.recipes)
         or not validateRecipeSelection(data.recipes, data.detail) then
-        logError('Invalid open payload.')
         resetSession()
         craftingWindow:hide()
         displayErrorBox(tr('Crafting'), tr('Invalid crafting data received.'))
@@ -510,8 +651,7 @@ local function handleOpen(data)
     if data.detail and data.detail.id == selectedRecipeId then
         renderDetail(data.detail)
     elseif selectedRecipeId then
-        clearDetails()
-        sendStatus()
+        requestSelectedDetail()
     else
         clearDetails()
         setFeedback(tr('No unlocked recipes'), COLOR_MUTED)
@@ -524,41 +664,103 @@ end
 
 local function handleDetail(data)
     if type(data) ~= 'table' or not isNonEmptyString(data.sessionId) then
-        showInvalidData('Invalid detail payload.', false)
+        showInvalidData(false)
         return
     end
     if data.sessionId ~= sessionId then
         return
     end
+    if craftPending then
+        return
+    end
     if not validateDetail(data.detail) then
-        showInvalidData('Invalid detail payload.', false)
+        showInvalidData(false)
         return
     end
     if data.detail.id ~= selectedRecipeId then
         return
     end
+    local wasLoading = detailLoading
+    detailLoading = false
     renderDetail(data.detail)
+    if wasLoading then
+        setFeedback('', COLOR_NORMAL)
+    end
+end
+
+local function validateCraftResultData(data)
+    local requestedQuantityMatches = data.requestedQuantity == pendingQuantity
+        or (data.resultCode == 'INVALID_QUANTITY' and data.requestedQuantity == 0)
+    if type(data.success) ~= 'boolean'
+        or not isNonEmptyString(data.resultCode)
+        or not isInteger(data.requestedQuantity)
+        or not requestedQuantityMatches
+        or not isNonNegativeInteger(data.attemptedQuantity)
+        or data.attemptedQuantity > MAX_BATCH_QUANTITY
+        or not isNonNegativeInteger(data.successfulAttempts)
+        or data.successfulAttempts > data.attemptedQuantity
+        or not isNonNegativeInteger(data.producedCount)
+        or not validateRecipes(data.recipes)
+        or not validateRecipeSelection(data.recipes, data.detail) then
+        return false
+    end
+
+    if data.resultCode == 'SUCCESS' then
+        return data.success
+            and data.attemptedQuantity == data.requestedQuantity
+            and data.successfulAttempts == data.attemptedQuantity
+            and data.producedCount >= 1
+    elseif data.resultCode == 'PARTIAL_SUCCESS' then
+        return data.success
+            and data.attemptedQuantity == data.requestedQuantity
+            and data.successfulAttempts >= 1
+            and data.successfulAttempts < data.attemptedQuantity
+            and data.producedCount >= 1
+    elseif data.resultCode == 'CRAFT_FAILED' then
+        return not data.success
+            and data.attemptedQuantity == data.requestedQuantity
+            and data.successfulAttempts == 0
+            and data.producedCount == 0
+    end
+
+    return not data.success
+        and data.attemptedQuantity == 0
+        and data.successfulAttempts == 0
+        and data.producedCount == 0
+end
+
+local function getCraftResultFeedback(data)
+    if data.resultCode ~= 'SUCCESS' and data.resultCode ~= 'PARTIAL_SUCCESS' then
+        return getMessage(data.resultCode)
+    end
+
+    local created = string.format(tr('Created %d items'), data.producedCount)
+    local attempts = string.format(tr('%d of %d attempts succeeded'),
+        data.successfulAttempts, data.attemptedQuantity)
+    if data.resultCode == 'PARTIAL_SUCCESS' then
+        return string.format('%s %s %s', tr('Partial success'), created, attempts)
+    end
+    return string.format('%s %s', created, attempts)
 end
 
 local function handleCraftResult(data)
     if type(data) ~= 'table' or not isNonEmptyString(data.sessionId) or not isNonEmptyString(data.requestId) then
-        showInvalidData('Invalid craftResult payload.', false)
+        showInvalidData(false)
         return
     end
     if data.sessionId ~= sessionId or data.requestId ~= pendingRequestId then
         return
     end
-    if type(data.success) ~= 'boolean'
-        or not isNonEmptyString(data.resultCode)
-        or not validateRecipes(data.recipes)
-        or not validateRecipeSelection(data.recipes, data.detail) then
-        showInvalidData('Invalid craftResult payload.', false)
+    if not validateCraftResultData(data) then
+        showInvalidData(false)
         return
     end
 
     local previousRecipeId = selectedRecipeId
+    local previousQuantity = selectedQuantity
     craftPending = false
     pendingRequestId = nil
+    pendingQuantity = nil
     recipes = data.recipes
 
     if previousRecipeId and findRecipe(previousRecipeId) then
@@ -569,6 +771,12 @@ local function handleCraftResult(data)
         selectedRecipeId = recipes[1].id
     else
         selectedRecipeId = nil
+    end
+
+    if selectedRecipeId == previousRecipeId then
+        selectedQuantity = previousQuantity
+    else
+        selectedQuantity = 1
     end
 
     renderRecipeList()
@@ -584,22 +792,21 @@ local function handleCraftResult(data)
     local color = COLOR_ERROR
     if data.resultCode == 'SUCCESS' and data.success then
         color = COLOR_SUCCESS
-    elseif data.resultCode == 'CRAFT_FAILED' then
+    elseif data.resultCode == 'PARTIAL_SUCCESS' or data.resultCode == 'CRAFT_FAILED' then
         color = COLOR_WARNING
     end
-    setFeedback(getMessage(data.resultCode), color)
+    setFeedback(getCraftResultFeedback(data), color)
 end
 
 local function handleServerClose(data)
     if type(data) ~= 'table' or not isNonEmptyString(data.sessionId) then
-        showInvalidData('Invalid close payload.', false)
+        showInvalidData(false)
         return
     end
     if data.sessionId ~= sessionId then
         return
     end
     if not isNonEmptyString(data.reasonCode) then
-        logError('Invalid close payload.')
         resetSession()
         craftingWindow:hide()
         displayErrorBox(tr('Crafting'), tr('Invalid crafting data received.'))
@@ -614,11 +821,10 @@ end
 
 local function onCraftingOpcode(protocol, opcode, message)
     if type(message) ~= 'table' then
-        showInvalidData('Payload is not a table.', not sessionId)
+        showInvalidData(not sessionId)
         return
     end
     if message.version ~= CONTRACT_VERSION then
-        logError('Unsupported protocol version: ' .. tostring(message.version))
         resetSession()
         if craftingWindow then
             craftingWindow:hide()
@@ -627,7 +833,7 @@ local function onCraftingOpcode(protocol, opcode, message)
         return
     end
     if not isNonEmptyString(message.action) or type(message.data) ~= 'table' then
-        showInvalidData('Invalid message envelope.', not sessionId)
+        showInvalidData(not sessionId)
         return
     end
 
@@ -640,7 +846,6 @@ local function onCraftingOpcode(protocol, opcode, message)
     elseif message.action == 'close' then
         handleServerClose(message.data)
     else
-        logError('Unknown action: ' .. tostring(message.action))
         setFeedback(tr('Unknown crafting response.'), COLOR_ERROR)
     end
 end
@@ -693,7 +898,6 @@ function init()
         onInventoryChange = onInventoryChange
     })
     ProtocolGame.registerExtendedJSONOpcode(CRAFTING_OPCODE, onCraftingOpcode)
-    g_logger.info(string.format('[Crafting] Module initialized; Extended JSON Opcode %d registered.', CRAFTING_OPCODE))
     resetSession()
 end
 
@@ -734,26 +938,64 @@ function closeWindow()
     end
 end
 
+function filterRecipes(text)
+    applyRecipeFilter(text)
+end
+
+function onQuantityChange(quantity)
+    if updatingQuantity or craftPending or not selectedDetail or selectedDetail.recipeType ~= 'craft' then
+        return
+    end
+    quantity = math.round(quantity)
+    if not isPositiveInteger(quantity) then
+        return
+    end
+
+    quantity = math.min(quantity, math.max(selectedDetail.maxQuantity, 1))
+    if quantity == selectedQuantity then
+        return
+    end
+
+    selectedQuantity = quantity
+    ui.quantityValueLabel:setText(tostring(selectedQuantity))
+    refreshQuantityPreview()
+end
+
+function selectMaxQuantity()
+    if craftPending or not selectedDetail or selectedDetail.recipeType ~= 'craft'
+        or selectedDetail.maxQuantity < 1 then
+        return
+    end
+    ui.quantitySlider:setValue(selectedDetail.maxQuantity)
+end
+
 function craftSelected()
-    if craftPending or not sessionId or not selectedRecipeId or not selectedDetail or not selectedDetail.canCraft then
+    local quantity = selectedDetail and selectedDetail.recipeType == 'craft' and selectedQuantity or 1
+    if craftPending or not sessionId or not selectedRecipeId or not selectedDetail or not selectedDetail.canCraft
+        or not isPositiveInteger(quantity) or quantity > selectedDetail.maxQuantity then
         return
     end
 
     requestCounter = requestCounter + 1
     pendingRequestId = string.format('craft-%d', requestCounter)
+    pendingQuantity = quantity
     craftPending = true
     ui.craftButton:setEnabled(false)
+    setQuantityControlsEnabled(false)
     setFeedback('', COLOR_NORMAL)
     cancelScheduledRefresh()
 
     if not sendMessage('craft', {
         sessionId = sessionId,
         recipeId = selectedRecipeId,
-        requestId = pendingRequestId
+        requestId = pendingRequestId,
+        quantity = quantity
     }) then
         craftPending = false
         pendingRequestId = nil
-        ui.craftButton:setEnabled(selectedDetail.canCraft)
+        pendingQuantity = nil
+        configureQuantity(selectedDetail)
+        ui.craftButton:setEnabled(selectedDetail.canCraft and selectedDetail.maxQuantity >= selectedQuantity)
         setFeedback(tr('The crafting session is no longer valid.'), COLOR_ERROR)
     end
 end
