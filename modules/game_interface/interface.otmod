@@ -40,6 +40,7 @@ Module
     - game_crafting
     - game_cooldown
     - game_modaldialog
+    - game_tutorialpopup
     - game_unjustifiedpoints
     - game_shaders
     - game_attachedeffects

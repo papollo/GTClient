@@ -1,0 +1,110 @@
+MainWindow
+  id: tutorialPopupWindow
+  size: 800 450
+  !text: tr('Information')
+  @onEscape: modules.game_tutorialpopup.close()
+
+  Panel
+    id: imageOnlyContent
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: footerSeparator.top
+    margin-bottom: 10
+    image-source: /images/ui/panel_flat
+    image-border: 1
+    padding: 4
+
+    UIWidget
+      id: tutorialImage
+      anchors.fill: parent
+      image-fixed-ratio: true
+      image-smooth: true
+
+  Panel
+    id: imageAndTextContent
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: footerSeparator.top
+    margin-bottom: 10
+    visible: false
+
+    Panel
+      id: imagePanel
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.bottom: parent.bottom
+      width: 500
+      image-source: /images/ui/panel_flat
+      image-border: 1
+      padding: 4
+
+      UIWidget
+        id: tutorialImage
+        anchors.fill: parent
+        image-fixed-ratio: true
+        image-smooth: true
+
+    VerticalSeparator
+      id: contentSeparator
+      anchors.top: parent.top
+      anchors.left: imagePanel.right
+      anchors.bottom: parent.bottom
+      margin-left: 8
+
+    ScrollablePanel
+      id: textScroll
+      anchors.top: parent.top
+      anchors.left: contentSeparator.right
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin-left: 8
+      padding: 8
+      padding-right: 20
+      image-source: /images/ui/panel_flat
+      image-border: 1
+      vertical-scrollbar: textScrollBar
+
+      Panel
+        id: textContent
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        layout:
+          type: verticalBox
+          fit-children: true
+
+        Label
+          id: tutorialText
+          color: #d7d7d7
+          text-align: top-left
+          text-wrap: true
+          text-auto-resize: true
+          selectable: true
+
+    VerticalScrollBar
+      id: textScrollBar
+      anchors.top: textScroll.top
+      anchors.right: textScroll.right
+      anchors.bottom: textScroll.bottom
+      margin-top: 4
+      margin-right: 3
+      margin-bottom: 4
+      step: 24
+      pixel-scroll: true
+
+  HorizontalSeparator
+    id: footerSeparator
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: closeButton.top
+    margin-bottom: 8
+
+  Button
+    id: closeButton
+    !text: tr('Close')
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    width: 80
+    @onClick: modules.game_tutorialpopup.close()

@@ -2,6 +2,10 @@ dofile 'neededtranslations'
 
 -- private variables
 local defaultLocaleName = 'en'
+local allowedLocales = {
+    en = true,
+    pl = true
+}
 local installedLocales
 local currentLocale
 
@@ -157,7 +161,7 @@ function installLocale(locale)
 
     normalizeLocaleEncoding(locale)
 
-    if _G.allowedLocales and not _G.allowedLocales[locale.name] then
+    if not allowedLocales[locale.name] then
         return
     end
 
@@ -192,6 +196,11 @@ function installLocales(directory)
 end
 
 function setLocale(name)
+    if not allowedLocales[name] then
+        pwarning('Locale ' .. tostring(name) .. ' is not allowed.')
+        return false
+    end
+
     local locale = installedLocales[name]
     if locale == currentLocale then
         g_settings.set('locale', name)

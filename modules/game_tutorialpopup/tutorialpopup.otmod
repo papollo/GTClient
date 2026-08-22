@@ -1,0 +1,9 @@
+Module
+  name: game_tutorialpopup
+  description: Displays locally configured tutorial hints sent by the game server
+  author: Gothic Tales
+  sandboxed: true
+  dependencies: [ game_interface ]
+  scripts: [ tutorials, tutorialpopup ]
+  @onLoad: init()
+  @onUnload: terminate()
