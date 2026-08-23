@@ -15,5 +15,10 @@ TutorialHints = {
         title = 'Resources',
         image = '/game_tutorialpopup/images/resources.png',
         text = 'Zbieranie surowców:\n\nPodczas eksploracji świata gracz może znaleźć różnego rodzaju surowce wykorzystywane w rzemiośle, alchemii oraz ulepszaniu ekwipunku.\n\nRośliny:\n\n- W świecie gry można znaleźć rośliny potrzebne do warzenia mikstur. Surowe rośliny można również zjadać bezpośrednio, aby otrzymać krótkotrwałe bonusy do wybranych właściwości postaci.\n\nWydobywanie minerałów:\n\n- W różnych miejscach na mapie znajdują się złoża minerałów, z których gracz może wydobywać między innymi żelazo, węgiel oraz magiczną rudę. Zdobyte minerały są potrzebne do tworzenia nowych przedmiotów oraz ulepszania posiadanego ekwipunku.'
+    },
+    [4] = {
+        title = 'Jumping',
+        image = '/game_tutorialpopup/images/jump.png',
+        text = 'Skakanie:\n\nW grze możesz korzystać z komend jump "up" oraz jump "down", aby wskakiwać na wyższe poziomy lub zeskakiwać na niższe.\n\n- Skakanie w górę i w dół jest możliwe tylko przy prostych krawędziach, dlatego podczas eksploracji warto ich wypatrywać. Niektóre miejsca mogą być dostępne wyłącznie dzięki wykorzystaniu tej mechaniki.\n\nAkrobatyka:\n\n- Po nauczeniu się akrobatyki gracz może używać komendy jump "forward", aby przeskoczyć kilka pól do przodu, stojąc przy odpowiedniej krawędzi.\n\n- Znajomość akrobatyki pozwala dostać się do trudno dostępnych miejsc i jest potrzebna, aby w pełni odkrywać świat gry.'
     }
 }
