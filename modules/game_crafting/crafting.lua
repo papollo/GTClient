@@ -1,6 +1,7 @@
 local CRAFTING_OPCODE = 219
-local CONTRACT_VERSION = 2
+local CONTRACT_VERSION = 3
 local REFRESH_DEBOUNCE = 100
+local COUNTDOWN_INTERVAL = 250
 local MAX_BATCH_QUANTITY = 100
 
 local COLOR_NORMAL = '#CFCFCF'
@@ -12,9 +13,14 @@ local COLOR_WARNING = '#E5B85C'
 local craftingWindow = nil
 local ui = nil
 local refreshEvent = nil
+local countdownEvent = nil
 local sessionId = nil
 local stationType = nil
 local recipes = {}
+local activeJob = nil
+local countdownDeadline = nil
+local locallyReady = false
+local currentCraftingTab = 'recipes'
 local selectedRecipeId = nil
 local selectedDetail = nil
 local selectedQuantity = 1
@@ -23,7 +29,11 @@ local renderedMaterialRows = {}
 local detailLoading = false
 local craftPending = false
 local pendingRequestId = nil
+local pendingRecipeId = nil
 local pendingQuantity = nil
+local claimPending = false
+local pendingClaimRequestId = nil
+local pendingClaimJobId = nil
 local requestCounter = 0
 local closeSent = false
 
@@ -31,12 +41,17 @@ local RESULT_MESSAGES = {
     SUCCESS = 'Item crafted successfully.',
     PARTIAL_SUCCESS = 'Partial success',
     CRAFT_FAILED = 'Crafting attempt failed.',
+    CRAFT_STARTED = 'Production started.',
+    CRAFT_SLOT_BUSY = 'This crafting slot is already occupied.',
     INVALID_QUANTITY = 'Invalid crafting quantity.',
     NOT_ENOUGH_MATERIALS = 'Not enough materials.',
     MISSING_SOURCE_ITEM = 'Required source item is missing.',
     LOW_SKILL = 'Required skill level is too low.',
     LOW_SPECIALIZATION = 'Required specialization level is too low.',
     NO_CAPACITY = 'Not enough capacity or inventory space.',
+    NOT_READY = 'The crafted item is not ready yet.',
+    NO_ACTIVE_CRAFT = 'There is no active crafting job.',
+    INVALID_JOB = 'The crafting job is no longer valid.',
     LOCKED_RECIPE = 'This recipe is locked.',
     TOO_FAR = 'You are too far from the crafting station.',
     INVALID_SESSION = 'The crafting session is no longer valid.',
@@ -65,8 +80,16 @@ local function bindUi()
         recipeList = child('recipeList'),
         recipeSearch = child('recipeSearch'),
         recipesEmptyLabel = child('recipesEmptyLabel'),
+        recipesTab = child('recipesTab'),
+        queueTab = child('queueTab'),
+        recipePanel = child('recipePanel'),
+        columnSeparator = child('columnSeparator'),
+        detailPanel = child('detailPanel'),
+        queuePanel = child('queuePanel'),
+        queueEmptyLabel = child('queueEmptyLabel'),
         stationLabel = child('stationLabel'),
         chanceLabel = child('chanceLabel'),
+        durationLabel = child('durationLabel'),
         blockLabel = child('blockLabel'),
         detailScrollbar = child('detailScrollbar'),
         detailList = child('detailList'),
@@ -77,7 +100,14 @@ local function bindUi()
         quantitySlider = child('quantitySlider'),
         quantityMaxButton = child('quantityMaxButton'),
         craftButton = child('craftButton'),
-        feedbackLabel = child('feedbackLabel')
+        jobPanel = child('jobPanel'),
+        jobIcon = child('jobIcon'),
+        jobName = child('jobName'),
+        jobStatus = child('jobStatus'),
+        jobProgress = child('jobProgress'),
+        claimButton = child('claimButton'),
+        feedbackLabel = child('feedbackLabel'),
+        queueFeedbackLabel = child('queueFeedbackLabel')
     }
 end
 
@@ -132,8 +162,34 @@ local function validateRecipeSummary(recipe)
         and isNonEmptyString(recipe.name)
         and isPositiveInteger(recipe.clientId)
         and isPositiveInteger(recipe.resultCount)
+        and isNonNegativeInteger(recipe.durationSeconds)
         and isNonEmptyString(recipe.category)
         and (recipe.recipeType == 'craft' or recipe.recipeType == 'upgrade')
+        and (recipe.durationSeconds == 0 or recipe.recipeType == 'craft')
+end
+
+local function validateJob(job)
+    if job == nil then
+        return true
+    end
+
+    if type(job) ~= 'table'
+        or not isNonEmptyString(job.jobId)
+        or not isNonEmptyString(job.recipeId)
+        or not isNonEmptyString(job.name)
+        or not isPositiveInteger(job.clientId)
+        or not isPositiveInteger(job.resultCount)
+        or not isPositiveInteger(job.startedAt)
+        or not isPositiveInteger(job.readyAt)
+        or not isPositiveInteger(job.serverTime)
+        or (job.status ~= 'IN_PROGRESS' and job.status ~= 'READY')
+        or job.readyAt <= job.startedAt
+        or job.serverTime < job.startedAt then
+        return false
+    end
+
+    return (job.status == 'IN_PROGRESS' and job.serverTime < job.readyAt)
+        or (job.status == 'READY' and job.serverTime >= job.readyAt)
 end
 
 local function validateRequirement(requirement)
@@ -173,7 +229,8 @@ local function validateDetail(detail)
     end
 
     if detail.canCraft ~= (detail.maxQuantity >= 1)
-        or (detail.recipeType == 'upgrade' and detail.maxQuantity > 1) then
+        or (detail.recipeType == 'upgrade' and detail.maxQuantity > 1)
+        or (detail.durationSeconds > 0 and (detail.maxQuantity > 1 or detail.chance ~= nil)) then
         return false
     end
 
@@ -208,6 +265,7 @@ local function validateRecipeSelection(recipeList, detail)
             return recipe.name == detail.name
                 and recipe.clientId == detail.clientId
                 and recipe.resultCount == detail.resultCount
+                and recipe.durationSeconds == detail.durationSeconds
                 and recipe.category == detail.category
                 and recipe.recipeType == detail.recipeType
         end
@@ -228,9 +286,26 @@ local function setFeedback(text, color)
         return
     end
     local feedback = text or ''
-    ui.feedbackLabel:setText(feedback)
-    ui.feedbackLabel:setColor(color or COLOR_NORMAL)
-    ui.feedbackLabel:setVisible(feedback ~= '')
+    for _, label in ipairs({ ui.feedbackLabel, ui.queueFeedbackLabel }) do
+        label:setText(feedback)
+        label:setColor(color or COLOR_NORMAL)
+        label:setVisible(feedback ~= '')
+    end
+end
+
+local function setCraftingTab(tabName)
+    if not ui then
+        return
+    end
+
+    local showQueue = tabName == 'queue'
+    currentCraftingTab = showQueue and 'queue' or 'recipes'
+    ui.recipesTab:setChecked(not showQueue)
+    ui.queueTab:setChecked(showQueue)
+    ui.recipePanel:setVisible(not showQueue)
+    ui.columnSeparator:setVisible(not showQueue)
+    ui.detailPanel:setVisible(not showQueue)
+    ui.queuePanel:setVisible(showQueue)
 end
 
 local function setBlockCode(code)
@@ -253,6 +328,28 @@ local function clearItem(widget)
     end
 end
 
+local function formatRecipeDuration(seconds)
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.ceil((seconds % 3600) / 60)
+    if hours > 0 and minutes > 0 then
+        return tr('%d h %d min', hours, minutes)
+    elseif hours > 0 then
+        return tr('%d h', hours)
+    end
+    return tr('%d min', math.max(minutes, 1))
+end
+
+local function formatRemainingTime(seconds)
+    seconds = math.max(0, math.ceil(seconds))
+    local hours = math.floor(seconds / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+    local remainingSeconds = seconds % 60
+    if hours > 0 then
+        return string.format('%d:%02d:%02d', hours, minutes, remainingSeconds)
+    end
+    return string.format('%02d:%02d', minutes, remainingSeconds)
+end
+
 local function setQuantityControlsEnabled(enabled)
     if not ui then
         return
@@ -272,6 +369,8 @@ local function clearDetails()
     ui.detailScrollbar:setValue(0)
     ui.chanceLabel:setText('')
     ui.chanceLabel:hide()
+    ui.durationLabel:setText('')
+    ui.durationLabel:hide()
     setBlockCode(nil)
     clearItem(ui.resultIcon)
     ui.resultName:setText('')
@@ -284,6 +383,96 @@ local function cancelScheduledRefresh()
     if refreshEvent then
         removeEvent(refreshEvent)
         refreshEvent = nil
+    end
+end
+
+local function cancelCountdown()
+    if countdownEvent then
+        removeEvent(countdownEvent)
+        countdownEvent = nil
+    end
+    countdownDeadline = nil
+end
+
+local updateCountdown
+
+local function updateJobPresentation()
+    if not ui then
+        return
+    end
+
+    if not activeJob then
+        ui.jobPanel:hide()
+        ui.queueEmptyLabel:show()
+        clearItem(ui.jobIcon)
+        ui.jobName:setText('')
+        ui.jobStatus:setText('')
+        ui.jobProgress:setPercent(0)
+        ui.jobProgress:setText('')
+        ui.claimButton:setEnabled(false)
+        return
+    end
+
+    ui.jobPanel:show()
+    ui.queueEmptyLabel:hide()
+    ui.jobIcon:setItemId(activeJob.clientId)
+    ui.jobIcon:setItemCount(activeJob.resultCount)
+    local displayName = activeJob.name
+    if activeJob.resultCount > 1 then
+        displayName = string.format('%s x%d', displayName, activeJob.resultCount)
+    end
+    ui.jobName:setText(displayName)
+    ui.jobIcon:setTooltip(displayName)
+
+    local remaining = 0
+    if countdownDeadline then
+        remaining = math.max(0, (countdownDeadline - g_clock.millis()) / 1000)
+    end
+    local totalDuration = activeJob.readyAt - activeJob.startedAt
+    local progress = math.max(0, math.min(100, ((totalDuration - remaining) / totalDuration) * 100))
+    if activeJob.status == 'READY' or remaining <= 0 then
+        locallyReady = true
+        ui.jobStatus:setText(tr('Ready'))
+        ui.jobStatus:setColor(COLOR_SUCCESS)
+        ui.jobProgress:setPercent(100)
+        ui.jobProgress:setText('00:00')
+    else
+        locallyReady = false
+        ui.jobStatus:setText(tr('In progress'))
+        ui.jobStatus:setColor(COLOR_WARNING)
+        ui.jobProgress:setPercent(progress)
+        ui.jobProgress:setText(formatRemainingTime(remaining))
+    end
+    ui.claimButton:setEnabled(locallyReady and not claimPending)
+end
+
+updateCountdown = function()
+    countdownEvent = nil
+    if not activeJob or not countdownDeadline then
+        return
+    end
+
+    updateJobPresentation()
+    if locallyReady then
+        countdownDeadline = nil
+        return
+    end
+    countdownEvent = scheduleEvent(updateCountdown, COUNTDOWN_INTERVAL)
+end
+
+local function applyJob(job)
+    cancelCountdown()
+    activeJob = job
+    locallyReady = false
+
+    if activeJob and activeJob.status == 'IN_PROGRESS' then
+        local remaining = math.max(0, activeJob.readyAt - activeJob.serverTime)
+        countdownDeadline = g_clock.millis() + remaining * 1000
+    end
+
+    updateJobPresentation()
+    if activeJob and countdownDeadline and not locallyReady then
+        countdownEvent = scheduleEvent(updateCountdown, COUNTDOWN_INTERVAL)
     end
 end
 
@@ -305,7 +494,7 @@ local function sendMessage(action, data)
 end
 
 local function sendStatus()
-    if not sessionId or not selectedRecipeId or craftPending then
+    if not sessionId or not selectedRecipeId or craftPending or claimPending then
         return false
     end
     return sendMessage('status', {
@@ -327,13 +516,15 @@ end
 
 local function scheduleInventoryRefresh()
     cancelScheduledRefresh()
-    if not craftingWindow or not craftingWindow:isVisible() or not sessionId or not selectedRecipeId or craftPending then
+    if not craftingWindow or not craftingWindow:isVisible() or not sessionId or not selectedRecipeId
+        or craftPending or claimPending then
         return
     end
 
     refreshEvent = scheduleEvent(function()
         refreshEvent = nil
-        if craftingWindow and craftingWindow:isVisible() and sessionId and selectedRecipeId and not craftPending then
+        if craftingWindow and craftingWindow:isVisible() and sessionId and selectedRecipeId
+            and not craftPending and not claimPending then
             sendStatus()
         end
     end, REFRESH_DEBOUNCE)
@@ -341,9 +532,12 @@ end
 
 local function resetSession()
     cancelScheduledRefresh()
+    cancelCountdown()
     sessionId = nil
     stationType = nil
     recipes = {}
+    activeJob = nil
+    locallyReady = false
     selectedRecipeId = nil
     selectedDetail = nil
     selectedQuantity = 1
@@ -352,8 +546,13 @@ local function resetSession()
     detailLoading = false
     craftPending = false
     pendingRequestId = nil
+    pendingRecipeId = nil
     pendingQuantity = nil
+    claimPending = false
+    pendingClaimRequestId = nil
+    pendingClaimJobId = nil
     closeSent = false
+    currentCraftingTab = 'recipes'
 
     if ui then
         ui.recipeList:destroyChildren()
@@ -361,6 +560,8 @@ local function resetSession()
         ui.recipesEmptyLabel:hide()
         ui.stationLabel:setText('')
         clearDetails()
+        updateJobPresentation()
+        setCraftingTab('recipes')
         setFeedback('', COLOR_NORMAL)
     end
 end
@@ -424,6 +625,9 @@ local function renderRecipeList()
         row:setTooltip(displayName)
         row:setChecked(recipeId == selectedRecipeId)
         row.onClick = function()
+            if craftPending or claimPending then
+                return
+            end
             if selectedRecipeId ~= recipeId then
                 selectedQuantity = 1
             end
@@ -511,7 +715,7 @@ local function formatChance(chance)
 end
 
 local function configureQuantity(detail)
-    local supportsQuantity = detail.recipeType == 'craft'
+    local supportsQuantity = detail.recipeType == 'craft' and detail.durationSeconds == 0
     ui.quantityPanel:setVisible(supportsQuantity)
 
     updatingQuantity = true
@@ -531,7 +735,7 @@ local function configureQuantity(detail)
     updatingQuantity = false
 
     setQuantityControlsEnabled(supportsQuantity and detail.canCraft
-        and detail.maxQuantity >= 1 and not craftPending)
+        and detail.maxQuantity >= 1 and not craftPending and not claimPending)
 end
 
 local function updateResultPreview(detail)
@@ -558,9 +762,9 @@ local function refreshQuantityPreview()
     end
     updateResultPreview(selectedDetail)
     ui.quantityMaxButton:setEnabled(not craftPending and selectedDetail.canCraft
-        and selectedQuantity < selectedDetail.maxQuantity)
+        and not claimPending and selectedQuantity < selectedDetail.maxQuantity)
     ui.craftButton:setEnabled(not craftPending and selectedDetail.canCraft
-        and selectedDetail.maxQuantity >= selectedQuantity)
+        and not claimPending and selectedDetail.maxQuantity >= selectedQuantity)
 end
 
 local function renderDetail(detail)
@@ -575,6 +779,14 @@ local function renderDetail(detail)
     else
         ui.chanceLabel:setText('')
         ui.chanceLabel:hide()
+    end
+
+    if detail.durationSeconds > 0 then
+        ui.durationLabel:setText(tr('Crafting time: %s', formatRecipeDuration(detail.durationSeconds)))
+        ui.durationLabel:show()
+    else
+        ui.durationLabel:setText('')
+        ui.durationLabel:hide()
     end
 
     setBlockCode(detail.canCraft and nil or detail.blockCode)
@@ -603,17 +815,23 @@ local function renderDetail(detail)
     end
 
     updateResultPreview(detail)
-    ui.craftButton:setEnabled(detail.canCraft and detail.maxQuantity >= selectedQuantity and not craftPending)
+    ui.craftButton:setEnabled(detail.canCraft and detail.maxQuantity >= selectedQuantity
+        and not craftPending and not claimPending)
 end
 
 local function showInvalidData(showDialog)
     detailLoading = false
     craftPending = false
     pendingRequestId = nil
+    pendingRecipeId = nil
     pendingQuantity = nil
+    claimPending = false
+    pendingClaimRequestId = nil
+    pendingClaimJobId = nil
     if ui then
         setQuantityControlsEnabled(false)
         ui.craftButton:setEnabled(false)
+        updateJobPresentation()
         setFeedback(tr('Invalid crafting data received.'), COLOR_ERROR)
     end
     if showDialog then
@@ -626,7 +844,8 @@ local function handleOpen(data)
         or not isNonEmptyString(data.sessionId)
         or not isNonEmptyString(data.stationType)
         or not validateRecipes(data.recipes)
-        or not validateRecipeSelection(data.recipes, data.detail) then
+        or not validateRecipeSelection(data.recipes, data.detail)
+        or not validateJob(data.job) then
         resetSession()
         craftingWindow:hide()
         displayErrorBox(tr('Crafting'), tr('Invalid crafting data received.'))
@@ -656,6 +875,7 @@ local function handleOpen(data)
         clearDetails()
         setFeedback(tr('No unlocked recipes'), COLOR_MUTED)
     end
+    applyJob(data.job)
 
     craftingWindow:show()
     craftingWindow:raise()
@@ -670,10 +890,10 @@ local function handleDetail(data)
     if data.sessionId ~= sessionId then
         return
     end
-    if craftPending then
+    if craftPending or claimPending then
         return
     end
-    if not validateDetail(data.detail) then
+    if not validateDetail(data.detail) or not validateJob(data.job) then
         showInvalidData(false)
         return
     end
@@ -683,6 +903,7 @@ local function handleDetail(data)
     local wasLoading = detailLoading
     detailLoading = false
     renderDetail(data.detail)
+    applyJob(data.job)
     if wasLoading then
         setFeedback('', COLOR_NORMAL)
     end
@@ -701,11 +922,20 @@ local function validateCraftResultData(data)
         or data.successfulAttempts > data.attemptedQuantity
         or not isNonNegativeInteger(data.producedCount)
         or not validateRecipes(data.recipes)
-        or not validateRecipeSelection(data.recipes, data.detail) then
+        or not validateRecipeSelection(data.recipes, data.detail)
+        or not validateJob(data.job) then
         return false
     end
 
-    if data.resultCode == 'SUCCESS' then
+    if data.resultCode == 'CRAFT_STARTED' then
+        return data.success
+            and data.requestedQuantity == 1
+            and data.attemptedQuantity == 0
+            and data.successfulAttempts == 0
+            and data.producedCount == 0
+            and data.job ~= nil
+            and data.job.recipeId == pendingRecipeId
+    elseif data.resultCode == 'SUCCESS' then
         return data.success
             and data.attemptedQuantity == data.requestedQuantity
             and data.successfulAttempts == data.attemptedQuantity
@@ -734,9 +964,8 @@ local function getCraftResultFeedback(data)
         return getMessage(data.resultCode)
     end
 
-    local created = string.format(tr('Created %d items'), data.producedCount)
-    local attempts = string.format(tr('%d of %d attempts succeeded'),
-        data.successfulAttempts, data.attemptedQuantity)
+    local created = tr('Created %d items', data.producedCount)
+    local attempts = tr('%d of %d attempts succeeded', data.successfulAttempts, data.attemptedQuantity)
     if data.resultCode == 'PARTIAL_SUCCESS' then
         return string.format('%s %s %s', tr('Partial success'), created, attempts)
     end
@@ -760,6 +989,7 @@ local function handleCraftResult(data)
     local previousQuantity = selectedQuantity
     craftPending = false
     pendingRequestId = nil
+    pendingRecipeId = nil
     pendingQuantity = nil
     recipes = data.recipes
 
@@ -788,14 +1018,96 @@ local function handleCraftResult(data)
     else
         clearDetails()
     end
+    applyJob(data.job)
 
     local color = COLOR_ERROR
-    if data.resultCode == 'SUCCESS' and data.success then
+    if (data.resultCode == 'SUCCESS' or data.resultCode == 'CRAFT_STARTED') and data.success then
         color = COLOR_SUCCESS
     elseif data.resultCode == 'PARTIAL_SUCCESS' or data.resultCode == 'CRAFT_FAILED' then
         color = COLOR_WARNING
     end
+    if data.resultCode == 'CRAFT_STARTED' then
+        ui.detailScrollbar:setValue(0)
+        setCraftingTab('queue')
+    end
     setFeedback(getCraftResultFeedback(data), color)
+end
+
+local function validateClaimResultData(data)
+    if type(data.success) ~= 'boolean'
+        or not isNonEmptyString(data.resultCode)
+        or not isNonNegativeInteger(data.producedCount)
+        or not validateRecipes(data.recipes)
+        or not validateRecipeSelection(data.recipes, data.detail)
+        or not validateJob(data.job) then
+        return false
+    end
+
+    if data.resultCode == 'SUCCESS' then
+        return data.success and data.producedCount >= 1 and data.job == nil
+    end
+
+    if data.resultCode ~= 'NOT_READY'
+        and data.resultCode ~= 'NO_CAPACITY'
+        and data.resultCode ~= 'NO_ACTIVE_CRAFT'
+        and data.resultCode ~= 'INVALID_JOB'
+        and data.resultCode ~= 'INTERNAL_ERROR' then
+        return false
+    end
+    return not data.success and data.producedCount == 0
+end
+
+local function handleClaimResult(data)
+    if type(data) ~= 'table'
+        or not isNonEmptyString(data.sessionId)
+        or not isNonEmptyString(data.jobId)
+        or not isNonEmptyString(data.requestId) then
+        showInvalidData(false)
+        return
+    end
+    if data.sessionId ~= sessionId
+        or data.jobId ~= pendingClaimJobId
+        or data.requestId ~= pendingClaimRequestId then
+        return
+    end
+    if not validateClaimResultData(data) then
+        showInvalidData(false)
+        return
+    end
+
+    local previousRecipeId = selectedRecipeId
+    claimPending = false
+    pendingClaimRequestId = nil
+    pendingClaimJobId = nil
+    recipes = data.recipes
+
+    if previousRecipeId and findRecipe(previousRecipeId) then
+        selectedRecipeId = previousRecipeId
+    elseif data.detail and findRecipe(data.detail.id) then
+        selectedRecipeId = data.detail.id
+    elseif #recipes > 0 then
+        selectedRecipeId = recipes[1].id
+    else
+        selectedRecipeId = nil
+    end
+    selectedQuantity = 1
+
+    renderRecipeList()
+    if data.detail and data.detail.id == selectedRecipeId then
+        renderDetail(data.detail)
+    elseif selectedRecipeId then
+        clearDetails()
+        sendStatus()
+    else
+        clearDetails()
+    end
+    applyJob(data.job)
+
+    if data.resultCode == 'SUCCESS' then
+        setFeedback(tr('Claimed %d items', data.producedCount), COLOR_SUCCESS)
+    else
+        setFeedback(getMessage(data.resultCode), COLOR_ERROR)
+    end
 end
 
 local function handleServerClose(data)
@@ -843,6 +1155,8 @@ local function onCraftingOpcode(protocol, opcode, message)
         handleDetail(message.data)
     elseif message.action == 'craftResult' then
         handleCraftResult(message.data)
+    elseif message.action == 'claimResult' then
+        handleClaimResult(message.data)
     elseif message.action == 'close' then
         handleServerClose(message.data)
     else
@@ -938,12 +1252,23 @@ function closeWindow()
     end
 end
 
+function selectCraftingTab(tabName)
+    if tabName ~= 'recipes' and tabName ~= 'queue' then
+        return
+    end
+    if currentCraftingTab ~= tabName then
+        setFeedback('', COLOR_NORMAL)
+        setCraftingTab(tabName)
+    end
+end
+
 function filterRecipes(text)
     applyRecipeFilter(text)
 end
 
 function onQuantityChange(quantity)
-    if updatingQuantity or craftPending or not selectedDetail or selectedDetail.recipeType ~= 'craft' then
+    if updatingQuantity or craftPending or claimPending or not selectedDetail
+        or selectedDetail.recipeType ~= 'craft' or selectedDetail.durationSeconds > 0 then
         return
     end
     quantity = math.round(quantity)
@@ -962,7 +1287,8 @@ function onQuantityChange(quantity)
 end
 
 function selectMaxQuantity()
-    if craftPending or not selectedDetail or selectedDetail.recipeType ~= 'craft'
+    if craftPending or claimPending or not selectedDetail or selectedDetail.recipeType ~= 'craft'
+        or selectedDetail.durationSeconds > 0
         or selectedDetail.maxQuantity < 1 then
         return
     end
@@ -970,14 +1296,17 @@ function selectMaxQuantity()
 end
 
 function craftSelected()
-    local quantity = selectedDetail and selectedDetail.recipeType == 'craft' and selectedQuantity or 1
-    if craftPending or not sessionId or not selectedRecipeId or not selectedDetail or not selectedDetail.canCraft
+    local quantity = selectedDetail and selectedDetail.recipeType == 'craft'
+        and selectedDetail.durationSeconds == 0 and selectedQuantity or 1
+    if craftPending or claimPending or not sessionId or not selectedRecipeId
+        or not selectedDetail or not selectedDetail.canCraft
         or not isPositiveInteger(quantity) or quantity > selectedDetail.maxQuantity then
         return
     end
 
     requestCounter = requestCounter + 1
     pendingRequestId = string.format('craft-%d', requestCounter)
+    pendingRecipeId = selectedRecipeId
     pendingQuantity = quantity
     craftPending = true
     ui.craftButton:setEnabled(false)
@@ -993,9 +1322,43 @@ function craftSelected()
     }) then
         craftPending = false
         pendingRequestId = nil
+        pendingRecipeId = nil
         pendingQuantity = nil
         configureQuantity(selectedDetail)
         ui.craftButton:setEnabled(selectedDetail.canCraft and selectedDetail.maxQuantity >= selectedQuantity)
+        setFeedback(tr('The crafting session is no longer valid.'), COLOR_ERROR)
+    end
+end
+
+function claimCraft()
+    if craftPending or claimPending or not sessionId or not activeJob or not locallyReady then
+        return
+    end
+
+    requestCounter = requestCounter + 1
+    pendingClaimRequestId = string.format('claim-%d', requestCounter)
+    pendingClaimJobId = activeJob.jobId
+    claimPending = true
+    ui.claimButton:setEnabled(false)
+    ui.craftButton:setEnabled(false)
+    setQuantityControlsEnabled(false)
+    setFeedback('', COLOR_NORMAL)
+    cancelScheduledRefresh()
+
+    if not sendMessage('claim', {
+        sessionId = sessionId,
+        jobId = pendingClaimJobId,
+        requestId = pendingClaimRequestId
+    }) then
+        claimPending = false
+        pendingClaimRequestId = nil
+        pendingClaimJobId = nil
+        updateJobPresentation()
+        if selectedDetail then
+            configureQuantity(selectedDetail)
+            ui.craftButton:setEnabled(selectedDetail.canCraft
+                and selectedDetail.maxQuantity >= selectedQuantity)
+        end
         setFeedback(tr('The crafting session is no longer valid.'), COLOR_ERROR)
     end
 end

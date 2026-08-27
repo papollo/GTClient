@@ -141,6 +141,23 @@ CraftingEmptyRow < Label
   color: #999999
   text-align: center
 
+CraftingTabButton < UIButton
+  size: 112 24
+  background-color: #3A3A3A
+  border-width: 1
+  border-color: #2A2A2A
+  color: #CFCFCF
+  text-align: center
+
+  $hover:
+    background-color: #484848
+    border-color: #606060
+
+  $checked:
+    background-color: #565656
+    border-color: #8A8A8A
+    color: #FFFFFF
+
 MainWindow
   id: craftingWindow
   size: 760 520
@@ -156,11 +173,35 @@ MainWindow
     margin-bottom: 9
 
     Panel
-      id: recipePanel
-      width: 238
+      id: craftingTabs
+      height: 24
       anchors.top: parent.top
       anchors.left: parent.left
+      anchors.right: parent.right
+
+      CraftingTabButton
+        id: recipesTab
+        anchors.top: parent.top
+        anchors.left: parent.left
+        !text: tr('Recipes')
+        checked: true
+        @onClick: modules.game_crafting.selectCraftingTab('recipes')
+
+      CraftingTabButton
+        id: queueTab
+        anchors.top: parent.top
+        anchors.left: recipesTab.right
+        margin-left: 4
+        !text: tr('Queue')
+        @onClick: modules.game_crafting.selectCraftingTab('queue')
+
+    Panel
+      id: recipePanel
+      width: 238
+      anchors.top: craftingTabs.bottom
+      anchors.left: parent.left
       anchors.bottom: parent.bottom
+      margin-top: 4
       background-color: #363636
 
       Label
@@ -221,18 +262,20 @@ MainWindow
 
     VerticalSeparator
       id: columnSeparator
-      anchors.top: parent.top
+      anchors.top: craftingTabs.bottom
       anchors.bottom: parent.bottom
       anchors.left: recipePanel.right
+      margin-top: 4
       margin-left: 8
       margin-right: 8
 
     Panel
       id: detailPanel
-      anchors.top: parent.top
+      anchors.top: craftingTabs.bottom
       anchors.left: columnSeparator.right
       anchors.right: parent.right
       anchors.bottom: parent.bottom
+      margin-top: 4
       margin-left: 8
       background-color: #363636
 
@@ -273,6 +316,13 @@ MainWindow
 
             Label
               id: chanceLabel
+              height: 20
+              color: #D7D7D7
+              text-align: center
+              visible: false
+
+            Label
+              id: durationLabel
               height: 20
               color: #D7D7D7
               text-align: center
@@ -398,6 +448,122 @@ MainWindow
           anchors.bottom: detailScroll.bottom
           step: 45
           pixel-scroll: true
+
+    Panel
+      id: queuePanel
+      anchors.top: craftingTabs.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin-top: 4
+      background-color: #303030
+      visible: false
+
+      Label
+        id: queueEmptyLabel
+        anchors.centerIn: parent
+        width: 300
+        height: 48
+        color: #999999
+        text-align: center
+        text-wrap: true
+        !text: tr('No active crafting jobs')
+
+      Panel
+        id: jobPanel
+        width: 520
+        height: 132
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        margin-top: 24
+        background-color: #3B3B3B
+        visible: false
+
+        Label
+          id: jobTitle
+          anchors.top: parent.top
+          anchors.left: parent.left
+          anchors.right: parent.right
+          height: 26
+          color: #E0E0E0
+          text-align: center
+          !text: tr('Active crafting job')
+
+        UIWidget
+          id: jobIconBackground
+          size: 58 58
+          anchors.top: jobTitle.bottom
+          anchors.left: parent.left
+          margin-top: 7
+          margin-left: 12
+          image-source: /images/ui/item
+
+          UIItem
+            id: jobIcon
+            anchors.centerIn: parent
+            size: 52 52
+            virtual: true
+            draggable: false
+
+        Label
+          id: jobName
+          anchors.top: jobTitle.bottom
+          anchors.left: jobIconBackground.right
+          anchors.right: parent.right
+          margin-top: 5
+          margin-left: 12
+          margin-right: 12
+          height: 22
+          color: #E0E0E0
+          text-align: left
+          text-wrap: true
+
+        Label
+          id: jobStatus
+          anchors.top: jobName.bottom
+          anchors.left: jobName.left
+          anchors.right: parent.right
+          height: 20
+          color: #E5B85C
+          text-align: left
+
+        ProgressBar
+          id: jobProgress
+          anchors.left: parent.left
+          anchors.right: claimButton.left
+          anchors.bottom: parent.bottom
+          margin-left: 12
+          margin-right: 10
+          margin-bottom: 10
+          height: 24
+          background-color: #4B8F45
+          color: #FFFFFF
+          text-align: center
+
+        Button
+          id: claimButton
+          size: 100 24
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          margin-right: 12
+          margin-bottom: 10
+          !text: tr('Claim')
+          enabled: false
+          @onClick: modules.game_crafting.claimCraft()
+
+      Label
+        id: queueFeedbackLabel
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        margin-left: 40
+        margin-right: 40
+        margin-bottom: 48
+        height: 52
+        color: #CFCFCF
+        text-align: center
+        text-wrap: true
+        visible: false
 
   HorizontalSeparator
     id: bottomSeparator
