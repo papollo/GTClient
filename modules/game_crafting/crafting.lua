@@ -1,8 +1,9 @@
 local CRAFTING_OPCODE = 219
-local CONTRACT_VERSION = 3
+local CONTRACT_VERSION = 4
 local REFRESH_DEBOUNCE = 100
 local COUNTDOWN_INTERVAL = 250
 local MAX_BATCH_QUANTITY = 100
+local MAX_JOB_SLOTS = 5
 
 local COLOR_NORMAL = '#CFCFCF'
 local COLOR_MUTED = '#7F7F7F'
@@ -17,9 +18,9 @@ local countdownEvent = nil
 local sessionId = nil
 local stationType = nil
 local recipes = {}
-local activeJob = nil
-local countdownDeadline = nil
-local locallyReady = false
+local jobs = {}
+local countdownDeadlines = {}
+local locallyReady = {}
 local currentCraftingTab = 'recipes'
 local selectedRecipeId = nil
 local selectedDetail = nil
@@ -86,7 +87,7 @@ local function bindUi()
         columnSeparator = child('columnSeparator'),
         detailPanel = child('detailPanel'),
         queuePanel = child('queuePanel'),
-        queueEmptyLabel = child('queueEmptyLabel'),
+        jobSlots = {},
         stationLabel = child('stationLabel'),
         chanceLabel = child('chanceLabel'),
         durationLabel = child('durationLabel'),
@@ -100,15 +101,24 @@ local function bindUi()
         quantitySlider = child('quantitySlider'),
         quantityMaxButton = child('quantityMaxButton'),
         craftButton = child('craftButton'),
-        jobPanel = child('jobPanel'),
-        jobIcon = child('jobIcon'),
-        jobName = child('jobName'),
-        jobStatus = child('jobStatus'),
-        jobProgress = child('jobProgress'),
-        claimButton = child('claimButton'),
         feedbackLabel = child('feedbackLabel'),
         queueFeedbackLabel = child('queueFeedbackLabel')
     }
+
+    for slotIndex = 1, MAX_JOB_SLOTS do
+        local slot = child('jobSlot' .. slotIndex)
+        ui.jobSlots[slotIndex] = {
+            panel = slot,
+            title = slot:recursiveGetChildById('slotTitle'),
+            emptyLabel = slot:recursiveGetChildById('emptyLabel'),
+            content = slot:recursiveGetChildById('jobContent'),
+            icon = slot:recursiveGetChildById('jobIcon'),
+            name = slot:recursiveGetChildById('jobName'),
+            status = slot:recursiveGetChildById('jobStatus'),
+            progress = slot:recursiveGetChildById('jobProgress'),
+            claimButton = slot:recursiveGetChildById('claimButton')
+        }
+    end
 end
 
 local function isFiniteNumber(value)
@@ -169,11 +179,9 @@ local function validateRecipeSummary(recipe)
 end
 
 local function validateJob(job)
-    if job == nil then
-        return true
-    end
-
     if type(job) ~= 'table'
+        or not isPositiveInteger(job.slotIndex)
+        or job.slotIndex > MAX_JOB_SLOTS
         or not isNonEmptyString(job.jobId)
         or not isNonEmptyString(job.recipeId)
         or not isNonEmptyString(job.name)
@@ -190,6 +198,22 @@ local function validateJob(job)
 
     return (job.status == 'IN_PROGRESS' and job.serverTime < job.readyAt)
         or (job.status == 'READY' and job.serverTime >= job.readyAt)
+end
+
+local function validateJobs(value)
+    if type(value) ~= 'table' then
+        return false
+    end
+
+    local jobIds = {}
+    for slotIndex, job in pairs(value) do
+        if not isPositiveInteger(slotIndex) or slotIndex > MAX_JOB_SLOTS
+            or not validateJob(job) or job.slotIndex ~= slotIndex or jobIds[job.jobId] then
+            return false
+        end
+        jobIds[job.jobId] = true
+    end
+    return true
 end
 
 local function validateRequirement(requirement)
@@ -391,87 +415,109 @@ local function cancelCountdown()
         removeEvent(countdownEvent)
         countdownEvent = nil
     end
-    countdownDeadline = nil
+    countdownDeadlines = {}
 end
 
 local updateCountdown
 
-local function updateJobPresentation()
+local function updateJobSlotPresentation(slotIndex)
     if not ui then
         return
     end
 
-    if not activeJob then
-        ui.jobPanel:hide()
-        ui.queueEmptyLabel:show()
-        clearItem(ui.jobIcon)
-        ui.jobName:setText('')
-        ui.jobStatus:setText('')
-        ui.jobProgress:setPercent(0)
-        ui.jobProgress:setText('')
-        ui.claimButton:setEnabled(false)
+    local slotUi = ui.jobSlots[slotIndex]
+    local job = jobs[slotIndex]
+    slotUi.title:setText(tr('Crafting slot %d', slotIndex))
+
+    if not job then
+        slotUi.emptyLabel:show()
+        slotUi.content:hide()
+        clearItem(slotUi.icon)
+        slotUi.icon:setTooltip('')
+        slotUi.name:setText('')
+        slotUi.status:setText('')
+        slotUi.progress:setPercent(0)
+        slotUi.progress:setText('')
+        slotUi.claimButton:setEnabled(false)
         return
     end
 
-    ui.jobPanel:show()
-    ui.queueEmptyLabel:hide()
-    ui.jobIcon:setItemId(activeJob.clientId)
-    ui.jobIcon:setItemCount(activeJob.resultCount)
-    local displayName = activeJob.name
-    if activeJob.resultCount > 1 then
-        displayName = string.format('%s x%d', displayName, activeJob.resultCount)
+    slotUi.emptyLabel:hide()
+    slotUi.content:show()
+    slotUi.icon:setItemId(job.clientId)
+    slotUi.icon:setItemCount(job.resultCount)
+    local displayName = job.name
+    if job.resultCount > 1 then
+        displayName = string.format('%s x%d', displayName, job.resultCount)
     end
-    ui.jobName:setText(displayName)
-    ui.jobIcon:setTooltip(displayName)
+    slotUi.name:setText(displayName)
+    slotUi.icon:setTooltip(displayName)
 
     local remaining = 0
-    if countdownDeadline then
-        remaining = math.max(0, (countdownDeadline - g_clock.millis()) / 1000)
+    if countdownDeadlines[slotIndex] then
+        remaining = math.max(0, (countdownDeadlines[slotIndex] - g_clock.millis()) / 1000)
     end
-    local totalDuration = activeJob.readyAt - activeJob.startedAt
+    local totalDuration = job.readyAt - job.startedAt
     local progress = math.max(0, math.min(100, ((totalDuration - remaining) / totalDuration) * 100))
-    if activeJob.status == 'READY' or remaining <= 0 then
-        locallyReady = true
-        ui.jobStatus:setText(tr('Ready'))
-        ui.jobStatus:setColor(COLOR_SUCCESS)
-        ui.jobProgress:setPercent(100)
-        ui.jobProgress:setText('00:00')
+    if job.status == 'READY' or remaining <= 0 then
+        locallyReady[slotIndex] = true
+        slotUi.status:setText(tr('Ready'))
+        slotUi.status:setColor(COLOR_SUCCESS)
+        slotUi.progress:setPercent(100)
+        slotUi.progress:setText('00:00')
     else
-        locallyReady = false
-        ui.jobStatus:setText(tr('In progress'))
-        ui.jobStatus:setColor(COLOR_WARNING)
-        ui.jobProgress:setPercent(progress)
-        ui.jobProgress:setText(formatRemainingTime(remaining))
+        locallyReady[slotIndex] = false
+        slotUi.status:setText(tr('In progress'))
+        slotUi.status:setColor(COLOR_WARNING)
+        slotUi.progress:setPercent(progress)
+        slotUi.progress:setText(formatRemainingTime(remaining))
     end
-    ui.claimButton:setEnabled(locallyReady and not claimPending)
+    slotUi.claimButton:setEnabled(locallyReady[slotIndex]
+        and (not claimPending or pendingClaimJobId ~= job.jobId))
+end
+
+local function updateJobsPresentation()
+    for slotIndex = 1, MAX_JOB_SLOTS do
+        updateJobSlotPresentation(slotIndex)
+    end
 end
 
 updateCountdown = function()
     countdownEvent = nil
-    if not activeJob or not countdownDeadline then
-        return
+    local needsCountdown = false
+    for slotIndex = 1, MAX_JOB_SLOTS do
+        if jobs[slotIndex] then
+            updateJobSlotPresentation(slotIndex)
+            if countdownDeadlines[slotIndex] and not locallyReady[slotIndex] then
+                needsCountdown = true
+            elseif locallyReady[slotIndex] then
+                countdownDeadlines[slotIndex] = nil
+            end
+        end
     end
 
-    updateJobPresentation()
-    if locallyReady then
-        countdownDeadline = nil
-        return
+    if needsCountdown then
+        countdownEvent = scheduleEvent(updateCountdown, COUNTDOWN_INTERVAL)
     end
-    countdownEvent = scheduleEvent(updateCountdown, COUNTDOWN_INTERVAL)
 end
 
-local function applyJob(job)
+local function applyJobs(newJobs)
     cancelCountdown()
-    activeJob = job
-    locallyReady = false
+    jobs = newJobs
+    locallyReady = {}
 
-    if activeJob and activeJob.status == 'IN_PROGRESS' then
-        local remaining = math.max(0, activeJob.readyAt - activeJob.serverTime)
-        countdownDeadline = g_clock.millis() + remaining * 1000
+    local needsCountdown = false
+    for slotIndex = 1, MAX_JOB_SLOTS do
+        local job = jobs[slotIndex]
+        if job and job.status == 'IN_PROGRESS' then
+            local remaining = math.max(0, job.readyAt - job.serverTime)
+            countdownDeadlines[slotIndex] = g_clock.millis() + remaining * 1000
+            needsCountdown = true
+        end
     end
 
-    updateJobPresentation()
-    if activeJob and countdownDeadline and not locallyReady then
+    updateJobsPresentation()
+    if needsCountdown then
         countdownEvent = scheduleEvent(updateCountdown, COUNTDOWN_INTERVAL)
     end
 end
@@ -536,8 +582,8 @@ local function resetSession()
     sessionId = nil
     stationType = nil
     recipes = {}
-    activeJob = nil
-    locallyReady = false
+    jobs = {}
+    locallyReady = {}
     selectedRecipeId = nil
     selectedDetail = nil
     selectedQuantity = 1
@@ -560,7 +606,7 @@ local function resetSession()
         ui.recipesEmptyLabel:hide()
         ui.stationLabel:setText('')
         clearDetails()
-        updateJobPresentation()
+        updateJobsPresentation()
         setCraftingTab('recipes')
         setFeedback('', COLOR_NORMAL)
     end
@@ -831,7 +877,7 @@ local function showInvalidData(showDialog)
     if ui then
         setQuantityControlsEnabled(false)
         ui.craftButton:setEnabled(false)
-        updateJobPresentation()
+        updateJobsPresentation()
         setFeedback(tr('Invalid crafting data received.'), COLOR_ERROR)
     end
     if showDialog then
@@ -845,7 +891,7 @@ local function handleOpen(data)
         or not isNonEmptyString(data.stationType)
         or not validateRecipes(data.recipes)
         or not validateRecipeSelection(data.recipes, data.detail)
-        or not validateJob(data.job) then
+        or not validateJobs(data.jobs) then
         resetSession()
         craftingWindow:hide()
         displayErrorBox(tr('Crafting'), tr('Invalid crafting data received.'))
@@ -875,7 +921,7 @@ local function handleOpen(data)
         clearDetails()
         setFeedback(tr('No unlocked recipes'), COLOR_MUTED)
     end
-    applyJob(data.job)
+    applyJobs(data.jobs)
 
     craftingWindow:show()
     craftingWindow:raise()
@@ -893,7 +939,7 @@ local function handleDetail(data)
     if craftPending or claimPending then
         return
     end
-    if not validateDetail(data.detail) or not validateJob(data.job) then
+    if not validateDetail(data.detail) or not validateJobs(data.jobs) then
         showInvalidData(false)
         return
     end
@@ -903,7 +949,7 @@ local function handleDetail(data)
     local wasLoading = detailLoading
     detailLoading = false
     renderDetail(data.detail)
-    applyJob(data.job)
+    applyJobs(data.jobs)
     if wasLoading then
         setFeedback('', COLOR_NORMAL)
     end
@@ -923,18 +969,28 @@ local function validateCraftResultData(data)
         or not isNonNegativeInteger(data.producedCount)
         or not validateRecipes(data.recipes)
         or not validateRecipeSelection(data.recipes, data.detail)
-        or not validateJob(data.job) then
+        or not validateJobs(data.jobs) then
         return false
     end
 
     if data.resultCode == 'CRAFT_STARTED' then
+        local startedJobFound = false
+        local previousJobIds = {}
+        for _, job in pairs(jobs) do
+            previousJobIds[job.jobId] = true
+        end
+        for _, job in pairs(data.jobs) do
+            if job.recipeId == pendingRecipeId and not previousJobIds[job.jobId] then
+                startedJobFound = true
+                break
+            end
+        end
         return data.success
             and data.requestedQuantity == 1
             and data.attemptedQuantity == 0
             and data.successfulAttempts == 0
             and data.producedCount == 0
-            and data.job ~= nil
-            and data.job.recipeId == pendingRecipeId
+            and startedJobFound
     elseif data.resultCode == 'SUCCESS' then
         return data.success
             and data.attemptedQuantity == data.requestedQuantity
@@ -1018,7 +1074,7 @@ local function handleCraftResult(data)
     else
         clearDetails()
     end
-    applyJob(data.job)
+    applyJobs(data.jobs)
 
     local color = COLOR_ERROR
     if (data.resultCode == 'SUCCESS' or data.resultCode == 'CRAFT_STARTED') and data.success then
@@ -1039,12 +1095,20 @@ local function validateClaimResultData(data)
         or not isNonNegativeInteger(data.producedCount)
         or not validateRecipes(data.recipes)
         or not validateRecipeSelection(data.recipes, data.detail)
-        or not validateJob(data.job) then
+        or not validateJobs(data.jobs) then
         return false
     end
 
     if data.resultCode == 'SUCCESS' then
-        return data.success and data.producedCount >= 1 and data.job == nil
+        if not data.success or data.producedCount < 1 then
+            return false
+        end
+        for _, job in pairs(data.jobs) do
+            if job.jobId == pendingClaimJobId then
+                return false
+            end
+        end
+        return true
     end
 
     if data.resultCode ~= 'NOT_READY'
@@ -1101,7 +1165,7 @@ local function handleClaimResult(data)
     else
         clearDetails()
     end
-    applyJob(data.job)
+    applyJobs(data.jobs)
 
     if data.resultCode == 'SUCCESS' then
         setFeedback(tr('Claimed %d items', data.producedCount), COLOR_SUCCESS)
@@ -1330,16 +1394,24 @@ function craftSelected()
     end
 end
 
-function claimCraft()
-    if craftPending or claimPending or not sessionId or not activeJob or not locallyReady then
+function claimCraft(slotIndex)
+    if type(slotIndex) == 'string' then
+        slotIndex = tonumber(slotIndex:match('^jobSlot(%d+)$'))
+    end
+    if not isPositiveInteger(slotIndex) or slotIndex > MAX_JOB_SLOTS then
+        return
+    end
+
+    local job = jobs[slotIndex]
+    if craftPending or claimPending or not sessionId or not job or not locallyReady[slotIndex] then
         return
     end
 
     requestCounter = requestCounter + 1
     pendingClaimRequestId = string.format('claim-%d', requestCounter)
-    pendingClaimJobId = activeJob.jobId
+    pendingClaimJobId = job.jobId
     claimPending = true
-    ui.claimButton:setEnabled(false)
+    ui.jobSlots[slotIndex].claimButton:setEnabled(false)
     ui.craftButton:setEnabled(false)
     setQuantityControlsEnabled(false)
     setFeedback('', COLOR_NORMAL)
@@ -1353,7 +1425,7 @@ function claimCraft()
         claimPending = false
         pendingClaimRequestId = nil
         pendingClaimJobId = nil
-        updateJobPresentation()
+        updateJobsPresentation()
         if selectedDetail then
             configureQuantity(selectedDetail)
             ui.craftButton:setEnabled(selectedDetail.canCraft
