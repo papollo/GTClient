@@ -1,0 +1,10 @@
+Module
+  name: game_pvparenahud
+  description: Displays the PvP arena score HUD
+  author: Gothic Tales
+  sandboxed: true
+  scripts: [ pvparenahud ]
+  dependencies:
+    - game_interface
+  @onLoad: init()
+  @onUnload: terminate()

@@ -1,0 +1,113 @@
+ArenaHudLabel < UILabel
+  font: verdana-11px-rounded
+  color: #f0f0f0
+  text-align: center
+  text-auto-resize: false
+  phantom: true
+  focusable: false
+
+ArenaHudSidePanel < Panel
+  width: 165
+  anchors.top: parent.top
+  anchors.bottom: parent.bottom
+  phantom: true
+  focusable: false
+
+  ArenaHudLabel
+    id: campName
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 8
+    height: 16
+
+  ArenaHudLabel
+    id: campScore
+    anchors.top: campName.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    margin-top: 3
+    height: 18
+    font: verdana-11px-rounded
+
+Panel
+  id: pvpArenaHud
+  size: 510 58
+  anchors.top: parent.top
+  anchors.horizontalCenter: parent.horizontalCenter
+  margin-top: 12
+  background-color: #11151ddd
+  border-width: 1
+  border-color: #687080
+  visible: false
+  phantom: true
+  focusable: false
+
+  ArenaHudSidePanel
+    id: oldCampPanel
+    anchors.left: parent.left
+
+  Panel
+    id: leftSeparator
+    width: 1
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    anchors.left: oldCampPanel.right
+    margin-top: 6
+    margin-bottom: 6
+    background-color: #68708088
+    phantom: true
+    focusable: false
+
+  Panel
+    id: centerPanel
+    width: 178
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    anchors.horizontalCenter: parent.horizontalCenter
+    phantom: true
+    focusable: false
+
+    ArenaHudLabel
+      id: arenaName
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 5
+      height: 15
+      color: #d8d8d8
+
+    ArenaHudLabel
+      id: remainingTime
+      anchors.top: arenaName.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 1
+      height: 17
+      font: verdana-11px-rounded
+      color: #ffffff
+
+    ArenaHudLabel
+      id: result
+      anchors.top: remainingTime.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: 14
+      color: #ffd65a
+      visible: false
+
+  Panel
+    id: rightSeparator
+    width: 1
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    anchors.right: newCampPanel.left
+    margin-top: 6
+    margin-bottom: 6
+    background-color: #68708088
+    phantom: true
+    focusable: false
+
+  ArenaHudSidePanel
+    id: newCampPanel
+    anchors.right: parent.right
