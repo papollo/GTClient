@@ -1,5 +1,5 @@
 local CRAFTING_OPCODE = 219
-local CONTRACT_VERSION = 4
+local CONTRACT_VERSION = 5
 local REFRESH_DEBOUNCE = 100
 local COUNTDOWN_INTERVAL = 250
 local MAX_BATCH_QUANTITY = 100
@@ -19,9 +19,11 @@ local sessionId = nil
 local stationType = nil
 local recipes = {}
 local jobs = {}
+local masteryEntries = {}
 local countdownDeadlines = {}
 local locallyReady = {}
 local currentCraftingTab = 'recipes'
+local masteryLoading = false
 local selectedRecipeId = nil
 local selectedDetail = nil
 local selectedQuantity = 1
@@ -72,6 +74,23 @@ local STATION_NAMES = {
     cooking = 'Cooking station'
 }
 
+local STATION_TITLES = {
+    smith = 'Smithing',
+    bowmaster = 'Bowcrafting',
+    armorer = 'Armoring',
+    rune = 'Runecrafting',
+    alchemy = 'Alchemy',
+    cooking = 'Cooking'
+}
+
+local function updateWindowTitle()
+    if not craftingWindow then
+        return
+    end
+
+    craftingWindow:setText(tr(STATION_TITLES[stationType] or 'Crafting'))
+end
+
 local function child(id)
     return craftingWindow and craftingWindow:recursiveGetChildById(id) or nil
 end
@@ -83,10 +102,18 @@ local function bindUi()
         recipesEmptyLabel = child('recipesEmptyLabel'),
         recipesTab = child('recipesTab'),
         queueTab = child('queueTab'),
+        masteryTab = child('masteryTab'),
         recipePanel = child('recipePanel'),
         columnSeparator = child('columnSeparator'),
         detailPanel = child('detailPanel'),
         queuePanel = child('queuePanel'),
+        masteryPanel = child('masteryPanel'),
+        masterySummaryLabel = child('masterySummaryLabel'),
+        masteryBonusLabel = child('masteryBonusLabel'),
+        masteryList = child('masteryList'),
+        masteryScrollbar = child('masteryScrollbar'),
+        masteryRefreshButton = child('masteryRefreshButton'),
+        masteryFeedbackLabel = child('masteryFeedbackLabel'),
         jobSlots = {},
         stationLabel = child('stationLabel'),
         chanceLabel = child('chanceLabel'),
@@ -276,6 +303,48 @@ local function validateRecipes(value)
     return true
 end
 
+local function validateMasteryData(data)
+    if type(data) ~= 'table'
+        or not isNonEmptyString(data.sessionId)
+        or not isPositiveInteger(data.targetCount)
+        or not isNonNegativeInteger(data.masteredCount)
+        or not isNonNegativeInteger(data.totalRecipeCount)
+        or not isNonNegativeInteger(data.permanentRegenPercent)
+        or not validateArray(data.entries) then
+        return false
+    end
+
+    if #data.entries ~= data.totalRecipeCount
+        or data.masteredCount > data.totalRecipeCount
+        or data.permanentRegenPercent > data.totalRecipeCount then
+        return false
+    end
+
+    local recipeIds = {}
+    local masteredCount = 0
+    for _, entry in ipairs(data.entries) do
+        if type(entry) ~= 'table'
+            or not isNonEmptyString(entry.recipeId)
+            or not isPositiveInteger(entry.clientId)
+            or not isNonEmptyString(entry.name)
+            or not isNonNegativeInteger(entry.count)
+            or entry.count > data.targetCount
+            or type(entry.mastered) ~= 'boolean'
+            or type(entry.unlocked) ~= 'boolean'
+            or entry.mastered ~= (entry.count >= data.targetCount)
+            or recipeIds[entry.recipeId] then
+            return false
+        end
+        recipeIds[entry.recipeId] = true
+        if entry.mastered then
+            masteredCount = masteredCount + 1
+        end
+    end
+
+    return masteredCount == data.masteredCount
+        and data.permanentRegenPercent == data.masteredCount
+end
+
 local function validateRecipeSelection(recipeList, detail)
     if #recipeList == 0 then
         return detail == nil
@@ -323,13 +392,89 @@ local function setCraftingTab(tabName)
     end
 
     local showQueue = tabName == 'queue'
-    currentCraftingTab = showQueue and 'queue' or 'recipes'
-    ui.recipesTab:setChecked(not showQueue)
+    local showMastery = tabName == 'mastery' and stationType == 'cooking'
+    local showRecipes = not showQueue and not showMastery
+    currentCraftingTab = showQueue and 'queue' or (showMastery and 'mastery' or 'recipes')
+    ui.recipesTab:setChecked(showRecipes)
     ui.queueTab:setChecked(showQueue)
-    ui.recipePanel:setVisible(not showQueue)
-    ui.columnSeparator:setVisible(not showQueue)
-    ui.detailPanel:setVisible(not showQueue)
+    ui.masteryTab:setChecked(showMastery)
+    ui.recipePanel:setVisible(showRecipes)
+    ui.columnSeparator:setVisible(showRecipes)
+    ui.detailPanel:setVisible(showRecipes)
     ui.queuePanel:setVisible(showQueue)
+    ui.masteryPanel:setVisible(showMastery)
+end
+
+local function setMasteryFeedback(text, color)
+    if not ui or not ui.masteryFeedbackLabel then
+        return
+    end
+    local feedback = text or ''
+    ui.masteryFeedbackLabel:setText(feedback)
+    ui.masteryFeedbackLabel:setColor(color or COLOR_NORMAL)
+    ui.masteryFeedbackLabel:setVisible(feedback ~= '')
+end
+
+local function clearMastery()
+    masteryEntries = {}
+    masteryLoading = false
+    if not ui then
+        return
+    end
+    ui.masteryList:destroyChildren()
+    ui.masteryScrollbar:setValue(0)
+    ui.masterySummaryLabel:setText('')
+    ui.masteryBonusLabel:setText('')
+    ui.masteryRefreshButton:setEnabled(false)
+    setMasteryFeedback('', COLOR_NORMAL)
+end
+
+local function renderMastery(data)
+    masteryEntries = data.entries
+    ui.masteryList:destroyChildren()
+
+    ui.masterySummaryLabel:setText(tr('Mastered recipes: %d / %d',
+        data.masteredCount, data.totalRecipeCount))
+    ui.masteryBonusLabel:setText(tr('Permanent regeneration bonus: +%d%%',
+        data.permanentRegenPercent))
+
+    for _, entry in ipairs(masteryEntries) do
+        local row = g_ui.createWidget('CraftingMasteryRow', ui.masteryList)
+        local icon = row:recursiveGetChildById('icon')
+        local name = row:recursiveGetChildById('name')
+        local status = row:recursiveGetChildById('status')
+        local progress = row:recursiveGetChildById('progress')
+
+        icon:setItemId(entry.clientId)
+        name:setText(entry.name)
+        progress:setPercent(entry.count * 100 / data.targetCount)
+        progress:setText(string.format('%d / %d', entry.count, data.targetCount))
+        row:setTooltip(entry.name)
+
+        if entry.mastered and not entry.unlocked then
+            status:setText(string.format('%s - %s', tr('Mastered'), tr('Locked')))
+            status:setColor(COLOR_SUCCESS)
+        elseif entry.mastered then
+            status:setText(tr('Mastered'))
+            status:setColor(COLOR_SUCCESS)
+        elseif not entry.unlocked then
+            status:setText(tr('Locked'))
+            status:setColor(COLOR_MUTED)
+        else
+            status:setText(tr('In progress'))
+            status:setColor(COLOR_WARNING)
+        end
+
+        if entry.unlocked then
+            icon:setOpacity(1.0)
+            name:setColor(COLOR_NORMAL)
+        else
+            icon:setOpacity(0.4)
+            name:setColor(COLOR_MUTED)
+        end
+    end
+
+    ui.masteryScrollbar:setValue(0)
 end
 
 local function setBlockCode(code)
@@ -549,6 +694,23 @@ local function sendStatus()
     })
 end
 
+local function requestMasteryStatus()
+    if not sessionId or stationType ~= 'cooking' or masteryLoading then
+        return false
+    end
+
+    masteryLoading = true
+    ui.masteryRefreshButton:setEnabled(false)
+    setMasteryFeedback(tr('Loading...'), COLOR_MUTED)
+    if not sendMessage('masteryStatus', { sessionId = sessionId }) then
+        masteryLoading = false
+        ui.masteryRefreshButton:setEnabled(true)
+        setMasteryFeedback(tr('The crafting session is no longer valid.'), COLOR_ERROR)
+        return false
+    end
+    return true
+end
+
 local function requestSelectedDetail()
     clearDetails()
     detailLoading = true
@@ -583,6 +745,7 @@ local function resetSession()
     stationType = nil
     recipes = {}
     jobs = {}
+    masteryEntries = {}
     locallyReady = {}
     selectedRecipeId = nil
     selectedDetail = nil
@@ -599,13 +762,17 @@ local function resetSession()
     pendingClaimJobId = nil
     closeSent = false
     currentCraftingTab = 'recipes'
+    masteryLoading = false
 
     if ui then
+        updateWindowTitle()
         ui.recipeList:destroyChildren()
         ui.recipeSearch:setText('')
         ui.recipesEmptyLabel:hide()
         ui.stationLabel:setText('')
+        ui.masteryTab:hide()
         clearDetails()
+        clearMastery()
         updateJobsPresentation()
         setCraftingTab('recipes')
         setFeedback('', COLOR_NORMAL)
@@ -902,6 +1069,8 @@ local function handleOpen(data)
     sessionId = data.sessionId
     stationType = data.stationType
     recipes = data.recipes
+    ui.masteryTab:setVisible(stationType == 'cooking')
+    updateWindowTitle()
 
     local stationName = STATION_NAMES[stationType] or stationType
     ui.stationLabel:setText(string.format('%s: %s', tr('Current station'), tr(stationName)))
@@ -926,6 +1095,29 @@ local function handleOpen(data)
     craftingWindow:show()
     craftingWindow:raise()
     craftingWindow:focus()
+end
+
+local function handleMasteryStatus(data)
+    if type(data) ~= 'table' or not isNonEmptyString(data.sessionId) then
+        masteryLoading = false
+        ui.masteryRefreshButton:setEnabled(stationType == 'cooking' and sessionId ~= nil)
+        setMasteryFeedback(tr('Invalid crafting data received.'), COLOR_ERROR)
+        return
+    end
+    if data.sessionId ~= sessionId then
+        return
+    end
+    if stationType ~= 'cooking' or not validateMasteryData(data) then
+        masteryLoading = false
+        ui.masteryRefreshButton:setEnabled(stationType == 'cooking' and sessionId ~= nil)
+        setMasteryFeedback(tr('Invalid crafting data received.'), COLOR_ERROR)
+        return
+    end
+
+    masteryLoading = false
+    renderMastery(data)
+    ui.masteryRefreshButton:setEnabled(true)
+    setMasteryFeedback('', COLOR_NORMAL)
 end
 
 local function handleDetail(data)
@@ -1221,6 +1413,8 @@ local function onCraftingOpcode(protocol, opcode, message)
         handleCraftResult(message.data)
     elseif message.action == 'claimResult' then
         handleClaimResult(message.data)
+    elseif message.action == 'masteryStatus' then
+        handleMasteryStatus(message.data)
     elseif message.action == 'close' then
         handleServerClose(message.data)
     else
@@ -1317,13 +1511,23 @@ function closeWindow()
 end
 
 function selectCraftingTab(tabName)
-    if tabName ~= 'recipes' and tabName ~= 'queue' then
+    if tabName ~= 'recipes' and tabName ~= 'queue' and tabName ~= 'mastery' then
+        return
+    end
+    if tabName == 'mastery' and stationType ~= 'cooking' then
         return
     end
     if currentCraftingTab ~= tabName then
         setFeedback('', COLOR_NORMAL)
         setCraftingTab(tabName)
     end
+    if tabName == 'mastery' then
+        requestMasteryStatus()
+    end
+end
+
+function refreshMastery()
+    requestMasteryStatus()
 end
 
 function filterRecipes(text)

@@ -158,6 +158,64 @@ CraftingTabButton < UIButton
     border-color: #8A8A8A
     color: #FFFFFF
 
+CraftingMasteryRow < Panel
+  size: 704 64
+  background-color: #3B3B3B
+  border-width: 1
+  border-color: #4A4A4A
+
+  UIWidget
+    id: iconBackground
+    size: 52 52
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 6
+    image-source: /images/ui/item
+
+    UIItem
+      id: icon
+      anchors.centerIn: parent
+      size: 48 48
+      virtual: true
+      draggable: false
+
+  Label
+    id: name
+    anchors.top: parent.top
+    anchors.left: iconBackground.right
+    anchors.right: status.left
+    margin-top: 7
+    margin-left: 10
+    margin-right: 10
+    height: 20
+    color: #CFCFCF
+    text-align: left
+    text-wrap: true
+
+  Label
+    id: status
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: 7
+    margin-right: 9
+    width: 145
+    height: 20
+    color: #E5B85C
+    text-align: right
+
+  ProgressBar
+    id: progress
+    anchors.left: iconBackground.right
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    margin-left: 10
+    margin-right: 9
+    margin-bottom: 8
+    height: 20
+    background-color: #4B8F45
+    color: #FFFFFF
+    text-align: center
+
 CraftingJobSlot < Panel
   height: 70
   background-color: #3B3B3B
@@ -287,6 +345,15 @@ MainWindow
         margin-left: 4
         !text: tr('Queue')
         @onClick: modules.game_crafting.selectCraftingTab('queue')
+
+      CraftingTabButton
+        id: masteryTab
+        anchors.top: parent.top
+        anchors.left: queueTab.right
+        margin-left: 4
+        !text: tr('Mastery')
+        visible: false
+        @onClick: modules.game_crafting.selectCraftingTab('mastery')
 
     Panel
       id: recipePanel
@@ -590,6 +657,95 @@ MainWindow
         margin-right: 40
         margin-bottom: 4
         height: 38
+        color: #CFCFCF
+        text-align: center
+        text-wrap: true
+        visible: false
+
+    Panel
+      id: masteryPanel
+      anchors.top: craftingTabs.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      margin-top: 4
+      background-color: #303030
+      visible: false
+
+      Panel
+        id: masteryHeader
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 64
+        margin: 7
+        background-color: #3B3B3B
+
+        Label
+          id: masterySummaryLabel
+          anchors.top: parent.top
+          anchors.left: parent.left
+          anchors.right: masteryRefreshButton.left
+          margin-top: 8
+          margin-left: 12
+          margin-right: 10
+          height: 20
+          color: #E0E0E0
+          text-align: left
+
+        Label
+          id: masteryBonusLabel
+          anchors.top: masterySummaryLabel.bottom
+          anchors.left: masterySummaryLabel.left
+          anchors.right: masterySummaryLabel.right
+          margin-top: 4
+          height: 20
+          color: #70C66B
+          text-align: left
+
+        Button
+          id: masteryRefreshButton
+          size: 90 24
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          margin-right: 10
+          !text: tr('Refresh')
+          enabled: false
+          @onClick: modules.game_crafting.refreshMastery()
+
+      ScrollablePanel
+        id: masteryList
+        anchors.top: masteryHeader.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: masteryFeedbackLabel.top
+        margin-top: 3
+        margin-left: 8
+        margin-right: 8
+        margin-bottom: 3
+        padding-right: 16
+        vertical-scrollbar: masteryScrollbar
+        layout:
+          type: verticalBox
+          spacing: 4
+
+      VerticalScrollBar
+        id: masteryScrollbar
+        anchors.top: masteryList.top
+        anchors.right: masteryList.right
+        anchors.bottom: masteryList.bottom
+        step: 68
+        pixel-scroll: true
+
+      Label
+        id: masteryFeedbackLabel
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        margin-left: 40
+        margin-right: 40
+        margin-bottom: 4
+        height: 30
         color: #CFCFCF
         text-align: center
         text-wrap: true
