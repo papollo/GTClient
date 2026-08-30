@@ -461,6 +461,7 @@ local function bindUi()
         dailyRewardsTab = child('dailyRewardsTab'),
         blessingsTab = child('blessingsTab'),
         damageCalculatorTab = child('damageCalculatorTab'),
+        mechanicsTab = child('mechanicsTab'),
         leftColumn = child('leftColumn'),
         middleSeparator = child('middleSeparator'),
         categoryPanel = child('categoryPanel'),
@@ -509,6 +510,11 @@ local function bindUi()
         blessingsPanel = child('blessingsPanel'),
         blessingsStatusLabel = child('blessingsStatusLabel'),
         blessingsList = child('blessingsList'),
+        mechanicsPanel = child('mechanicsPanel'),
+        mechanicsList = child('mechanicsList'),
+        mechanicsTitle = child('mechanicsTitle'),
+        mechanicsContent = child('mechanicsContent'),
+        mechanicsStatusLabel = child('mechanicsStatusLabel'),
         dailyFooterStatsLabel = child('dailyFooterStatsLabel'),
         bestiaryFooterStatsLabel = child('bestiaryFooterStatsLabel'),
         closeButton = child('closeButton')
@@ -748,7 +754,7 @@ local function hideAllEmptyLabels()
 end
 
 local function updatePagination()
-    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
         ui.pageLabel:setText(tr('Page 1 / 1'))
         ui.prevPageButton:setEnabled(false)
         ui.nextPageButton:setEnabled(false)
@@ -765,7 +771,7 @@ local function updatePagination()
 end
 
 local function setResultWidgetsEnabled(enabled)
-    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
         ui.searchEdit:setEnabled(false)
         ui.searchClearButton:setEnabled(false)
         ui.prevPageButton:setEnabled(false)
@@ -3210,13 +3216,16 @@ local function updateDomainUi()
     local isDailyRewards = state.domain == DOMAIN_DAILY_REWARDS
     local isBlessings = state.domain == DOMAIN_BLESSINGS
     local isDamageCalculator = state.domain == DOMAIN_DAMAGE_CALCULATOR
-    local isFullWidthPanel = isDailyRewards or isBlessings
+    local isMechanics = state.domain == MechanicsGuide.DOMAIN
+    local isFullWidthPanel = isDailyRewards or isBlessings or isMechanics
     ui.itemsTab:setOn(isItems)
     ui.monstersTab:setOn(isMonsters)
     ui.vocationsTab:setOn(isVocations)
     ui.dailyRewardsTab:setOn(isDailyRewards)
     ui.blessingsTab:setOn(isBlessings)
     ui.damageCalculatorTab:setOn(isDamageCalculator)
+    ui.mechanicsTab:setOn(isMechanics)
+    ui.mechanicsTab:setText(isMechanics and tr('Mechaniki') or '')
     if state.dailyRewards.notificationAvailable then
         setDailyRewardsTabNotifyColor(state.dailyRewards.tabNotificationBlinkOn)
     else
@@ -3227,6 +3236,7 @@ local function updateDomainUi()
     ui.detailPanel:setVisible(not isFullWidthPanel)
     ui.dailyRewardsPanel:setVisible(isDailyRewards)
     ui.blessingsPanel:setVisible(isBlessings)
+    ui.mechanicsPanel:setVisible(isMechanics)
     ui.dailyFooterStatsLabel:setVisible(isDailyRewards)
     updateBestiaryFooterVisibility()
     ui.categoryPanel:setVisible(isItems)
@@ -3977,7 +3987,7 @@ local function onLibraryOpcode(protocol, opcode, payload)
 end
 
 local function queueSearch()
-    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
         return
     end
 
@@ -3988,7 +3998,7 @@ local function queueSearch()
 
     searchEvent = scheduleEvent(function()
         searchEvent = nil
-        if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
+        if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
             return
         end
         local domainState = getDomainState()
@@ -3999,7 +4009,7 @@ local function queueSearch()
 end
 
 local function clearSearch()
-    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
         return
     end
 
@@ -4040,6 +4050,11 @@ local function switchDomain(domain)
         setResultWidgetsEnabled(false)
         updatePagination()
         requestBlessingsStatus(true)
+        return
+    elseif domain == MechanicsGuide.DOMAIN then
+        setResultWidgetsEnabled(false)
+        updatePagination()
+        MechanicsGuide.activate()
         return
     end
 
@@ -4096,6 +4111,11 @@ local function show()
         setResultWidgetsEnabled(false)
         updatePagination()
         requestBlessingsStatus(true)
+        return
+    elseif state.domain == MechanicsGuide.DOMAIN then
+        setResultWidgetsEnabled(false)
+        updatePagination()
+        MechanicsGuide.activate()
         return
     elseif state.domain == DOMAIN_ITEMS then
         ensureCategoriesRequested()
@@ -4158,6 +4178,7 @@ local function resetUiState()
     ui.monsterList:destroyChildren()
     ui.dailyRewardsList:destroyChildren()
     ui.blessingsList:destroyChildren()
+    MechanicsGuide.reset()
     ui.dailyStatusLabel:setText(tr('Loading daily rewards...'))
     ui.blessingsStatusLabel:setText(tr('Loading blessings...'))
     ui.dailyFooterStatsLabel:setText('')
@@ -4258,6 +4279,12 @@ function init()
 
     libraryWindow = g_ui.loadUI('/game_library/library', g_ui.getRootWidget())
     bindUi()
+    MechanicsGuide.bind({
+        list = ui.mechanicsList,
+        titleLabel = ui.mechanicsTitle,
+        content = ui.mechanicsContent,
+        statusLabel = ui.mechanicsStatusLabel
+    })
     libraryWindow:hide()
     ui.itemsTab.onClick = function() switchDomain(DOMAIN_ITEMS) end
     ui.monstersTab.onClick = function() switchDomain(DOMAIN_MONSTERS) end
@@ -4265,6 +4292,7 @@ function init()
     ui.dailyRewardsTab.onClick = function() switchDomain(DOMAIN_DAILY_REWARDS) end
     ui.blessingsTab.onClick = function() switchDomain(DOMAIN_BLESSINGS) end
     ui.damageCalculatorTab.onClick = function() switchDomain(DOMAIN_DAMAGE_CALCULATOR) end
+    ui.mechanicsTab.onClick = function() switchDomain(MechanicsGuide.DOMAIN) end
     ui.closeButton.onClick = hide
     ui.dailyClaimButton.onClick = claimDailyReward
     ui.damageSkillEdit:setValidCharacters('0123456789')
@@ -4341,6 +4369,7 @@ function terminate()
     stopDailyRewardNotification()
     cancelDamageSkillOverrideEvent()
     state.damageCalculator.cancelLevelOverrideEvent()
+    MechanicsGuide.terminate()
 
     if searchEvent then
         removeEvent(searchEvent)

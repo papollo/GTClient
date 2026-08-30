@@ -1,0 +1,288 @@
+{
+  "mechanics": [
+    {
+      "id": "gathering",
+      "title": "Zbieranie",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Zbieranie surowców:\nPodczas eksploracji świata gracz może znaleźć różnego rodzaju surowce wykorzystywane w rzemiośle, alchemii oraz ulepszaniu ekwipunku.\n"
+        },
+        {
+          "type": "image",
+          "file": "resources.png"
+        },
+        {
+          "type": "text",
+          "text": "Rośliny:\n\n- W świecie gry można znaleźć rośliny potrzebne do warzenia mikstur. Surowe rośliny można również zjadać bezpośrednio, aby otrzymać krótkotrwałe bonusy do wybranych właściwości postaci.\n\nWydobywanie minerałów:\n\n- W różnych miejscach na mapie znajdują się złoża minerałów, z których gracz może wydobywać między innymi żelazo, węgiel oraz magiczną rudę. Zdobyte minerały są potrzebne do tworzenia nowych przedmiotów oraz ulepszania posiadanego ekwipunku."
+        }
+      ]
+    },
+    {
+      "id": "crafting",
+      "title": "Tworzenie przedmiotów",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Crafting:\n\nPrzy stołach rzemieślniczych gracz może tworzyć bronie, zbroje czy amunicję oraz warzyć mikstury."
+        },
+        {
+          "type": "image",
+          "file": "crafting.png"
+        },
+        {
+          "type": "text",
+          "text": "Zanim jednak gracz będzie mógł stworzyć przedmiot, musi poznać jego przepis lub schemat. Przepisy oraz schematy można znaleźć w świecie gry lub otrzymać od innych graczy.\n\nAlchemia:\n\n- Dzięki alchemii gracz może tworzyć mikstury, które dają natychmiastowe efekty, takie jak mikstury życia lub many, oraz mikstury zapewniające tymczasowe efekty, np. zwiększające zdobywane doświadczenie, szczęście czy zdolności bojowe.\n\nKucie broni:\n\n- Przy pomocy kowadła gracz może wykuwać różnego rodzaju bronie do walki wręcz. Do ich stworzenia potrzebne są odpowiednie schematy oraz materiały zdobywane podczas eksploracji świata.\n\nTworzenie łuków i kusz:\n\n- Przy odpowiednim stole rzemieślniczym gracz może tworzyć łuki, kusze oraz amunicję. Każdy przedmiot wymaga poznania właściwego schematu oraz zebrania potrzebnych materiałów.\n\nUlepszanie ekwipunku:\n\n- Zdobyty lub wytworzony ekwipunek może być dodatkowo ulepszany. Ulepszenia pozwalają zwiększyć właściwości broni i pancerzy, dzięki czemu nawet wcześniej zdobyte przedmioty mogą pozostać przydatne na późniejszych etapach gry."
+        }
+      ]
+    },
+    {
+      "id": "alchemy",
+      "title": "Alchemia",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Alchemia:\n\n"
+        },
+        {
+          "type": "image",
+          "file": "alchemy_img.png"
+        },
+        {
+          "type": "text",
+          "text": "Aby użyć stołu alchemicznego musimy kliknąć na niego prawym przyciskiem myszy. Wówczas otowrzy się okno stołu alchemicznego.\n\nPo lewej stronie okna znajduje się lista wszystkich mikstur, które gracz może stworzyć. Po kliknięciu na wybraną miksturę, po prawej stronie okna pojawi się lista potrzebnych składników oraz ich ilość.\n\n"
+        },
+        {
+          "type": "image",
+          "file": "alchemy.png"
+        },
+        {
+          "type": "text",
+          "text": "Jeżeli gracz posiada wszystkie potrzebne składniki, przycisk \"Stwórz\" stanie się aktywny. Kliknięcie na niego spowoduje stworzenie wybranej mikstury i dodanie jej do ekwipunku gracza.\n\nProstsze mikstury tworzą się od razu, natomiast bardziej skomplikowane wymagają czasu na przygotowanie. Wówczas przycisk \"Stwórz\" zmieni się w przycisk \"Przygotuj\", a po jego kliknięciu rozpocznie się odliczanie czasu potrzebnego na przygotowanie mikstury. Mikstura ta zostanie zakolejkowana i progres jej przygotowania będzie można śledzić w oknie stołu alchemicznego. Po zakończeniu przygotowywania mikstury, gracz będzie mógł ją odebrać ze stołu alchemicznego."
+        },
+        {
+          "type": "text",
+          "text": "\n\n\nMikstury:\n\n- Mikstury życia\nPrzywracają określoną ilość punktów życia. Mogą być używane w walce, aby szybko odzyskać zdrowie.\n"
+        },
+        {
+          "type": "image",
+          "file": "life_potions.png"
+        },
+        {
+          "type": "text",
+          "text": "\n\n- Mikstury many\nPrzywracają określoną ilość punktów many. Są niezbędne dla postaci używających zaklęć i umiejętności magicznych.\n"
+        },
+        {
+          "type": "image",
+          "file": "mana_potions.png"
+        },
+        {
+          "type": "text",
+          "text": "\n\n- Mikstury uniku\nZwiększają szansę na uniknięcie ataku przeciwnika przez określony czas.\n"
+        },
+        {
+          "type": "image",
+          "file": "dodge_potions.png"
+        },
+        {
+          "type": "text",
+          "text": "\n\n- Mikstury walki\nZwiększają umiejętności walki ( Walka bronią jednoręczną i dwuręczną, walka łukiem, walka kuszą ) na krótki czas.\n"
+        },
+        {
+          "type": "image",
+          "file": "fight_potions.png"
+        },
+        {
+          "type": "text",
+          "text": "\n\n- Mikstury obrażeń krytycznych\nZwiększają szansę na zadanie obrażeń krytycznych przez określony czas.\n"
+        },
+        {
+          "type": "image",
+          "file": "critical_potions.png"
+        },
+        {
+          "type": "text",
+          "text": "\n\n- Mikstury magii\nZwiększają poziom magiczny na krótki czas.\n"
+        },
+        {
+          "type": "image",
+          "file": "magic_potions.png"
+        },
+        {
+          "type": "text",
+          "text": "\n\n- Mikstury doświadczenia\nZwiększają zdobywane doświadczenie przez określony czas.\n"
+        },
+        {
+          "type": "image",
+          "file": "exp_potions.png"
+        }
+      ]
+    },
+    {
+      "id": "cooking",
+      "title": "Gotowanie",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Aby rozpocząć gotowanie należy użyć patelni na ognisku lub kuchence."
+        },
+        {
+          "type": "image",
+          "file": "cooking_station.png"
+        },
+        {
+          "type": "text",
+          "text": "Gotowanie pozwala tworzyć potrawy, które zwiększają tempo regeneracji punktów życia i many.\n\nIm wyższy wymagany poziom gotowania, tym silniejsze i lepsze potrawy można tworzyć.\n\nEfekt potrawy:\nod +50% przez 5 minut do +100% przez 15 minut.\n\nWartość procentowa odnosi się do podstawowego tempa regeneracji danej profesji. Przykładowo, jeżeli postać regeneruje standardowo 100 HP i 100 many na minutę, bonus +5% zwiększy regenerację do 105 HP i 105 many, a bonus +30% — do 130 HP i 130 many na minutę. Nie jest to procent maksymalnego HP ani many postaci.\n\nBonusy potraw nie kumulują się — zjedzenie kolejnej potrawy zastępuje poprzedni efekt.\n\n\n-Mastery\n\nKażda potrawa posiada osobny licznik Mastery. Po zjedzeniu 100 sztuk danego rodzaju postać otrzymuje stałe +1% do tempa regeneracji HP i many.\n\nDo opanowania ( póki co ) jest 12 potraw, dzięki czemu maksymalny stały bonus Mastery wynosi +12%.\nBonus Mastery działa podczas każdego standardowego nasycenia, również po zjedzeniu zwykłego jedzenia."
+        }
+      ]
+    },
+    {
+      "id": "smithing",
+      "title": "Kowalstwo",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Aby otworzyć okno Kowalstwa, należy użyć młota na kowadle.\n"
+        },
+        {
+          "type": "image",
+          "file": "smithing.png"
+        },
+        {
+          "type": "text",
+          "text": "\nKowalstwo pozwala tworzyć broń oraz sztaby stali, które są niezbędne do wykuwania bardziej zaawansowanego wyposażenia.\n\nZa pomocą Kowalstwa można również ulepszać posiadane bronie. Broń przeznaczona do ulepszenia powinna znajdować się w plecaku lub być trzymana przez postać.\n\nTworzenie i ulepszanie przedmiotów wymaga odpowiedniego poziomu Kowalstwa oraz wskazanych materiałów."
+        }
+      ]
+    },
+    {
+      "id": "bowmaking",
+      "title": "Łuczarstwo",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Aby otworzyć okno Łuczarstwa, należy użyć stołu łuczarza.\n\n"
+        },
+        {
+          "type": "image",
+          "file": "bowmastery.png"
+        },
+        {
+          "type": "text",
+          "text": "Łuczarstwo pozwala tworzyć łuki, kusze oraz amunicję, taką jak strzały i bełty.\n\nZa pomocą Łuczarstwa można również ulepszać posiadane łuki i kusze. Broń przeznaczona do ulepszenia powinna znajdować się w plecaku lub być trzymana przez postać.\n\nTworzenie i ulepszanie przedmiotów wymaga odpowiedniego poziomu Łuczarstwa, specjalizacji oraz wskazanych materiałów."
+        }
+      ]
+    },
+    {
+      "id": "runemaking",
+      "title": "Tworzenie Run",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Aby otworzyć okno ulepszania, należy użyć stołu runicznego.\n"
+        },
+        {
+          "type": "image",
+          "file": "rune_table.png"
+        },
+        {
+          "type": "text",
+          "text": "Stół runiczny służy do ulepszania run i podnoszenia ich na kolejne poziomy.\n\nRuna przeznaczona do ulepszenia powinna znajdować się w plecaku. Ulepszenie wymaga odpowiedniego poziomu magicznego oraz wskazanych materiałów."
+        }
+      ]
+    },
+    {
+      "id": "jumping",
+      "title": "Skakanie",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "W grze możesz korzystać z komend jump \"up\" oraz jump \"down\", aby wskakiwać na wyższe poziomy lub zeskakiwać na niższe.\n"
+        },
+        {
+            "type": "image",
+            "file": "jumping_both.png"
+        },
+        {
+          "type": "text",
+          "text": "\n- Skakanie w górę i w dół jest możliwe tylko przy prostych krawędziach, dlatego podczas eksploracji warto ich wypatrywać. Niektóre miejsca mogą być dostępne wyłącznie dzięki wykorzystaniu tej mechaniki.\n\n\n\nAkrobatyka:\n\n- Po nauczeniu się akrobatyki gracz może używać komendy jump \"forward\", aby przeskoczyć kilka pól do przodu, stojąc przy odpowiedniej krawędzi.\n"
+        },
+        {
+          "type": "image",
+          "file": "jump_forward.png"
+        },
+        {
+          "type": "text",
+          "text": "Znajomość akrobatyki pozwala dostać się do trudno dostępnych miejsc i jest potrzebna, aby w pełni odkrywać świat gry."
+        }
+      ]
+    },
+    {
+      "id": "bosses",
+      "title": "Bossy",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Na mapie rozmieszczone są areny z potężnymi bossami.\n\nPrzed wejściem do każdego bossa znajdują się płytki przeznaczone dla maksymalnie 4 graczy.\n"
+        },
+        {
+          "type": "image",
+          "file": "boss_entry.png"
+        },
+        {
+          "type": "text",
+          "text": "Poziom trudności bossa automatycznie dostosowuje się do liczby uczestników:\n\n1 gracz — wersja solo. Boss jest najsłabszy, ale zapewnia również najmniej doświadczenia i najsłabszy loot.\n\n2–3 graczy — średni poziom trudności. Boss jest silniejszy i zapewnia lepszy loot oraz więcej doświadczenia.\n\n4 graczy — najwyższy poziom trudności. Boss jest najsilniejszy, ale zapewnia najlepszy loot i najwięcej doświadczenia.\n"
+        },
+        {
+          "type": "text",
+          "text": "\n\nAby móc walczyć z danym bossem, należy najpierw odblokować go poprzez odpowiedni etap ścieżki fabularnej.\n\nZ każdym bossem można walczyć raz dziennie. Możliwość ponownej walki odnawia się po resecie serwera."
+        },
+        {
+          "type": "image",
+          "file": "minecrawler_queen.png"
+        },
+        {
+          "type": "image",
+          "file": "nadzorca.png"
+        },
+        {
+          "type": "text",
+          "text": "\n\nAktualne bossy na mapie:\n\n- Quentin\n- Królowa pełzczy\n- Nadzorca\n- Generał Jaszczuroludzi\n- Arh'zuhl"
+        }
+      ]
+    },
+    {
+      "id": "pvp_arena",
+      "title": "Areny PVP",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Arena PvP pozwala członkom Starego Obozu, Nowego Obozu oraz Obozu na Bagnie walczyć o przejęcie kontrolowanego terenu.\n\nPrzed rozpoczęciem wydarzenia gracze muszą udać się do przedstawiciela swojego obozu, który przeniesie ich do poczekalni. Po rozpoczęciu areny wszyscy oczekujący uczestnicy zostają przeniesieni na pole walki.\n\n"
+        },
+        {
+          "type": "image",
+          "file": "arena.png"
+        },
+        {
+          "type": "text",
+          "text": "Celem jest zdobywanie punktów poprzez utrzymywanie przewagi liczebnej w oznaczonym obszarze przy sztandarze.\n\n"
+        },
+        {
+          "type": "image",
+          "file": "flag.png"
+        },
+        {
+          "type": "text",
+          "text": "Im większa przewaga graczy jednego obozu, tym szybciej zdobywane są punkty.\n\n"
+        },
+        {
+          "type": "image",
+          "file": "score.png"
+        },
+        {
+          "type": "text",
+          "text": "Jeżeli arena jest neutralna, oba obozy walczą o jej przejęcie. Jeżeli posiada już właściciela, punkty może zdobywać wyłącznie obóz atakujący, natomiast zadaniem obrońców jest utrzymanie terenu do końca wydarzenia.\n\nZwycięża obóz, który jako pierwszy zdobędzie 100 punktów. Jeżeli limit nie zostanie osiągnięty w ciągu 15 minut, dotychczasowy właściciel zachowuje arenę, a neutralna arena pozostaje nieprzejęta.\n\nZwycięski obóz przejmuje arenę na 24 godziny, a jego członkowie otrzymują bonus, który jest przypisany do Areny.\n\nŚmierć na arenie nie powoduje utraty doświadczenia, przedmiotów ani błogosławieństw. Pokonany gracz zostaje uleczony i przeniesiony poza arenę. Opuszczenie areny lub wylogowanie również kończy udział bez możliwości powrotu do trwającej walki."
+        }
+      ]
+    }
+  ]
+}

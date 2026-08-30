@@ -4,6 +4,6 @@ Module
   author: OpenAI
   website: https://openai.com
   sandboxed: true
-  scripts: [ library ]
+  scripts: [ mechanics/mechanics, library ]
   @onLoad: init()
   @onUnload: terminate()
