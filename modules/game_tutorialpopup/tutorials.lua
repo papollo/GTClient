@@ -25,5 +25,10 @@ TutorialHints = {
         title = 'Hunt tasks',
         image = '/game_tutorialpopup/images/hunt_task_tutorial.png',
         text = 'Hunt taski to zadania polegające na polowaniu na określone rodzaje potworów. Zadania te można otrzymać od NPC oznaczonych ikoną łuku.\n\nWszystkie przyjęte i aktualnie wykonywane hunt taski znajdują się w Quest Logu, gdzie można sprawdzić wymagany cel oraz postęp polowania.\n\nAktywny hunt task można anulować, jeżeli gracz nie chce go dalej wykonywać.\n\nPo ukończeniu hunt taska gracz otrzymuje dostęp do powiązanego z nim bossa oraz Punkty Łowcy.\n\nPunkty Łowcy pozwalają uzyskać dostęp do Obozu Myśliwych i odblokowują kolejne możliwości handlu ze specjalnym NPC. W zależności od liczby zdobytych Punktów Łowcy NPC może skupować od gracza zdobyte przedmioty oraz oferować coraz szerszy asortyment.'
+    },
+    [6] = {
+        title = 'Training',
+        image = '/game_tutorialpopup/images/training_tutorial_window.png',
+        text = 'W obozach znajdują się trainery, na których można trenować umiejętności podczas pozostawania online. Po 15 minutach bezczynności postać zostanie automatycznie wylogowana.\n\nW pobliżu trainerów znajduje się również Offline Training Dummy. Po jego użyciu pojawi się okno pozwalające wybrać trenowaną umiejętność: broń jednoręczną, broń dwuręczną, łuki, kusze lub poziom magiczny. Po zatwierdzeniu wyboru postać zostanie wylogowana i rozpocznie trening offline.\n\nKażda postać może zgromadzić maksymalnie 12 godzin czasu treningu offline. Podczas treningu zapas jest zużywany w proporcji 1:1 — jedna minuta treningu zużywa jedną minutę zgromadzonego czasu.\n\nCzas treningu offline odnawia się również w proporcji 1:1, czyli jedna minuta bez korzystania z treningu przywraca jedną minutę zapasu. Czas ładuje się zarówno podczas gry online, jak i podczas zwykłego wylogowania bez aktywnego treningu. Pełne odnowienie pustego zapasu trwa 12 godzin.\n\nAby trening offline został naliczony, postać musi pozostać wylogowana przez co najmniej 10 minut.'
     }
 }

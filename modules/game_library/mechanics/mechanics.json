@@ -225,6 +225,28 @@
       ]
     },
     {
+      "id": "training",
+      "title": "Trenowanie",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "W obozach znajdują się trainery, na których można trenować umiejętności podczas pozostawania online. Po 15 minutach bezczynności postać zostanie automatycznie wylogowana.\n\nW pobliżu trainerów znajduje się również Offline Training Dummy. Po jego użyciu pojawi się okno pozwalające wybrać trenowaną umiejętność: broń jednoręczną, broń dwuręczną, łuki, kusze lub poziom magiczny. Po zatwierdzeniu wyboru postać zostanie wylogowana i rozpocznie trening offline."
+        },
+        {
+          "type": "image",
+          "file": "offline_training.png"
+        },
+        {
+          "type": "text",
+          "text": "Każda postać może zgromadzić maksymalnie 12 godzin czasu treningu offline. Podczas treningu zapas jest zużywany w proporcji 1:1 — jedna minuta treningu zużywa jedną minutę zgromadzonego czasu.\n\nCzas treningu offline odnawia się również w proporcji 1:1, czyli jedna minuta bez korzystania z treningu przywraca jedną minutę zapasu. Czas ładuje się\nzarówno podczas gry online, jak i podczas zwykłego wylogowania bez aktywnego treningu. Pełne odnowienie pustego zapasu trwa 12 godzin.\n\nAby trening offline został naliczony, postać musi pozostać wylogowana\nprzez co najmniej 10 minut."
+        },
+        {
+          "type": "image",
+          "file": "trainers.png"
+        }
+      ]
+    },
+    {
       "id": "jumping",
       "title": "Skakanie",
       "blocks": [
