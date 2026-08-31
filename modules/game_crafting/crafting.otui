@@ -339,9 +339,17 @@ MainWindow
         @onClick: modules.game_crafting.selectCraftingTab('recipes')
 
       CraftingTabButton
-        id: queueTab
+        id: upgradesTab
         anchors.top: parent.top
         anchors.left: recipesTab.right
+        margin-left: 4
+        !text: tr('Upgrades')
+        @onClick: modules.game_crafting.selectCraftingTab('upgrades')
+
+      CraftingTabButton
+        id: queueTab
+        anchors.top: parent.top
+        anchors.left: upgradesTab.right
         margin-left: 4
         !text: tr('Queue')
         @onClick: modules.game_crafting.selectCraftingTab('queue')

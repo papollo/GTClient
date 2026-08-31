@@ -101,8 +101,10 @@ local function bindUi()
         recipeSearch = child('recipeSearch'),
         recipesEmptyLabel = child('recipesEmptyLabel'),
         recipesTab = child('recipesTab'),
+        upgradesTab = child('upgradesTab'),
         queueTab = child('queueTab'),
         masteryTab = child('masteryTab'),
+        recipesTitle = child('recipesTitle'),
         recipePanel = child('recipePanel'),
         columnSeparator = child('columnSeparator'),
         detailPanel = child('detailPanel'),
@@ -391,11 +393,14 @@ local function setCraftingTab(tabName)
         return
     end
 
+    local showUpgrades = tabName == 'upgrades'
     local showQueue = tabName == 'queue'
     local showMastery = tabName == 'mastery' and stationType == 'cooking'
-    local showRecipes = not showQueue and not showMastery
-    currentCraftingTab = showQueue and 'queue' or (showMastery and 'mastery' or 'recipes')
-    ui.recipesTab:setChecked(showRecipes)
+    local showRecipes = tabName == 'recipes' or showUpgrades
+    currentCraftingTab = showQueue and 'queue'
+        or (showMastery and 'mastery' or (showUpgrades and 'upgrades' or 'recipes'))
+    ui.recipesTab:setChecked(showRecipes and not showUpgrades)
+    ui.upgradesTab:setChecked(showUpgrades)
     ui.queueTab:setChecked(showQueue)
     ui.masteryTab:setChecked(showMastery)
     ui.recipePanel:setVisible(showRecipes)
@@ -403,6 +408,9 @@ local function setCraftingTab(tabName)
     ui.detailPanel:setVisible(showRecipes)
     ui.queuePanel:setVisible(showQueue)
     ui.masteryPanel:setVisible(showMastery)
+    if showRecipes then
+        ui.recipesTitle:setText(tr(showUpgrades and 'Upgrades' or 'Recipes'))
+    end
 end
 
 local function setMasteryFeedback(text, color)
@@ -788,6 +796,25 @@ local function findRecipe(recipeId)
     return nil
 end
 
+local function getVisibleRecipeType()
+    return currentCraftingTab == 'upgrades' and 'upgrade' or 'craft'
+end
+
+local function findFirstVisibleRecipeId()
+    local recipeType = getVisibleRecipeType()
+    for _, recipe in ipairs(recipes) do
+        if recipe.recipeType == recipeType then
+            return recipe.id
+        end
+    end
+    return nil
+end
+
+local function isRecipeVisible(recipeId)
+    local recipe = recipeId and findRecipe(recipeId) or nil
+    return recipe and recipe.recipeType == getVisibleRecipeType()
+end
+
 local function setRecipeChecked(recipeId)
     for _, widget in ipairs(ui.recipeList:getChildren()) do
         widget:setChecked(widget.recipeId == recipeId)
@@ -801,7 +828,9 @@ local function applyRecipeFilter(filterText)
 
     local searchText = tostring(filterText or ''):lower():trim()
     local visibleCount = 0
+    local entryCount = 0
     for _, widget in ipairs(ui.recipeList:getChildren()) do
+        entryCount = entryCount + 1
         local matches = searchText == '' or widget.recipeNameLower:find(searchText, 1, true) ~= nil
         widget:setVisible(matches)
         if matches then
@@ -809,10 +838,12 @@ local function applyRecipeFilter(filterText)
         end
     end
 
-    if #recipes == 0 then
-        ui.recipesEmptyLabel:setText(tr('No unlocked recipes'))
+    if entryCount == 0 then
+        ui.recipesEmptyLabel:setText(tr(currentCraftingTab == 'upgrades'
+            and 'No available upgrades' or 'No unlocked recipes'))
     else
-        ui.recipesEmptyLabel:setText(tr('No recipes found'))
+        ui.recipesEmptyLabel:setText(tr(currentCraftingTab == 'upgrades'
+            and 'No upgrades found' or 'No recipes found'))
     end
     ui.recipesEmptyLabel:setVisible(visibleCount == 0)
 end
@@ -820,33 +851,36 @@ end
 local function renderRecipeList()
     ui.recipeList:destroyChildren()
 
+    local visibleRecipeType = getVisibleRecipeType()
     for _, recipe in ipairs(recipes) do
-        local recipeId = recipe.id
-        local row = g_ui.createWidget('CraftingRecipeRow', ui.recipeList)
-        local icon = row:recursiveGetChildById('icon')
-        local name = row:recursiveGetChildById('name')
-        local displayName = recipe.name
-        if recipe.resultCount > 1 then
-            displayName = string.format('%s x%d', displayName, recipe.resultCount)
-        end
+        if recipe.recipeType == visibleRecipeType then
+            local recipeId = recipe.id
+            local row = g_ui.createWidget('CraftingRecipeRow', ui.recipeList)
+            local icon = row:recursiveGetChildById('icon')
+            local name = row:recursiveGetChildById('name')
+            local displayName = recipe.name
+            if recipe.resultCount > 1 then
+                displayName = string.format('%s x%d', displayName, recipe.resultCount)
+            end
 
-        row.recipeId = recipeId
-        row.recipeNameLower = recipe.name:lower()
-        icon:setItemId(recipe.clientId)
-        icon:setItemCount(recipe.resultCount)
-        name:setText(displayName)
-        row:setTooltip(displayName)
-        row:setChecked(recipeId == selectedRecipeId)
-        row.onClick = function()
-            if craftPending or claimPending then
-                return
+            row.recipeId = recipeId
+            row.recipeNameLower = recipe.name:lower()
+            icon:setItemId(recipe.clientId)
+            icon:setItemCount(recipe.resultCount)
+            name:setText(displayName)
+            row:setTooltip(displayName)
+            row:setChecked(recipeId == selectedRecipeId)
+            row.onClick = function()
+                if craftPending or claimPending then
+                    return
+                end
+                if selectedRecipeId ~= recipeId then
+                    selectedQuantity = 1
+                end
+                selectedRecipeId = recipeId
+                setRecipeChecked(selectedRecipeId)
+                requestSelectedDetail()
             end
-            if selectedRecipeId ~= recipeId then
-                selectedQuantity = 1
-            end
-            selectedRecipeId = recipeId
-            setRecipeChecked(selectedRecipeId)
-            requestSelectedDetail()
         end
     end
 
@@ -1075,10 +1109,10 @@ local function handleOpen(data)
     local stationName = STATION_NAMES[stationType] or stationType
     ui.stationLabel:setText(string.format('%s: %s', tr('Current station'), tr(stationName)))
 
-    if data.detail and findRecipe(data.detail.id) then
+    if data.detail and isRecipeVisible(data.detail.id) then
         selectedRecipeId = data.detail.id
-    elseif #recipes > 0 then
-        selectedRecipeId = recipes[1].id
+    else
+        selectedRecipeId = findFirstVisibleRecipeId()
     end
 
     renderRecipeList()
@@ -1241,14 +1275,12 @@ local function handleCraftResult(data)
     pendingQuantity = nil
     recipes = data.recipes
 
-    if previousRecipeId and findRecipe(previousRecipeId) then
+    if previousRecipeId and isRecipeVisible(previousRecipeId) then
         selectedRecipeId = previousRecipeId
-    elseif data.detail and findRecipe(data.detail.id) then
+    elseif data.detail and isRecipeVisible(data.detail.id) then
         selectedRecipeId = data.detail.id
-    elseif #recipes > 0 then
-        selectedRecipeId = recipes[1].id
     else
-        selectedRecipeId = nil
+        selectedRecipeId = findFirstVisibleRecipeId()
     end
 
     if selectedRecipeId == previousRecipeId then
@@ -1337,14 +1369,12 @@ local function handleClaimResult(data)
     pendingClaimJobId = nil
     recipes = data.recipes
 
-    if previousRecipeId and findRecipe(previousRecipeId) then
+    if previousRecipeId and isRecipeVisible(previousRecipeId) then
         selectedRecipeId = previousRecipeId
-    elseif data.detail and findRecipe(data.detail.id) then
+    elseif data.detail and isRecipeVisible(data.detail.id) then
         selectedRecipeId = data.detail.id
-    elseif #recipes > 0 then
-        selectedRecipeId = recipes[1].id
     else
-        selectedRecipeId = nil
+        selectedRecipeId = findFirstVisibleRecipeId()
     end
     selectedQuantity = 1
 
@@ -1511,7 +1541,8 @@ function closeWindow()
 end
 
 function selectCraftingTab(tabName)
-    if tabName ~= 'recipes' and tabName ~= 'queue' and tabName ~= 'mastery' then
+    if tabName ~= 'recipes' and tabName ~= 'upgrades'
+        and tabName ~= 'queue' and tabName ~= 'mastery' then
         return
     end
     if tabName == 'mastery' and stationType ~= 'cooking' then
@@ -1520,6 +1551,18 @@ function selectCraftingTab(tabName)
     if currentCraftingTab ~= tabName then
         setFeedback('', COLOR_NORMAL)
         setCraftingTab(tabName)
+        if tabName == 'recipes' or tabName == 'upgrades' then
+            selectedRecipeId = findFirstVisibleRecipeId()
+            selectedQuantity = 1
+            renderRecipeList()
+            clearDetails()
+            if selectedRecipeId then
+                requestSelectedDetail()
+            else
+                setFeedback(tr(tabName == 'upgrades'
+                    and 'No available upgrades' or 'No unlocked recipes'), COLOR_MUTED)
+            end
+        end
     end
     if tabName == 'mastery' then
         requestMasteryStatus()

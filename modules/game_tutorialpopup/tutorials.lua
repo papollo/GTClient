@@ -20,5 +20,10 @@ TutorialHints = {
         title = 'Jumping',
         image = '/game_tutorialpopup/images/jump.png',
         text = 'Skakanie:\n\nW grze możesz korzystać z komend jump "up" oraz jump "down", aby wskakiwać na wyższe poziomy lub zeskakiwać na niższe.\n\n- Skakanie w górę i w dół jest możliwe tylko przy prostych krawędziach, dlatego podczas eksploracji warto ich wypatrywać. Niektóre miejsca mogą być dostępne wyłącznie dzięki wykorzystaniu tej mechaniki.\n\nAkrobatyka:\n\n- Po nauczeniu się akrobatyki gracz może używać komendy jump "forward", aby przeskoczyć kilka pól do przodu, stojąc przy odpowiedniej krawędzi.\n\n- Znajomość akrobatyki pozwala dostać się do trudno dostępnych miejsc i jest potrzebna, aby w pełni odkrywać świat gry.'
+    },
+    [5] = {
+        title = 'Hunt tasks',
+        image = '/game_tutorialpopup/images/hunt_task_tutorial.png',
+        text = 'Hunt taski to zadania polegające na polowaniu na określone rodzaje potworów. Zadania te można otrzymać od NPC oznaczonych ikoną łuku.\n\nWszystkie przyjęte i aktualnie wykonywane hunt taski znajdują się w Quest Logu, gdzie można sprawdzić wymagany cel oraz postęp polowania.\n\nAktywny hunt task można anulować, jeżeli gracz nie chce go dalej wykonywać.\n\nPo ukończeniu hunt taska gracz otrzymuje dostęp do powiązanego z nim bossa oraz Punkty Łowcy.\n\nPunkty Łowcy pozwalają uzyskać dostęp do Obozu Myśliwych i odblokowują kolejne możliwości handlu ze specjalnym NPC. W zależności od liczby zdobytych Punktów Łowcy NPC może skupować od gracza zdobyte przedmioty oraz oferować coraz szerszy asortyment.'
     }
 }

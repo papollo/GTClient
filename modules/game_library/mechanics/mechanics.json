@@ -191,6 +191,40 @@
       ]
     },
     {
+      "id": "hunting",
+      "title": "Polowanie",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Hunt taski to zadania polegające na polowaniu na określone rodzaje potworów. Zadania te można otrzymać od NPC oznaczonych ikoną łuku.\n"
+        },
+        {
+          "type": "image",
+            "file": "just_hunters.png"
+        },
+        {
+          "type": "text",
+          "text": "Wszystkie przyjęte i aktualnie wykonywane hunt taski znajdują się w Quest Logu, gdzie można sprawdzić wymagany cel oraz postęp polowania.\n"
+        },
+        {
+          "type": "image",
+          "file": "hunt_quest_log.png"
+        },
+        {
+          "type": "text",
+          "text": "Aktywny hunt task można anulować, jeżeli gracz nie chce go dalej wykonywać.\n\nPo ukończeniu hunt taska gracz otrzymuje dostęp do powiązanego z nim bossa oraz Punkty Łowcy.\n"
+        },
+        {
+          "type": "image",
+          "file": "hunt_bosses.png"
+        },
+        {
+          "type": "text",
+          "text": "Punkty Łowcy pozwalają uzyskać dostęp do Obozu Myśliwych i odblokowują kolejne możliwości handlu ze specjalnym NPC. W zależności od liczby zdobytych Punktów Łowcy NPC może skupować od gracza zdobyte przedmioty oraz oferować coraz szerszy asortyment."
+        }
+      ]
+    },
+    {
       "id": "jumping",
       "title": "Skakanie",
       "blocks": [
