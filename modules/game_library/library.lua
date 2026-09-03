@@ -89,6 +89,8 @@ local state = {
         selectedTier = 1,
         availableTiers = {},
         selectedResult = nil,
+        lootNavigationTarget = nil,
+        navigationSearchUpdating = false,
         pageCache = {},
         detailCache = {}
     },
@@ -1073,6 +1075,8 @@ local function getLootDisplayData(entry)
 
     return {
         clientId = tonumber(entry.clientId),
+        wareId = tonumber(entry.wareId),
+        tier = math.max(1, math.min(5, math.floor(tonumber(entry.tier) or 1))),
         name = itemName ~= '' and itemName or tr('Unknown item'),
         count = count,
         chanceValue = chance,
@@ -2350,6 +2354,15 @@ local function renderDetailGroups(details, nextUpgrade)
                         end
                         tile:setTooltip(string.format('%s\n%s: %d\n%s: %s', lootData.name,
                             tr('Max count'), lootData.count, tr('Chance'), lootData.chance))
+                        if lootData.wareId and lootData.wareId > 0 then
+                            tile.onMouseRelease = function(widget, mousePosition, mouseButton)
+                                if mouseButton == MouseLeftButton and widget:containsPoint(mousePosition) then
+                                    state.items.openLootDetail(lootData)
+                                    return true
+                                end
+                                return false
+                            end
+                        end
                     end
                 end
             elseif group.key == 'summons' then
@@ -2949,6 +2962,10 @@ showDetail = function(data)
         renderDamageCalculatorDetail(data)
         return
     end
+
+    if domain == DOMAIN_ITEMS and state.items.lootNavigationTarget and state.items.focusLootNavigation then
+        state.items.focusLootNavigation(data)
+    end
     state.damageCalculator.updateTierFrame(nil)
 
     local domainState = getDomainState(domain)
@@ -3063,6 +3080,8 @@ local function renderResults(response)
     clearResultSelection(state.domain)
 
     local domainState = getDomainState()
+    local lootNavigationTarget = state.domain == DOMAIN_ITEMS and state.items.lootNavigationTarget and
+        state.items.lootNavigationTarget.listRequested and state.items.lootNavigationTarget or nil
     local items = response.items or {}
     domainState.page = tonumber(response.page) or 1
     domainState.totalPages = math.max(1, tonumber(response.totalPages) or 1)
@@ -3076,7 +3095,11 @@ local function renderResults(response)
         else
             updateResultEmptyLabel(getNoResultsText(state.domain))
         end
-        resetDetailPanel(getSelectionPlaceholder(state.domain))
+        if lootNavigationTarget then
+            state.items.lootNavigationTarget = nil
+        else
+            resetDetailPanel(getSelectionPlaceholder(state.domain))
+        end
         return
     end
 
@@ -3158,9 +3181,20 @@ local function renderResults(response)
                 return true
             end
         end
+
+        if lootNavigationTarget and tonumber(entry.wareId or entry.id) == lootNavigationTarget.wareId then
+            domainState.selectedResult = row
+            row:setChecked(true)
+            list:focusChild(row)
+            list:ensureChildVisible(row)
+        end
     end
 
-    resetDetailPanel(getSelectionPlaceholder(state.domain))
+    if lootNavigationTarget then
+        state.items.lootNavigationTarget = nil
+    else
+        resetDetailPanel(getSelectionPlaceholder(state.domain))
+    end
 end
 
 local function requestCurrentPage(force)
@@ -3284,6 +3318,7 @@ local function setCategory(categoryKey)
         return
     end
 
+    domainState.lootNavigationTarget = nil
     domainState.activeCategory = categoryKey
     domainState.page = 1
     domainState.search = ''
@@ -3991,6 +4026,12 @@ local function queueSearch()
     if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
         return
     end
+    if state.domain == DOMAIN_ITEMS and state.items.navigationSearchUpdating then
+        return
+    end
+    if state.domain == DOMAIN_ITEMS then
+        state.items.lootNavigationTarget = nil
+    end
 
     if searchEvent then
         removeEvent(searchEvent)
@@ -4088,6 +4129,84 @@ local function switchDomain(domain)
         setResultWidgetsEnabled(false)
         updatePagination()
     end
+end
+
+state.items.openLootDetail = function(lootData)
+    if type(lootData) ~= 'table' then
+        return
+    end
+
+    local wareId = tonumber(lootData.wareId)
+    if not wareId or wareId <= 0 then
+        return
+    end
+
+    local tier = math.max(1, math.min(5, math.floor(tonumber(lootData.tier) or 1)))
+    state.items.lootNavigationTarget = {
+        wareId = wareId,
+        tier = tier,
+        listRequested = false
+    }
+    if searchEvent then
+        removeEvent(searchEvent)
+        searchEvent = nil
+    end
+    switchDomain(DOMAIN_ITEMS)
+    clearResultSelection(DOMAIN_ITEMS)
+    requestDetail(wareId, tier)
+end
+
+state.items.focusLootNavigation = function(data)
+    local target = state.items.lootNavigationTarget
+    if type(target) ~= 'table' or target.listRequested then
+        return
+    end
+
+    local wareId = tonumber(data.wareId)
+    if wareId ~= target.wareId then
+        return
+    end
+
+    local categoryKey = type(data.category) == 'string' and data.category or nil
+    local categoryExists = false
+    for _, category in ipairs(categories) do
+        if category.key == categoryKey then
+            categoryExists = true
+            break
+        end
+    end
+
+    if not categoryExists then
+        state.items.lootNavigationTarget = nil
+        return
+    end
+
+    target.listRequested = true
+    state.items.activeCategory = categoryKey
+    state.items.page = 1
+
+    local searchName = type(data.baseName) == 'string' and data.baseName:trim() or ''
+    if searchName == '' then
+        searchName = type(data.name) == 'string' and data.name:trim() or ''
+        local tierName = tierNames[target.tier]
+        if tierName and searchName ~= '' then
+            local tierPrefix = tierName:lower() .. ' '
+            if searchName:sub(1, #tierPrefix):lower() == tierPrefix then
+                searchName = searchName:sub(#tierPrefix + 1):trim()
+            end
+        end
+    end
+    state.items.search = searchName
+
+    state.items.navigationSearchUpdating = true
+    ui.searchEdit:setText(state.items.search)
+    state.items.navigationSearchUpdating = false
+
+    for _, widget in ipairs(ui.categoryList:getChildren()) do
+        widget:setChecked(widget.categoryKey == categoryKey)
+    end
+
+    requestCurrentPage(true)
 end
 
 local function show()
@@ -4245,6 +4364,8 @@ local function resetDomainState(domain)
         domainState.categoriesLoaded = false
         domainState.categoriesRequested = false
         domainState.activeCategory = nil
+        domainState.lootNavigationTarget = nil
+        domainState.navigationSearchUpdating = false
     else
         domainState.categoriesLoaded = false
         domainState.categoriesRequested = false
