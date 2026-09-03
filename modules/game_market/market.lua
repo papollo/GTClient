@@ -256,7 +256,7 @@ local function addOffer(offer, offerType)
         end
 
         local row = nil
-        if offer.var == MarketRequest.MyOffers then
+        if offer.var == MarketRequest.MyOffers or offer.var == MarketRequest.OldMyOffers then
             row = buyMyOfferTable:addRow({{
                 text = itemName
             }, {
@@ -269,7 +269,7 @@ local function addOffer(offer, offerType)
                 text = string.gsub(os.date('%c', timestamp), ' ', '  '),
                 sortvalue = timestamp
             }})
-        elseif offer.var == MarketRequest.MyHistory then
+        elseif offer.var == MarketRequest.MyHistory or offer.var == MarketRequest.OldMyHistory then
             row = buyMyHistoryTable:addRow({{
                 text = itemName
             }, {
@@ -307,7 +307,7 @@ local function addOffer(offer, offerType)
         end
 
         local row = nil
-        if offer.var == MarketRequest.MyOffers then
+        if offer.var == MarketRequest.MyOffers or offer.var == MarketRequest.OldMyOffers then
             row = sellMyOfferTable:addRow({{
                 text = itemName
             }, {
@@ -320,7 +320,7 @@ local function addOffer(offer, offerType)
                 text = string.gsub(os.date('%c', timestamp), ' ', '  '),
                 sortvalue = timestamp
             }})
-        elseif offer.var == MarketRequest.MyHistory then
+        elseif offer.var == MarketRequest.MyHistory or offer.var == MarketRequest.OldMyHistory then
             row = sellMyHistoryTable:addRow({{
                 text = itemName
             }, {
@@ -671,7 +671,7 @@ local function openAmountWindow(callback, actionType, actionText)
 
     local maximum = offer:getAmount()
     if actionType == MarketAction.Sell then
-        local depot = Market.getDepotCount(item:getId())
+        local depot = Market.getDepotCount(selectedItem.item)
         if maximum > depot then
             maximum = depot
         end
@@ -757,7 +757,7 @@ local function onSelectBuyOffer(table, selectedRow, previousSelectedRow)
     for _, offer in pairs(marketOffers[MarketAction.Buy]) do
         if offer:isEqual(selectedRow.ref) then
             selectedOffer[MarketAction.Sell] = offer
-            if Market.getDepotCount(offer:getItem():getId()) > 0 then
+            if Market.getDepotCount(selectedItem.item) > 0 then
                 sellButton:setEnabled(true)
             else
                 sellButton:setEnabled(false)

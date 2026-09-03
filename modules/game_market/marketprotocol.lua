@@ -75,8 +75,16 @@ function MarketProtocol.sendMarketBrowse(browseId, browseType)
 end
 
 function MarketProtocol.sendMarketBrowseMyOffers()
-    MarketProtocol.sendMarketBrowse(MarketRequest.MyOffers, 0)
+    if g_game.getClientVersion() >= 1251 then
+        MarketProtocol.sendMarketBrowse(MarketRequest.MyOffers, 0)
+    else
+        MarketProtocol.sendMarketBrowse(0, MarketRequest.OldMyOffers)
+    end
 end
 function MarketProtocol.sendMarketBrowseOfferHistory()
-    MarketProtocol.sendMarketBrowse(MarketRequest.MyHistory, 0)
+    if g_game.getClientVersion() >= 1251 then
+        MarketProtocol.sendMarketBrowse(MarketRequest.MyHistory, 0)
+    else
+        MarketProtocol.sendMarketBrowse(0, MarketRequest.OldMyHistory)
+    end
 end

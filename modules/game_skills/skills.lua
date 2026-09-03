@@ -13,6 +13,7 @@ local twoHandedBonusSkill = 0
 local bowBonusSkill = 0
 local crossbowBonusSkill = 0
 local RESIST_OPCODE = 201
+local relogWindowState = nil
 local resistValues = {
     fire = 0,
     ice = 0,
@@ -371,7 +372,37 @@ function update()
 end
 
 function online()
-    skillsWindow:setupOnStart() -- load character window configuration
+    local characterName = g_game.getCharacterName()
+    local restoredAfterRelog = false
+
+    if relogWindowState and relogWindowState.characterName == characterName then
+        local parent = rootWidget:recursiveGetChildById(relogWindowState.parentId)
+        if parent then
+            if parent:getClassName() == 'UIMiniWindowContainer' then
+                local index = relogWindowState.index or parent:getChildCount() + 1
+                index = math.max(1, math.min(index, parent:getChildCount() + 1))
+                parent:insertChild(index, skillsWindow)
+            else
+                skillsWindow:setParent(parent, true)
+                if relogWindowState.position then
+                    skillsWindow:setPosition(relogWindowState.position)
+                end
+            end
+
+            if relogWindowState.visible then
+                skillsWindow:open(true)
+            else
+                skillsWindow:close(true)
+            end
+            skillsButton:setOn(relogWindowState.visible)
+            restoredAfterRelog = true
+        end
+    end
+
+    relogWindowState = nil
+    if not restoredAfterRelog then
+        skillsWindow:setupOnStart() -- load character window configuration
+    end
     refresh()
     if g_game.getFeature(GameEnterGameShowAppearance) then
         skillsWindow:recursiveGetChildById('regenerationTime'):getChildByIndex(1):setText('Food')
@@ -496,6 +527,27 @@ function updateHeight()
 end
 
 function offline()
+    local parent = skillsWindow:getParent()
+    if parent then
+        relogWindowState = {
+            characterName = g_game.getCharacterName(),
+            parentId = parent:getId(),
+            visible = skillsWindow:isExplicitlyVisible(),
+            position = skillsWindow:getPosition()
+        }
+
+        if parent:getClassName() == 'UIMiniWindowContainer' then
+            relogWindowState.index = parent:getChildIndex(skillsWindow)
+        end
+
+        skillsWindow:saveParent(parent)
+        skillsWindow:setSettings({
+            closed = not relogWindowState.visible
+        })
+    else
+        relogWindowState = nil
+    end
+
     skillsWindow:setParent(nil, true)
     if expSpeedEvent then
         expSpeedEvent:cancel()
@@ -506,7 +558,7 @@ function offline()
 end
 
 function toggle()
-    if skillsButton:isOn() then
+    if skillsWindow:getParent() and skillsWindow:isExplicitlyVisible() then
         skillsWindow:close()
         skillsButton:setOn(false)
     else
