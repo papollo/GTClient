@@ -25,6 +25,7 @@ Module
     - game_skills
     - game_huntanalyzer
     - game_pvparenahud
+    - game_combatlogout
     - game_containers
     - game_viplist
     - game_battle

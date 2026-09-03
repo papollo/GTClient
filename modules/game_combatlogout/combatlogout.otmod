@@ -1,0 +1,10 @@
+Module
+  name: game_combatlogout
+  description: Displays the authoritative combat logout countdown
+  author: Gothic Tales
+  sandboxed: true
+  scripts: [ combatlogout ]
+  dependencies:
+    - game_interface
+  @onLoad: init()
+  @onUnload: terminate()

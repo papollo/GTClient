@@ -1,0 +1,65 @@
+Panel
+  id: combatLogoutOverlay
+  anchors.fill: parent
+  focusable: true
+
+  Panel
+    anchors.fill: parent
+    background-color: #00000055
+    phantom: true
+
+  StaticMainWindow
+    id: combatLogoutWindow
+    size: 320 154
+    text: Logging out
+
+    UIButton
+      id: closeButton
+      anchors.top: parent.top
+      anchors.right: parent.right
+      margin-top: -29
+      margin-right: -10
+      size: 14 14
+      image-source: /images/ui/miniwindow_buttons
+      image-clip: 28 0 14 14
+
+      $hover:
+        image-clip: 28 14 14 14
+
+      $pressed:
+        image-clip: 28 28 14 14
+
+    Label
+      id: description
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: 38
+      text: Logging out after the countdown ends.
+      text-align: center
+      text-wrap: true
+
+    Label
+      id: countdown
+      anchors.top: description.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      margin-top: 6
+      height: 24
+      font: verdana-14px-bold
+      color: #ffffff
+      text-align: center
+      text: 10
+
+    HorizontalSeparator
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: cancelButton.top
+      margin-bottom: 10
+
+    Button
+      id: cancelButton
+      width: 90
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.bottom: parent.bottom
+      text: Cancel
