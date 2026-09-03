@@ -652,6 +652,14 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
         end
     end
 
+    if lookThing and lookThing:isItem() and modules.game_library and modules.game_library.showItem then
+        local clientId = lookThing:getId()
+        local tier = lookThing:getTier()
+        menu:addOption(tr('Show in library...'), function()
+            modules.game_library.showItem(clientId, tier)
+        end)
+    end
+
     if lookThing and not lookThing:isCreature() and not lookThing:isNotMoveable() and lookThing:isPickupable() then
         menu:addSeparator()
         menu:addOption(tr('Trade with ...'), function()

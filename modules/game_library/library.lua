@@ -91,6 +91,7 @@ local state = {
         selectedResult = nil,
         lootNavigationTarget = nil,
         navigationSearchUpdating = false,
+        contextSelectionActive = false,
         pageCache = {},
         detailCache = {}
     },
@@ -3319,6 +3320,7 @@ local function setCategory(categoryKey)
     end
 
     domainState.lootNavigationTarget = nil
+    domainState.contextSelectionActive = false
     domainState.activeCategory = categoryKey
     domainState.page = 1
     domainState.search = ''
@@ -3726,6 +3728,10 @@ local function handleListResponse(domain, data, requestData)
     local cacheKey = makePageCacheKey(domain, category, search, page)
     domainState.pageCache[cacheKey] = data
 
+    if domain == DOMAIN_ITEMS and state.items.contextSelectionActive then
+        return
+    end
+
     if domain == state.domain and category == (domainState.activeCategory or '') and search == normalizeSearch(domainState.search or '') then
         renderResults(data)
     end
@@ -3773,7 +3779,17 @@ local function handleDetailResponse(domain, data, requestData)
             local requestedLevelOverride = requestData.levelOverride ~= nil and tonumber(requestData.levelOverride) or nil
             overrideMatches = requestedOverride == domainState.skillOverride and requestedLevelOverride == domainState.levelOverride
         end
-        if domain == state.domain and id == domainState.selectedId and tier == tonumber(domainState.selectedTier) and overrideMatches then
+
+        local requestedClientId = requestData.wareId == nil and tonumber(requestData.clientId) or nil
+        local navigationTarget = domain == DOMAIN_ITEMS and state.items.lootNavigationTarget or nil
+        local isCurrentClientNavigation = requestedClientId and type(navigationTarget) == 'table' and
+            tonumber(navigationTarget.clientId) == requestedClientId and tonumber(navigationTarget.tier) == tier
+        if isCurrentClientNavigation and id then
+            navigationTarget.wareId = id
+            domainState.selectedId = id
+            domainState.selectedTier = tier
+            showDetail(data)
+        elseif not requestedClientId and domain == state.domain and id == domainState.selectedId and tier == tonumber(domainState.selectedTier) and overrideMatches then
             showDetail(data)
         end
     end
@@ -3842,7 +3858,8 @@ local function handleBestiaryUpdate(data)
     end
 end
 
-local function handleLibraryError(domain, action, payload)
+local function handleLibraryError(domain, action, payload, requestData)
+    requestData = requestData or {}
     if domain == DOMAIN_DAILY_REWARDS then
         state.dailyRewards.statusRequested = false
         if domain == state.domain then
@@ -3892,6 +3909,24 @@ local function handleLibraryError(domain, action, payload)
         if type(payload.error.code) == 'string' then
             errorCode = payload.error.code
         end
+    end
+
+    local requestedClientId = requestData.wareId == nil and tonumber(requestData.clientId) or nil
+    if domain == DOMAIN_ITEMS and action == 'detail' and requestedClientId then
+        local target = state.items.lootNavigationTarget
+        local requestedTier = math.max(1, math.min(5, math.floor(tonumber(requestData.tier) or 1)))
+        if type(target) ~= 'table' or tonumber(target.clientId) ~= requestedClientId or tonumber(target.tier) ~= requestedTier then
+            return
+        end
+
+        state.items.lootNavigationTarget = nil
+        clearResultSelection(DOMAIN_ITEMS)
+        if errorCode == 'ITEM_NOT_FOUND' then
+            message = tr('This item is not available in the library.')
+        end
+        updateResultEmptyLabel(message)
+        resetDetailPanel(message)
+        return
     end
 
     if domain == DOMAIN_ITEMS and action == 'categories' then
@@ -3994,7 +4029,7 @@ local function onLibraryOpcode(protocol, opcode, payload)
     end
 
     if payload.ok == false then
-        handleLibraryError(domain, action, payload)
+        handleLibraryError(domain, action, payload, requestData)
         return
     end
 
@@ -4031,6 +4066,7 @@ local function queueSearch()
     end
     if state.domain == DOMAIN_ITEMS then
         state.items.lootNavigationTarget = nil
+        state.items.contextSelectionActive = false
     end
 
     if searchEvent then
@@ -4068,6 +4104,11 @@ end
 local function switchDomain(domain)
     if state.domain == domain then
         return
+    end
+
+    if state.domain == DOMAIN_ITEMS then
+        state.items.lootNavigationTarget = nil
+        state.items.contextSelectionActive = false
     end
 
     if state.domain == DOMAIN_DAMAGE_CALCULATOR then
@@ -4142,6 +4183,7 @@ state.items.openLootDetail = function(lootData)
     end
 
     local tier = math.max(1, math.min(5, math.floor(tonumber(lootData.tier) or 1)))
+    state.items.contextSelectionActive = false
     state.items.lootNavigationTarget = {
         wareId = wareId,
         tier = tier,
@@ -4163,7 +4205,13 @@ state.items.focusLootNavigation = function(data)
     end
 
     local wareId = tonumber(data.wareId)
-    if wareId ~= target.wareId then
+    local responseClientId = tonumber(data.clientId)
+    if target.clientId then
+        if responseClientId ~= tonumber(target.clientId) then
+            return
+        end
+        target.wareId = wareId
+    elseif wareId ~= target.wareId then
         return
     end
 
@@ -4204,6 +4252,18 @@ state.items.focusLootNavigation = function(data)
 
     for _, widget in ipairs(ui.categoryList:getChildren()) do
         widget:setChecked(widget.categoryKey == categoryKey)
+    end
+
+    if target.contextMenu then
+        renderResults({
+            items = { data },
+            page = 1,
+            totalPages = 1,
+            totalResults = 1,
+            category = categoryKey,
+            search = state.items.search
+        })
+        return
     end
 
     requestCurrentPage(true)
@@ -4264,6 +4324,39 @@ local function show()
         resetDetailPanel(getInitialPlaceholder(state.domain))
         setResultWidgetsEnabled(false)
         updatePagination()
+    end
+end
+
+function showItem(clientId, tier)
+    clientId = tonumber(clientId)
+    if not libraryWindow or not g_game.isOnline() or not clientId or clientId <= 0 then
+        return
+    end
+
+    tier = math.max(1, math.min(5, math.floor(tonumber(tier) or 1)))
+    switchDomain(DOMAIN_ITEMS)
+    show()
+
+    if searchEvent then
+        removeEvent(searchEvent)
+        searchEvent = nil
+    end
+
+    state.items.lootNavigationTarget = {
+        clientId = clientId,
+        tier = tier,
+        contextMenu = true,
+        listRequested = false
+    }
+    state.items.contextSelectionActive = true
+    clearResultSelection(DOMAIN_ITEMS)
+    ui.resultList:destroyChildren()
+    updateResultEmptyLabel(getDetailLoadingText(DOMAIN_ITEMS))
+    resetDetailPanel(getDetailLoadingText(DOMAIN_ITEMS), false)
+
+    if not sendRequest(DOMAIN_ITEMS, 'detail', { clientId = clientId, tier = tier }) then
+        state.items.lootNavigationTarget = nil
+        resetDetailPanel(tr('Library request failed.'))
     end
 end
 
@@ -4366,6 +4459,7 @@ local function resetDomainState(domain)
         domainState.activeCategory = nil
         domainState.lootNavigationTarget = nil
         domainState.navigationSearchUpdating = false
+        domainState.contextSelectionActive = false
     else
         domainState.categoriesLoaded = false
         domainState.categoriesRequested = false
