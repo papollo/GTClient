@@ -1060,24 +1060,23 @@ local function isVisibleLootEntry(entry)
         return false
     end
 
-    local name = entry.name and tostring(entry.name) or ''
-    if name:trim() ~= '' then
-        return true
-    end
-
-    local itemId = tonumber(entry.itemId) or 0
-    return itemId > 0
+    local clientId = tonumber(entry.clientId) or 0
+    return clientId > 0
 end
 
 local function getLootDisplayData(entry)
     local itemName = entry.name and tostring(entry.name) or ''
-    local count = tonumber(entry.count) or tonumber(entry.amount)
-    local chance = entry.chance
+    local count = math.max(1, math.floor(tonumber(entry.count) or tonumber(entry.amount) or 1))
+    local chance = math.max(0, math.min(100, tonumber(entry.chance) or 0))
+    local formattedChance = string.format('%.2f', chance)
+    formattedChance = formattedChance:gsub('(%..-)0+$', '%1'):gsub('%.$', '') .. '%'
 
     return {
-        name = itemName ~= '' and itemName or '-',
-        count = count and count > 0 and tostring(count) or '-',
-        chance = chance ~= nil and tostring(chance) ~= '' and tostring(chance) or '-'
+        clientId = tonumber(entry.clientId),
+        name = itemName ~= '' and itemName or tr('Unknown item'),
+        count = count,
+        chanceValue = chance,
+        chance = formattedChance
     }
 end
 
@@ -2316,39 +2315,41 @@ local function renderDetailGroups(details, nextUpgrade)
                 end
             elseif group.key == 'loot' then
                 local visibleLoot = {}
-                for _, entry in ipairs(values) do
+                for index, entry in ipairs(values) do
                     if isVisibleLootEntry(entry) then
-                        table.insert(visibleLoot, entry)
+                        local lootData = getLootDisplayData(entry)
+                        lootData.originalIndex = index
+                        table.insert(visibleLoot, lootData)
                     end
                 end
+
+                table.sort(visibleLoot, function(a, b)
+                    if a.chanceValue == b.chanceValue then
+                        return a.originalIndex < b.originalIndex
+                    end
+                    return a.chanceValue > b.chanceValue
+                end)
 
                 if #visibleLoot > 0 then
                     local heading = g_ui.createWidget('LibrarySectionLabel', list)
                     heading:setText(tr(group.label) .. ':')
 
-                    g_ui.createWidget('LibraryLootTableHeader', list)
+                    local grid = g_ui.createWidget('LibraryLootGrid', list)
+                    grid:setHeight(math.max(1, math.ceil(#visibleLoot / 8)) * 56)
 
-                    for _, entry in ipairs(visibleLoot) do
-                        local lootData = getLootDisplayData(entry)
-                        local row = g_ui.createWidget('LibraryLootTableRow', list)
-                        local nameLabel = row:getChildById('name')
-                        local countLabel = row:getChildById('count')
-                        local chanceLabel = row:getChildById('chance')
+                    for _, lootData in ipairs(visibleLoot) do
+                        local tile = g_ui.createWidget('LibraryLootItem', grid)
+                        local icon = tile:recursiveGetChildById('icon')
+                        local chanceLabel = tile:recursiveGetChildById('chance')
 
-                        local lineCount = select(2, lootData.name:gsub('\n', '\n')) + 1
-                        local requiresTallRow = #lootData.name > 26 or lineCount > 1
-                        row:setHeight(requiresTallRow and math.max(24, lineCount * 14) or 20)
-
-                        if nameLabel then
-                            nameLabel:setText(lootData.name)
-                            nameLabel:setTextWrap(requiresTallRow)
-                        end
-                        if countLabel then
-                            countLabel:setText(lootData.count)
+                        if icon then
+                            icon:setItemId(lootData.clientId)
                         end
                         if chanceLabel then
                             chanceLabel:setText(lootData.chance)
                         end
+                        tile:setTooltip(string.format('%s\n%s: %d\n%s: %s', lootData.name,
+                            tr('Max count'), lootData.count, tr('Chance'), lootData.chance))
                     end
                 end
             elseif group.key == 'summons' then

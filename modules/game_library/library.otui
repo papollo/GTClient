@@ -257,68 +257,40 @@ LibraryUpgradeMaterialRow < UIWidget
     color: #D7D7D7
     text-align: right
 
-LibraryLootTableHeader < UIWidget
-  size: 260 18
+LibraryLootItem < UIWidget
+  size: 48 52
+
+  UIWidget
+    id: iconBackground
+    size: 34 34
+    anchors.top: parent.top
+    anchors.horizontalCenter: parent.horizontalCenter
+    image-source: /images/ui/item
+    phantom: true
+
+    UIItem
+      id: icon
+      anchors.fill: parent
+      phantom: true
+
+  Label
+    id: chance
+    anchors.top: iconBackground.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    height: 16
+    color: #C8C8C8
+    font: verdana-10px
+    text-align: center
+    phantom: true
+
+LibraryLootGrid < UIWidget
   margin-top: 3
-  background-color: #404040
-
-  Label
-    id: name
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    margin-left: 6
-    width: 250
-    color: #D7D7D7
-    text-align: center
-    !text: tr('Item')
-
-  Label
-    id: count
-    anchors.left: name.right
-    anchors.verticalCenter: parent.verticalCenter
-    width: 75
-    color: #D7D7D7
-    text-align: center
-    !text: tr('Max count')
-
-  Label
-    id: chance
-    anchors.left: count.right
-    anchors.verticalCenter: parent.verticalCenter
-    width: 100
-    color: #D7D7D7
-    text-align: center
-    !text: tr('Chance')
-
-LibraryLootTableRow < UIWidget
-  size: 260 20
-  background-color: #484848
-
-  Label
-    id: name
-    anchors.left: parent.left
-    anchors.verticalCenter: parent.verticalCenter
-    margin-left: 6
-    width: 250
-    color: #C8C8C8
-    text-wrap: true
-    text-align: center
-
-  Label
-    id: count
-    anchors.left: name.right
-    anchors.verticalCenter: parent.verticalCenter
-    width: 75
-    color: #C8C8C8
-    text-align: center
-
-  Label
-    id: chance
-    anchors.left: count.right
-    anchors.verticalCenter: parent.verticalCenter
-    width: 100
-    color: #C8C8C8
-    text-align: center
+  layout:
+    type: grid
+    cell-size: 48 52
+    cell-spacing: 4
+    flow: true
 
 LibraryAttackTableHeader < UIWidget
   size: 260 18
