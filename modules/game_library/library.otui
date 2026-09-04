@@ -292,6 +292,66 @@ LibraryLootGrid < UIWidget
     cell-spacing: 4
     flow: true
 
+LibraryDropSourceItem < UIWidget
+  size: 116 44
+  background-color: #45494D
+  border-width: 1
+  border-color: #626A72
+
+  UIWidget
+    id: iconBackground
+    size: 32 32
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 4
+    image-source: /images/ui/item
+    phantom: true
+
+    UICreature
+      id: Creature
+      anchors.fill: parent
+      phantom: true
+
+  Label
+    id: Name
+    anchors.left: iconBackground.right
+    anchors.right: parent.right
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    margin-left: 5
+    margin-right: 4
+    color: #CFCFCF
+    font: verdana-10px
+    text-wrap: true
+    text-align: left
+    phantom: true
+
+  $hover:
+    background-color: #515960
+    border-color: #91B7D0
+
+LibraryDropSourceCategoryLabel < Label
+  size: 360 18
+  fixed-size: true
+  margin-top: 3
+  color: #AFC5D4
+  font: verdana-11px-rounded
+  text-align: center
+
+LibraryDropSourceSeparator < HorizontalSeparator
+  width: 360
+  fixed-size: true
+  margin-top: 8
+  margin-bottom: 4
+
+LibraryDropSourceRow < UIWidget
+  height: 44
+  fixed-size: true
+  margin-top: 2
+  layout:
+    type: horizontalBox
+    spacing: 4
+
 LibraryAttackTableHeader < UIWidget
   size: 260 18
   margin-top: 3

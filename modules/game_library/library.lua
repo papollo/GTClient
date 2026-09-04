@@ -112,6 +112,9 @@ local state = {
         availableVariants = {},
         selectedResult = nil,
         totalBestiaryPoints = nil,
+        dropNavigationTarget = nil,
+        navigationSearchUpdating = false,
+        contextSelectionActive = false,
         pageCache = {},
         detailCache = {}
     },
@@ -185,12 +188,48 @@ local state = {
     pending = {}
 }
 
+state.items.dropSourceCategoryOrder = {
+    normal = 1,
+    boss = 2,
+    oldcamparena = 3,
+    newcamparena = 4,
+    arena = 5
+}
+
+state.items.dropSourceCategoryGroups = {
+    normal = 'normal',
+    normalmonsters = 'normal',
+    boss = 'boss',
+    bosses = 'boss',
+    oldcamparena = 'oldcamparena',
+    newcamparena = 'newcamparena',
+    arena = 'arena'
+}
+
+state.items.dropSourceCategoryLabels = {
+    normal = 'Normal Monsters',
+    boss = 'Bosses',
+    oldcamparena = 'Old Camp Arena',
+    newcamparena = 'New Camp Arena',
+    arena = 'Arena'
+}
+
+state.items.normalizeDropSourceCategory = function(category)
+    if type(category) ~= 'string' then
+        return ''
+    end
+
+    local normalized = category:lower():gsub('[^%w]', '')
+    return state.items.dropSourceCategoryGroups[normalized] or normalized
+end
+
 local groupOrder = {
     [DOMAIN_ITEMS] = {
         { key = 'basic', label = 'Basic' },
         { key = 'combat', label = 'Combat' },
         { key = 'resistances', label = 'Resistances' },
-        { key = 'skills', label = 'Skills' }
+        { key = 'skills', label = 'Skills' },
+        { key = 'dropSources', label = 'Dropped by' }
     },
     [DOMAIN_MONSTERS] = {
         { key = 'basic', label = 'Basic' },
@@ -1083,6 +1122,94 @@ local function getLootDisplayData(entry)
         chanceValue = chance,
         chance = formattedChance
     }
+end
+
+state.items.isVisibleDropSource = function(entry)
+    if type(entry) ~= 'table' or type(entry.monsterId) ~= 'string' then
+        return false
+    end
+
+    return entry.monsterId:trim() ~= ''
+end
+
+state.items.formatDropChance = function(chance)
+    local formatted = string.format('%.2f', chance)
+    return formatted:gsub('(%..-)0+$', '%1'):gsub('%.$', '') .. '%'
+end
+
+state.items.getDropSourceDisplayData = function(entry, originalIndex)
+    local monsterId = entry.monsterId:trim()
+    local variant = type(entry.variant) == 'string' and entry.variant:trim() or ''
+    local category = type(entry.category) == 'string' and entry.category:trim() or ''
+    local name = type(entry.name) == 'string' and entry.name:trim() or ''
+    local chance = math.max(0, math.min(100, tonumber(entry.chance) or 0))
+
+    return {
+        monsterId = monsterId,
+        variant = variant ~= '' and variant or nil,
+        category = category ~= '' and category or nil,
+        name = name ~= '' and name or tr('Unknown monster'),
+        raceId = entry.raceId,
+        outfit = entry.outfit,
+        count = math.max(1, math.floor(tonumber(entry.count) or tonumber(entry.amount) or 1)),
+        chanceValue = chance,
+        chance = state.items.formatDropChance(chance),
+        missChance = 1 - (chance / 100),
+        originalIndex = originalIndex
+    }
+end
+
+state.items.aggregateDropSources = function(values)
+    local aggregated = {}
+    local byKey = {}
+
+    for index, entry in ipairs(values) do
+        if state.items.isVisibleDropSource(entry) then
+            local source = state.items.getDropSourceDisplayData(entry, index)
+            local key = source.monsterId .. '\0' .. (source.variant or '')
+            local existing = byKey[key]
+            if existing then
+                existing.count = existing.count + source.count
+                existing.missChance = existing.missChance * source.missChance
+                existing.chanceValue = (1 - existing.missChance) * 100
+                existing.chance = state.items.formatDropChance(existing.chanceValue)
+                if existing.name == tr('Unknown monster') and source.name ~= tr('Unknown monster') then
+                    existing.name = source.name
+                end
+                if not existing.outfit and source.outfit then
+                    existing.outfit = source.outfit
+                end
+                if not existing.raceId and source.raceId then
+                    existing.raceId = source.raceId
+                end
+                if not existing.category and source.category then
+                    existing.category = source.category
+                end
+            else
+                byKey[key] = source
+                table.insert(aggregated, source)
+            end
+        end
+    end
+
+    table.sort(aggregated, function(a, b)
+        local categoryA = state.items.normalizeDropSourceCategory(a.category)
+        local categoryB = state.items.normalizeDropSourceCategory(b.category)
+        local categoryOrderA = state.items.dropSourceCategoryOrder[categoryA] or math.huge
+        local categoryOrderB = state.items.dropSourceCategoryOrder[categoryB] or math.huge
+        if categoryOrderA ~= categoryOrderB then
+            return categoryOrderA < categoryOrderB
+        end
+        if categoryOrderA == math.huge and categoryA ~= categoryB then
+            return categoryA < categoryB
+        end
+        if a.chanceValue == b.chanceValue then
+            return a.originalIndex < b.originalIndex
+        end
+        return a.chanceValue > b.chanceValue
+    end)
+
+    return aggregated
 end
 
 local function isVisibleAttackEntry(entry)
@@ -2109,6 +2236,8 @@ local function renderVariantTabs(currentVariant, availableVariants)
             if widget.variantValue == domainState.selectedVariant then
                 return
             end
+            domainState.dropNavigationTarget = nil
+            domainState.contextSelectionActive = false
             requestDetail(domainState.selectedId, widget.variantValue)
         end
         button.onMouseRelease = function(widget, mousePos, mouseButton)
@@ -2363,6 +2492,63 @@ local function renderDetailGroups(details, nextUpgrade)
                                 end
                                 return false
                             end
+                        end
+                    end
+                end
+            elseif group.key == 'dropSources' then
+                local dropSources = state.items.aggregateDropSources(values)
+                if #dropSources > 0 then
+                    local heading = g_ui.createWidget('LibrarySectionLabel', list)
+                    heading:setText(tr(group.label) .. ':')
+
+                    local categoryCounts = {}
+                    for _, source in ipairs(dropSources) do
+                        local categoryKey = state.items.normalizeDropSourceCategory(source.category)
+                        categoryCounts[categoryKey] = (categoryCounts[categoryKey] or 0) + 1
+                    end
+
+                    local row
+                    local currentCategory
+                    local categoryItemIndex = 0
+                    for _, source in ipairs(dropSources) do
+                        local categoryKey = state.items.normalizeDropSourceCategory(source.category)
+                        if categoryKey ~= currentCategory then
+                            if currentCategory ~= nil then
+                                g_ui.createWidget('LibraryDropSourceSeparator', list)
+                            end
+                            currentCategory = categoryKey
+                            categoryItemIndex = 0
+                            local categoryLabel = g_ui.createWidget('LibraryDropSourceCategoryLabel', list)
+                            local label = state.items.dropSourceCategoryLabels[categoryKey]
+                            if not label then
+                                label = categoryKey ~= '' and humanizeKey(source.category) or tr('Other')
+                            end
+                            categoryLabel:setText(tr(label))
+                        end
+
+                        categoryItemIndex = categoryItemIndex + 1
+                        if (categoryItemIndex - 1) % 3 == 0 then
+                            local rowItemCount = math.min(3, categoryCounts[categoryKey] - categoryItemIndex + 1)
+                            row = g_ui.createWidget('LibraryDropSourceRow', list)
+                            row:setWidth(rowItemCount * 116 + (rowItemCount - 1) * 4)
+                        end
+
+                        local tile = g_ui.createWidget('LibraryDropSourceItem', row)
+                        local nameLabel = tile:recursiveGetChildById('Name')
+                        if nameLabel then
+                            nameLabel:setText(source.name)
+                        end
+                        applyMonsterPreview(tile, source.raceId, source.outfit)
+                        tile:setTooltip(string.format('%s\n%s: %s\n%s: %d', source.name,
+                            tr('Chance'), source.chance, tr('Max count'), source.count))
+                        tile.onMouseRelease = function(widget, mousePosition, mouseButton)
+                            if mouseButton == MouseLeftButton and widget:containsPoint(mousePosition) then
+                                if state.monsters.openDropSourceDetail then
+                                    state.monsters.openDropSourceDetail(source)
+                                end
+                                return true
+                            end
+                            return false
                         end
                     end
                 end
@@ -2967,6 +3153,9 @@ showDetail = function(data)
     if domain == DOMAIN_ITEMS and state.items.lootNavigationTarget and state.items.focusLootNavigation then
         state.items.focusLootNavigation(data)
     end
+    if domain == DOMAIN_MONSTERS and state.monsters.dropNavigationTarget and state.monsters.focusDropNavigation then
+        state.monsters.focusDropNavigation(data)
+    end
     state.damageCalculator.updateTierFrame(nil)
 
     local domainState = getDomainState(domain)
@@ -3049,6 +3238,8 @@ local function onResultSelected(widget, entry)
     widget:setChecked(true)
     updateMonsterRowBackground(widget)
     if state.domain == DOMAIN_MONSTERS then
+        domainState.dropNavigationTarget = nil
+        domainState.contextSelectionActive = false
         domainState.selectedId = entry.monsterId or entry.id
         local variant = type(entry.bossVariant) == 'string' and entry.bossVariant ~= '' and entry.bossVariant or nil
         domainState.selectedVariant = variant
@@ -3083,6 +3274,10 @@ local function renderResults(response)
     local domainState = getDomainState()
     local lootNavigationTarget = state.domain == DOMAIN_ITEMS and state.items.lootNavigationTarget and
         state.items.lootNavigationTarget.listRequested and state.items.lootNavigationTarget or nil
+    local pendingMonsterDropTarget = state.domain == DOMAIN_MONSTERS and state.monsters.contextSelectionActive and
+        state.monsters.dropNavigationTarget or nil
+    local monsterDropNavigationTarget = type(pendingMonsterDropTarget) == 'table' and
+        (pendingMonsterDropTarget.listRequested or pendingMonsterDropTarget.categoryUnavailable) and pendingMonsterDropTarget or nil
     local items = response.items or {}
     domainState.page = tonumber(response.page) or 1
     domainState.totalPages = math.max(1, tonumber(response.totalPages) or 1)
@@ -3098,6 +3293,8 @@ local function renderResults(response)
         end
         if lootNavigationTarget then
             state.items.lootNavigationTarget = nil
+        elseif monsterDropNavigationTarget then
+            monsterDropNavigationTarget.listRendered = true
         else
             resetDetailPanel(getSelectionPlaceholder(state.domain))
         end
@@ -3188,11 +3385,19 @@ local function renderResults(response)
             row:setChecked(true)
             list:focusChild(row)
             list:ensureChildVisible(row)
+        elseif monsterDropNavigationTarget and (entry.monsterId or entry.id) == monsterDropNavigationTarget.monsterId then
+            domainState.selectedResult = row
+            row:setChecked(true)
+            updateMonsterRowBackground(row)
+            list:focusChild(row)
+            list:ensureChildVisible(row)
         end
     end
 
     if lootNavigationTarget then
         state.items.lootNavigationTarget = nil
+    elseif monsterDropNavigationTarget then
+        monsterDropNavigationTarget.listRendered = true
     else
         resetDetailPanel(getSelectionPlaceholder(state.domain))
     end
@@ -3393,7 +3598,13 @@ end
 
 local function setMonsterCategory(categoryKey)
     local domainState = state.monsters
+    local wasContextSelection = domainState.contextSelectionActive
+    domainState.dropNavigationTarget = nil
+    domainState.contextSelectionActive = false
     if domainState.activeCategory == categoryKey then
+        if wasContextSelection then
+            requestCurrentPage(false)
+        end
         return
     end
 
@@ -3554,15 +3765,9 @@ local function normalizeMonsterCategories(serverCategories)
     local normalized = {}
     local seen = {}
     local defaultCategory = nil
-    local hiddenMonsterCategories = {
-        newCampArena = true
-    }
 
     local function addCategory(category)
         if type(category) ~= 'table' or type(category.key) ~= 'string' or category.key == '' or seen[category.key] then
-            return
-        end
-        if hiddenMonsterCategories[category.key] then
             return
         end
         local entry = {
@@ -3679,7 +3884,11 @@ local function handleMonsterCategoriesResponse(data)
     monstersState.categories, monstersState.activeCategory = normalizeMonsterCategories(data.categories)
     renderMonsterCategories()
 
-    if state.domain == DOMAIN_MONSTERS and monstersState.activeCategory and monstersState.activeCategory ~= previousCategory then
+    if state.domain == DOMAIN_MONSTERS and monstersState.contextSelectionActive then
+        if monstersState.requestDropNavigationList then
+            monstersState.requestDropNavigationList()
+        end
+    elseif state.domain == DOMAIN_MONSTERS and monstersState.activeCategory and monstersState.activeCategory ~= previousCategory then
         requestCurrentPage(false)
     end
 end
@@ -3731,6 +3940,16 @@ local function handleListResponse(domain, data, requestData)
     if domain == DOMAIN_ITEMS and state.items.contextSelectionActive then
         return
     end
+    if domain == DOMAIN_MONSTERS and state.monsters.contextSelectionActive then
+        local target = state.monsters.dropNavigationTarget
+        local navigationMonsterId = requestData.navigationMonsterId
+        local targetSearch = type(target) == 'table' and normalizeSearch(target.search or '') or ''
+        if type(target) == 'table' and target.listRequested and navigationMonsterId == target.monsterId and
+            category == (target.category or '') and search == targetSearch then
+            renderResults(data)
+        end
+        return
+    end
 
     if domain == state.domain and category == (domainState.activeCategory or '') and search == normalizeSearch(domainState.search or '') then
         renderResults(data)
@@ -3756,7 +3975,15 @@ local function handleDetailResponse(domain, data, requestData)
         if familyId then
             domainState.detailCache[makeDetailCacheKey(domain, familyId, variant or '')] = data
         end
-        if domain == state.domain and familyId == domainState.selectedId and (variant or '') == (domainState.selectedVariant or '') then
+        local navigationTarget = domainState.contextSelectionActive and domainState.dropNavigationTarget or nil
+        local isDropNavigation = type(navigationTarget) == 'table' and navigationTarget.monsterId == familyId and
+            (navigationTarget.variant == nil or variant == nil or navigationTarget.variant == variant)
+        if domain == state.domain and familyId == domainState.selectedId and
+            ((variant or '') == (domainState.selectedVariant or '') or isDropNavigation) then
+            if isDropNavigation and variant then
+                navigationTarget.variant = variant
+                domainState.selectedVariant = variant
+            end
             showDetail(data)
         end
     elseif domain == DOMAIN_VOCATIONS then
@@ -3929,10 +4156,57 @@ local function handleLibraryError(domain, action, payload, requestData)
         return
     end
 
+    if domain == DOMAIN_MONSTERS and action == 'detail' and state.monsters.contextSelectionActive then
+        local target = state.monsters.dropNavigationTarget
+        local requestedMonsterId = requestData.monsterId
+        local requestedVariant = type(requestData.variant) == 'string' and requestData.variant or nil
+        if type(target) ~= 'table' or requestedMonsterId ~= target.monsterId or requestedVariant ~= target.variant then
+            return
+        end
+
+        if errorCode == 'INVALID_VARIANT' and target.variant ~= 'normal' then
+            target.variant = 'normal'
+            target.listRendered = false
+            requestDetail(target.monsterId, target.variant)
+            return
+        end
+
+        target.listRendered = true
+        clearResultSelection(DOMAIN_MONSTERS)
+        ui.monsterList:destroyChildren()
+        updateMonsterEmptyLabel(message)
+        resetDetailPanel(message)
+        return
+    end
+
+    if domain == DOMAIN_MONSTERS and action == 'list' and state.monsters.contextSelectionActive then
+        local target = state.monsters.dropNavigationTarget
+        if type(target) ~= 'table' or requestData.navigationMonsterId ~= target.monsterId then
+            return
+        end
+
+        target.listRequested = false
+        target.categoryUnavailable = true
+        if state.monsters.renderDropNavigationFallback then
+            state.monsters.renderDropNavigationFallback()
+        end
+        return
+    end
+
     if domain == DOMAIN_ITEMS and action == 'categories' then
         state.items.categoriesRequested = false
     elseif domain == DOMAIN_MONSTERS and action == 'categories' then
         state.monsters.categoriesRequested = false
+        if state.monsters.contextSelectionActive then
+            local target = state.monsters.dropNavigationTarget
+            if type(target) == 'table' then
+                target.categoryUnavailable = true
+                if state.monsters.renderDropNavigationFallback then
+                    state.monsters.renderDropNavigationFallback()
+                end
+            end
+            return
+        end
     elseif domain == DOMAIN_VOCATIONS and action == 'categories' then
         state.vocations.categoriesRequested = false
     elseif domain == DOMAIN_DAMAGE_CALCULATOR and action == 'categories' then
@@ -4064,9 +4338,15 @@ local function queueSearch()
     if state.domain == DOMAIN_ITEMS and state.items.navigationSearchUpdating then
         return
     end
+    if state.domain == DOMAIN_MONSTERS and state.monsters.navigationSearchUpdating then
+        return
+    end
     if state.domain == DOMAIN_ITEMS then
         state.items.lootNavigationTarget = nil
         state.items.contextSelectionActive = false
+    elseif state.domain == DOMAIN_MONSTERS then
+        state.monsters.dropNavigationTarget = nil
+        state.monsters.contextSelectionActive = false
     end
 
     if searchEvent then
@@ -4096,6 +4376,10 @@ local function clearSearch()
     end
     ui.searchEdit:setText('')
     local domainState = getDomainState()
+    if state.domain == DOMAIN_MONSTERS then
+        domainState.dropNavigationTarget = nil
+        domainState.contextSelectionActive = false
+    end
     domainState.search = ''
     domainState.page = 1
     requestCurrentPage(true)
@@ -4109,6 +4393,10 @@ local function switchDomain(domain)
     if state.domain == DOMAIN_ITEMS then
         state.items.lootNavigationTarget = nil
         state.items.contextSelectionActive = false
+    end
+    if state.domain == DOMAIN_MONSTERS then
+        state.monsters.dropNavigationTarget = nil
+        state.monsters.contextSelectionActive = false
     end
 
     if state.domain == DOMAIN_DAMAGE_CALCULATOR then
@@ -4142,7 +4430,13 @@ local function switchDomain(domain)
     end
 
     local domainState = getDomainState()
-    ui.searchEdit:setText(domainState.search or '')
+    if domain == DOMAIN_MONSTERS and domainState.contextSelectionActive then
+        domainState.navigationSearchUpdating = true
+        ui.searchEdit:setText(domainState.search or '')
+        domainState.navigationSearchUpdating = false
+    else
+        ui.searchEdit:setText(domainState.search or '')
+    end
 
     if domain == DOMAIN_ITEMS then
         ensureCategoriesRequested()
@@ -4158,9 +4452,11 @@ local function switchDomain(domain)
         renderMonsterCategories()
     end
 
-    if domainState.activeCategory then
+    local isPendingMonsterNavigation = domain == DOMAIN_MONSTERS and domainState.contextSelectionActive and
+        type(domainState.dropNavigationTarget) == 'table'
+    if domainState.activeCategory and not isPendingMonsterNavigation then
         requestCurrentPage(false)
-    else
+    elseif not isPendingMonsterNavigation then
         if domain == DOMAIN_MONSTERS or domain == DOMAIN_VOCATIONS or domain == DOMAIN_DAMAGE_CALCULATOR then
             updateMonsterEmptyLabel(domain == DOMAIN_VOCATIONS and tr('Select a category to load vocations.') or tr('Select a category to load monsters.'))
         else
@@ -4267,6 +4563,145 @@ state.items.focusLootNavigation = function(data)
     end
 
     requestCurrentPage(true)
+end
+
+state.monsters.openDropSourceDetail = function(source)
+    if type(source) ~= 'table' or type(source.monsterId) ~= 'string' then
+        return
+    end
+
+    local monsterId = source.monsterId:trim()
+    if monsterId == '' then
+        return
+    end
+
+    local variant = type(source.variant) == 'string' and source.variant:trim() or ''
+    if variant == '' then
+        variant = nil
+    end
+    local category = type(source.category) == 'string' and source.category:trim() or ''
+    if category == '' then
+        category = nil
+    end
+    local searchName = type(source.name) == 'string' and source.name:trim() or ''
+
+    if searchEvent then
+        removeEvent(searchEvent)
+        searchEvent = nil
+    end
+
+    state.monsters.dropNavigationTarget = {
+        monsterId = monsterId,
+        variant = variant,
+        category = category,
+        search = searchName,
+        listRequested = false,
+        listRendered = false
+    }
+    state.monsters.contextSelectionActive = true
+    switchDomain(DOMAIN_MONSTERS)
+    clearResultSelection(DOMAIN_MONSTERS)
+    ui.monsterList:destroyChildren()
+    updateMonsterEmptyLabel(getDetailLoadingText(DOMAIN_MONSTERS))
+    resetDetailPanel(getDetailLoadingText(DOMAIN_MONSTERS), false)
+    if state.monsters.requestDropNavigationList then
+        state.monsters.requestDropNavigationList()
+    end
+    requestDetail(monsterId, variant)
+end
+
+state.monsters.renderDropNavigationFallback = function()
+    local target = state.monsters.dropNavigationTarget
+    if type(target) ~= 'table' or target.listRendered or type(target.detailData) ~= 'table' then
+        return
+    end
+
+    renderResults({
+        items = { target.detailData },
+        page = 1,
+        totalPages = 1,
+        totalResults = 1
+    })
+end
+
+state.monsters.requestDropNavigationList = function()
+    local domainState = state.monsters
+    local target = domainState.dropNavigationTarget
+    if type(target) ~= 'table' or target.listRequested or target.listRendered or not domainState.categoriesLoaded then
+        return
+    end
+
+    local categoryExists = false
+    if target.category then
+        local targetCategory = state.items.normalizeDropSourceCategory(target.category)
+        for _, category in ipairs(domainState.categories) do
+            if state.items.normalizeDropSourceCategory(category.key) == targetCategory then
+                target.category = category.key
+                categoryExists = true
+                break
+            end
+        end
+    end
+
+    if not categoryExists or type(target.search) ~= 'string' or target.search == '' then
+        target.categoryUnavailable = true
+        state.monsters.renderDropNavigationFallback()
+        return
+    end
+
+    target.listRequested = true
+    domainState.activeCategory = target.category
+    domainState.search = target.search
+    domainState.page = 1
+
+    domainState.navigationSearchUpdating = true
+    ui.searchEdit:setText(domainState.search)
+    domainState.navigationSearchUpdating = false
+    for _, widget in ipairs(ui.monsterCategoryList:getChildren()) do
+        widget:setChecked(widget.categoryKey == domainState.activeCategory)
+    end
+
+    ui.monsterList:destroyChildren()
+    updateMonsterEmptyLabel(getLoadingText(DOMAIN_MONSTERS))
+    setResultWidgetsEnabled(true)
+    updatePagination()
+
+    local requestId = sendRequest(DOMAIN_MONSTERS, 'list', {
+        category = domainState.activeCategory,
+        page = domainState.page,
+        pageSize = PAGE_SIZE,
+        search = normalizeSearch(domainState.search),
+        navigationMonsterId = target.monsterId
+    })
+    if not requestId then
+        target.listRequested = false
+        target.categoryUnavailable = true
+        state.monsters.renderDropNavigationFallback()
+    end
+end
+
+state.monsters.focusDropNavigation = function(data)
+    local target = state.monsters.dropNavigationTarget
+    if type(target) ~= 'table' then
+        return
+    end
+
+    local monsterId = data.monsterId or data.id
+    if monsterId ~= target.monsterId then
+        return
+    end
+
+    local responseVariant = type(data.bossVariant) == 'string' and data.bossVariant:trim() or ''
+    if target.variant and responseVariant ~= '' and responseVariant ~= target.variant then
+        return
+    end
+
+    target.detailData = data
+    if target.categoryUnavailable then
+        state.monsters.renderDropNavigationFallback()
+    elseif not target.listRequested and not target.listRendered then
+        state.monsters.requestDropNavigationList()
+    end
 end
 
 local function show()
@@ -4470,6 +4905,9 @@ local function resetDomainState(domain)
         domainState.selectedDetailMonsterId = nil
         if domain == DOMAIN_MONSTERS then
             domainState.totalBestiaryPoints = nil
+            domainState.dropNavigationTarget = nil
+            domainState.navigationSearchUpdating = false
+            domainState.contextSelectionActive = false
         end
     end
 end
