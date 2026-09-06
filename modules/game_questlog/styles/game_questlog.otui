@@ -16,6 +16,7 @@ TextListQuestLog < Panel
     vertical-scrollbar: spellsScrollBar
     anchors.fill: parent
     padding: 1
+    padding-right: 15
     width: 10
     focusable: true
     background-color: #404040
@@ -69,7 +70,7 @@ TextEditQuestLog < Panel
     anchors.fill: parent
     margin-left: 5
     height: 17
-    placeholder: Type to search
+    !placeholder: tr('Type to search')
     placeholder-color: #6E706F
     @onTextChange : onSearchTextChange(self:getText())
 
@@ -91,6 +92,8 @@ TextEditQuestLog < Panel
       image-color: gray
 
 QuestLogLabel < UIWidget
+  height: 22
+  font: verdana-11px-antialised
   color: #C0C0C0
   text-align: left
   text-offset: 15 0
@@ -101,6 +104,7 @@ QuestLogLabel < UIWidget
     color: #F6F6F6
   CheckBoxButton
     id: iconShow
+    anchors.verticalCenter: parent.verticalCenter
     anchors.right: parent.right
     icon-source: /game_questlog/images/icon-show-small-on
     width: 15
@@ -109,6 +113,7 @@ QuestLogLabel < UIWidget
     visible: false
   CheckBoxButton
     id: iconPin
+    anchors.verticalCenter: parent.verticalCenter
     anchors.left: prev.right
     icon-source: /game_questlog/images/icon-pin
     height: 15
@@ -191,7 +196,7 @@ QuestLogTracker < MiniWindow
         margin-left: 20
         margin-right: 20
         color: white
-        @onClick: modules.game_questlog.show()
+        @onClick: modules.game_questlog.show('quests')
 
 
 ButtonTrackerMenuOption < UIButton

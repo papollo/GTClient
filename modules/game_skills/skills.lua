@@ -13,6 +13,7 @@ local twoHandedBonusSkill = 0
 local bowBonusSkill = 0
 local crossbowBonusSkill = 0
 local RESIST_OPCODE = 201
+local STORY_GUILD_OPCODE = 222
 local relogWindowState = nil
 local resistValues = {
     fire = 0,
@@ -72,6 +73,7 @@ function init()
     skillsButton:setOn(true)
     skillsWindow = g_ui.loadUI('skills')
     ProtocolGame.registerExtendedJSONOpcode(RESIST_OPCODE, onResistsOpcode)
+    ProtocolGame.registerExtendedJSONOpcode(STORY_GUILD_OPCODE, onStoryGuildOpcode)
 
     Keybind.new("Windows", "Show/hide skills windows", "Alt+S", "")
     Keybind.bind("Windows", "Show/hide skills windows", {
@@ -146,6 +148,12 @@ function terminate()
     skillsButton = nil
 
     pcall(ProtocolGame.unregisterExtendedJSONOpcode, RESIST_OPCODE)
+    pcall(ProtocolGame.unregisterExtendedJSONOpcode, STORY_GUILD_OPCODE)
+    if expSpeedEvent then
+        expSpeedEvent:cancel()
+        expSpeedEvent = nil
+    end
+    SkillData.reset()
 end
 
 function expForLevel(level)
@@ -157,18 +165,11 @@ function expToAdvance(currentLevel, currentExp)
 end
 
 function resetSkillColor(id)
-    local skill = skillsWindow:recursiveGetChildById(id)
-    if not skill then
-        return
-    end
-    local widget = skill:getChildById('value')
-    if not widget then
-        return
-    end
-    widget:setColor('#bbbbbb')
+    setSkillColor(id, '#bbbbbb')
 end
 
 function toggleSkill(id, state)
+    SkillData.set(id, { visible = state })
     local skill = skillsWindow:recursiveGetChildById(id)
     if not skill then
         return
@@ -180,64 +181,47 @@ function setSkillBase(id, value, baseValue, bonus)
     if baseValue < 0 or value < 0 then
         return
     end
-    local skill = skillsWindow:recursiveGetChildById(id)
-    if not skill then
-        return
-    end
-    local widget = skill:getChildById('value')
-    if not widget then
-        return
-    end
-
+    bonus = bonus or 0
     if value > baseValue then
-        widget:setColor('#008b00') -- green
+        setSkillColor(id, '#008b00') -- green
 
         local tooltip = baseValue .. ' + ' .. (value - baseValue)
         if bonus > 0 then
           tooltip = tooltip .. ' + ' .. bonus
         end
 
-        skill:setTooltip(tooltip)
+        setSkillRowTooltip(id, tooltip)
     elseif value < baseValue then
-        widget:setColor('#e81a1a') -- red
-        skill:setTooltip(baseValue .. ' ' .. (value - baseValue))
+        setSkillColor(id, '#e81a1a') -- red
+        setSkillRowTooltip(id, baseValue .. ' ' .. (value - baseValue))
     else
-        widget:setColor('#bbbbbb') -- default
-        skill:removeTooltip()
+        resetSkillColor(id)
+        setSkillRowTooltip(id, '')
     end
 end
 
 function setSkillValue(id, value)
+    if id == 'skillId15' or id == 'skillId16' or id == 'skillId17' or id == 'skillId19'
+        or id == 'skillId21' or id == 'skillId22' or id == 'skillId23' or id == 'skillId24' then
+        if g_game.getFeature(GameEnterGameShowAppearance) then
+            value = value / 100
+        end
+        value = value .. '%'
+    end
+    SkillData.set(id, { text = tostring(value) })
     local skill = skillsWindow:recursiveGetChildById(id)
     if skill then
         local widget = skill:getChildById('value')
-        if id == "skillId15" or id == "skillId16" or id == "skillId17" or id == "skillId19" or id == "skillId21" or id == "skillId22" or id == "skillId23" or id == "skillId24" then
-            if g_game.getFeature(GameEnterGameShowAppearance) then
-                value = value / 100
-            end
-            widget:setText(value .. "%")
-        else
-            widget:setText(value)
-        end
+        widget:setText(value)
     end
 end
 
 local function setResistValue(id, value)
-    local skill = skillsWindow:recursiveGetChildById(id)
-    if skill then
-        local widget = skill:getChildById('value')
-        widget:setText(value .. "%")
-    end
+    setSkillValue(id, value .. '%')
 end
 
 local function setArmorValue(id, value)
-    local widget = skillsWindow:recursiveGetChildById(id)
-    if widget then
-        local label = widget:getChildById('value')
-        if label then
-            label:setText(tostring(value))
-        end
-    end
+    setSkillValue(id, value)
 end
 
 local function updateResistWidgets()
@@ -275,7 +259,28 @@ function onResistsOpcode(protocol, opcode, data)
     updateResistWidgets()
 end
 
+-- Opcode 222, story guild domain, server -> client.
+-- Expected state response: { action = 'state', guildId = 'old_shadow' }.
+function onStoryGuildOpcode(protocol, opcode, data)
+    if type(data) ~= 'table' then
+        g_logger.warning('[Story guild] Ignoring invalid opcode payload.')
+        return
+    end
+    if data.action ~= 'state' then
+        g_logger.warning('[Story guild] Ignoring unknown action: ' .. tostring(data.action))
+        return
+    end
+    if type(data.guildId) ~= 'string' then
+        g_logger.warning('[Story guild] Ignoring state without a valid guildId.')
+        return
+    end
+    if not SkillData.setStoryGuild(data.guildId) then
+        g_logger.warning('[Story guild] Ignoring unknown guildId: ' .. data.guildId)
+    end
+end
+
 function setSkillColor(id, value)
+    SkillData.set(id, { color = value })
     local skill = skillsWindow:recursiveGetChildById(id)
     if skill then
         local widget = skill:getChildById('value')
@@ -284,6 +289,7 @@ function setSkillColor(id, value)
 end
 
 function setSkillTooltip(id, value)
+    SkillData.set(id, { valueTooltip = value or '' })
     local skill = skillsWindow:recursiveGetChildById(id)
     if skill then
         local widget = skill:getChildById('value')
@@ -291,7 +297,20 @@ function setSkillTooltip(id, value)
     end
 end
 
+function setSkillRowTooltip(id, value)
+    SkillData.set(id, { tooltip = value or '' })
+    local skill = skillsWindow:recursiveGetChildById(id)
+    if skill then
+        if value and value ~= '' then
+            skill:setTooltip(value)
+        else
+            skill:removeTooltip()
+        end
+    end
+end
+
 function setSkillPercent(id, percent, tooltip, color)
+    SkillData.set(id, { percent = math.floor(percent), progressTooltip = tooltip, progressColor = color })
     local skill = skillsWindow:recursiveGetChildById(id)
     if skill then
         local widget = skill:getChildById('percent')
@@ -356,19 +375,11 @@ function checkAlert(id, value, maxValue, threshold, greaterThan)
 end
 
 function update()
-    local offlineTraining = skillsWindow:recursiveGetChildById('offlineTraining')
-    if not g_game.getFeature(GameOfflineTrainingTime) then
-        offlineTraining:hide()
-    else
-        offlineTraining:show()
-    end
-
-    local regenerationTime = skillsWindow:recursiveGetChildById('regenerationTime')
-    if not g_game.getFeature(GamePlayerRegenerationTime) then
-        regenerationTime:hide()
-    else
-        regenerationTime:show()
-    end
+    toggleSkill('offlineTraining', g_game.getFeature(GameOfflineTrainingTime))
+    toggleSkill('regenerationTime', g_game.getFeature(GamePlayerRegenerationTime))
+    SkillData.set('regenerationTime', {
+        label = g_game.getFeature(GameEnterGameShowAppearance) and 'Food' or 'Regeneration Time'
+    })
 end
 
 function online()
@@ -409,11 +420,30 @@ function online()
     end
 end
 
+local function isAdditionalSkillVisible(id, level)
+    if not g_game.getFeature(GameAdditionalSkills) then
+        return false
+    end
+    if id >= Skill.LifeLeechChance and id <= Skill.ManaLeechAmount then
+        return false
+    end
+    if id == Skill.Dodge then
+        return true
+    end
+    if id >= Skill.Fatal then
+        return g_game.getClientVersion() >= 1332 and level > 0
+    end
+    return true
+end
+
 function refresh()
     local player = g_game.getLocalPlayer()
     if not player then
         return
     end
+
+    SkillData.set('characterName', { text = player:getName() })
+    SkillData.ensureStoryGuild()
 
     if expSpeedEvent then
         expSpeedEvent:cancel()
@@ -454,7 +484,6 @@ function refresh()
     onCrossbowBonusSkillChange(player, player:getCrossbowBonusSkill())
     updateResistWidgets()
 
-    local hasAdditionalSkills = g_game.getFeature(GameAdditionalSkills)
     for i = Skill.Fist, Skill.Transcendence do
 
         if i == 2 then
@@ -470,24 +499,7 @@ function refresh()
         end
 
         if i > Skill.Bowmastery then
-            local ativedAdditionalSkills = hasAdditionalSkills
-            if ativedAdditionalSkills then
-                if i >= Skill.LifeLeechChance and i <= Skill.ManaLeechAmount then
-                    ativedAdditionalSkills = false
-                elseif i == Skill.Dodge then
-                    ativedAdditionalSkills = true
-                elseif g_game.getClientVersion() >= 1281 then
-	                if g_game.getClientVersion() < 1332 and i >= Skill.Fatal then
-                        ativedAdditionalSkills = false
-                    elseif i >= Skill.Fatal and player:getSkillLevel(i) <= 0 then
-                        ativedAdditionalSkills = false
-                    end
-		        elseif g_game.getClientVersion() < 1281 and i >= Skill.Fatal then
-                    ativedAdditionalSkills = false
-	            end
-            end
-
-            toggleSkill('skillId' .. i, ativedAdditionalSkills)
+            toggleSkill('skillId' .. i, isAdditionalSkillVisible(i, player:getSkillLevel(i)))
         end
     end
 
@@ -496,7 +508,7 @@ function refresh()
 end
 
 function updateHeight()
-    local maximumHeight = 8 -- margin top and bottom
+    local maximumHeight = 0
 
     if g_game.isOnline() then
         local char = g_game.getCharacterName()
@@ -514,7 +526,8 @@ function updateHeight()
                 if percentBar then
                     showPercentBar(skillButton, skillSettings[char][skillButton:getId()] ~= 1)
                 end
-                maximumHeight = maximumHeight + skillButton:getHeight() + skillButton:getMarginBottom()
+                maximumHeight = maximumHeight + skillButton:getMarginTop() + skillButton:getHeight() +
+                                    skillButton:getMarginBottom()
             end
         end
     else
@@ -555,6 +568,9 @@ function offline()
     end
     g_settings.setNode('skills-hide', skillSettings)
     resistValues = { fire = 0, ice = 0, physical = 0, poison = 0, armor = 0 }
+    baseXpRate, staminaMultiplier, foodXpBoost, alchemyXpBoost = 0, 0, 0, 0
+    magicLevelBonusSkill, oneHandedBonusSkill, twoHandedBonusSkill, bowBonusSkill, crossbowBonusSkill = 0, 0, 0, 0, 0
+    SkillData.reset()
 end
 
 function toggle()
@@ -638,6 +654,9 @@ end
 
 function onExperienceChange(localPlayer, value)
     setSkillValue('experience', comma_value(value))
+    SkillData.set('nextLevelExperience', {
+        text = comma_value(math.max(0, expToAdvance(localPlayer:getLevel(), value)))
+    })
 end
 
 function onBaseXpRateChange(LocalPlayer, value)
@@ -669,27 +688,17 @@ function updateXpRate()
                     tr('Food: %d%%\n', foodXpBoost) ..
                     tr('Alchemy: %d%%', alchemyXpBoost)
 
-    local skillWidget = skillsWindow:recursiveGetChildById('xpRate')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(total .. "%")
-
-        if total > 150 then
-            widget:setColor('#e5c300')
-        elseif total > 100 then
-            widget:setColor('#89F013')
-        elseif total < 51 then
-            widget:setColor('#e81a1a')
-        else
-            widget:setColor('#bbbbbb')        
-        end
-
-        skillWidget:setTooltip(tooltip)
-    end
+    setSkillValue('xpRate', total .. '%')
+    local color = total > 150 and '#e5c300' or total > 100 and '#89F013' or total < 51 and '#e81a1a' or '#bbbbbb'
+    setSkillColor('xpRate', color)
+    setSkillRowTooltip('xpRate', tooltip)
 end
 
 function onLevelChange(localPlayer, value, percent)
     setSkillValue('level', comma_value(value))
+    SkillData.set('nextLevelExperience', {
+        text = comma_value(math.max(0, expToAdvance(value, localPlayer:getExperience())))
+    })
     local text = tr('You have %s percent to go', 100 - percent) .. '\n' ..
                      tr('%s of experience left', expToAdvance(localPlayer:getLevel(), localPlayer:getExperience()))
 
@@ -712,112 +721,75 @@ function onLearningPointsChange(player, learningPoints)
     setSkillValue('learningPoints', learningPoints)
 end
 
+local function setSpecializationValue(id, level, maximum)
+    setSkillValue(id, level .. '/' .. maximum)
+    SkillData.set(id, { specializationRank = level })
+end
+
 function onLockPickSkillChange(localPlayer, lockPickSkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('lockPickSkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(lockPickSkill .. "/3")
-        skillWidget:setTooltip(tr("LockPickSkillFull"))
-    end
+    setSpecializationValue('lockPickSkill', lockPickSkill, 3)
+    setSkillRowTooltip('lockPickSkill', tr('LockPickSkillFull'))
 end
 
 function onBreakLockSkillChange(localPlayer, breakLockSkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('breakLockSkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(breakLockSkill .. "/3")
-        skillWidget:setTooltip(tr("BreakLockSkillFull"))
-    end
+    setSpecializationValue('breakLockSkill', breakLockSkill, 3)
+    setSkillRowTooltip('breakLockSkill', tr('BreakLockSkillFull'))
 end
 
 function onPickPocketSkillChange(localPlayer, pickPocketSkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('pickPocketSkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(pickPocketSkill .. "/3")
-        skillWidget:setTooltip(tr("PickPocketSkillFull"))
-    end
+    setSpecializationValue('pickPocketSkill', pickPocketSkill, 3)
+    setSkillRowTooltip('pickPocketSkill', tr('PickPocketSkillFull'))
 end
 
 function onSmithSkillChange(localPlayer, smithSkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('smithSkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(smithSkill .. "/3")
-        skillWidget:setTooltip(tr("SmithSkillFull"))
-    end
+    setSpecializationValue('smithSkill', smithSkill, 3)
+    setSkillRowTooltip('smithSkill', tr('SmithSkillFull'))
 end
 
 function onMiningSkillChange(localPlayer, miningSkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('miningSkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(miningSkill .. "/3")
-        skillWidget:setTooltip(tr("MiningSkillFull"))
-    end
+    setSpecializationValue('miningSkill', miningSkill, 3)
+    setSkillRowTooltip('miningSkill', tr('MiningSkillFull'))
 end
 
 function onCookingSkillChange(localPlayer, cookingSkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('cookingSkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(cookingSkill .. "/3")
-        skillWidget:setTooltip(tr("CookingSkillFull"))
-    end
+    setSpecializationValue('cookingSkill', cookingSkill, 3)
+    setSkillRowTooltip('cookingSkill', tr('CookingSkillFull'))
 end
 
 function onHuntingSkillChange(localPlayer, huntingSkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('huntingSkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(huntingSkill .. "/3")
-        skillWidget:setTooltip(tr("HuntingSkillFull"))
-    end
+    setSpecializationValue('huntingSkill', huntingSkill, 3)
+    setSkillRowTooltip('huntingSkill', tr('HuntingSkillFull'))
 end
 
 function onBowmasterSkillChange(localPlayer, bowmasterSkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('bowmasterSkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(bowmasterSkill .. "/3")
-        skillWidget:setTooltip(tr("BowmasterSkillFull"))
-    end
+    setSpecializationValue('bowmasterSkill', bowmasterSkill, 3)
+    setSkillRowTooltip('bowmasterSkill', tr('BowmasterSkillFull'))
 end
 
 function onMagicCircleSkillChange(localPlayer, magicCircleSkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('magicCircleSkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(magicCircleSkill .. "/5")
-        skillWidget:setTooltip(tr("MagicCircleSkillFull"))
-    end
+    setSkillValue('magicCircleSkill', magicCircleSkill)
+    setSkillRowTooltip('magicCircleSkill', tr('MagicCircleSkillFull'))
 end
 
 function onAcrobaticSkillChange(localPlayer, acrobaticSkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('acrobaticSkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(acrobaticSkill .. "/1")
-        skillWidget:setTooltip(tr("AcrobaticSkillFull"))
-    end
+    setSpecializationValue('acrobaticSkill', acrobaticSkill, 1)
+    setSkillRowTooltip('acrobaticSkill', tr('AcrobaticSkillFull'))
 end
 
 function onAlchemySkillChange(localPlayer, alchemySkill)
-    local skillWidget = skillsWindow:recursiveGetChildById('alchemySkill')
-    if skillWidget then
-        local widget = skillWidget:getChildById('value')
-        widget:setText(alchemySkill .. "/3")
-        skillWidget:setTooltip(tr("AlchemySkillFull"))
-    end
+    setSpecializationValue('alchemySkill', alchemySkill, 3)
+    setSkillRowTooltip('alchemySkill', tr('AlchemySkillFull'))
 end
 
 function onHealthChange(localPlayer, health, maxHealth)
     setSkillValue('health', health)
+    SkillData.set('health', { maximum = maxHealth })
     checkAlert('health', health, maxHealth, 30)
 end
 
 function onManaChange(localPlayer, mana, maxMana)
     setSkillValue('mana', mana)
+    SkillData.set('mana', { maximum = maxMana })
     checkAlert('mana', mana, maxMana, 30)
 end
 
@@ -1037,8 +1009,8 @@ function onSkillChange(localPlayer, id, level, percent)
         onBaseSkillChange(localPlayer, id, localPlayer:getSkillBaseLevel(id), 0)
     end
 
-    if id > Skill.Dodge then
-	    toggleSkill('skillId' .. id, level > 0)
+    if id > Skill.Bowmastery then
+        toggleSkill('skillId' .. id, isAdditionalSkillVisible(id, level))
     end
 end
 

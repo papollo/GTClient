@@ -7,6 +7,11 @@ local actionSearchEvent
 local keyEditWindow = nil
 local chatModeGroup
 
+local function displayKeybindAction(action)
+    -- Display the new name without changing the stored quest-log action ID.
+    return action == 'Show/hide quest Log' and tr('Show/hide journal') or action
+end
+
 -- controls and keybinds
 function addNewPreset()
     presetWindow:setText(tr('Add hotkey preset'))
@@ -161,7 +166,7 @@ function editKeybind(keybind)
 
     keyEditWindow.info:setText(tr(
         'Click \'Ok\' to assign the keybind. Click \'Clear\' to remove the keybind from \'%s: %s\'.', keybind.category,
-        keybind.action))
+        displayKeybindAction(keybind.action)))
     keyEditWindow.alone:setVisible(keybind.alone)
 
     connect(keyEditWindow, {
@@ -187,7 +192,7 @@ function editKeybindPrimary(button)
         action = row.action
     }
 
-    keyEditWindow:setText(tr('Edit Primary Key for \'%s\'', string.format('%s: %s', keybind.category, keybind.action)))
+    keyEditWindow:setText(tr('Edit Primary Key for \'%s\'', string.format('%s: %s', keybind.category, displayKeybindAction(keybind.action))))
     keyEditWindow.keyCombo:setText(Keybind.getKeybindKeys(row.category, row.action, getChatMode(), preset).primary)
 
     editKeybind(keybind)
@@ -255,7 +260,7 @@ function editKeybindSecondary(button)
         action = row.action
     }
 
-    keyEditWindow:setText(tr('Edit Secondary Key for \'%s\'', string.format('%s: %s', keybind.category, keybind.action)))
+    keyEditWindow:setText(tr('Edit Secondary Key for \'%s\'', string.format('%s: %s', keybind.category, displayKeybindAction(keybind.action))))
     keyEditWindow.keyCombo:setText(Keybind.getKeybindKeys(row.category, row.action, getChatMode(), preset).secondary)
 
     editKeybind(keybind)
@@ -383,8 +388,9 @@ function preAddHotkey(action, data)
 end
 
 function addKeybind(category, action, primary, secondary)
-    local rawText = string.format('%s: %s', category, action)
-    local text = string.format('[color=#ffffff]%s:[/color] %s', category, action)
+    local displayAction = displayKeybindAction(action)
+    local rawText = string.format('%s: %s', category, displayAction)
+    local text = string.format('[color=#ffffff]%s:[/color] %s', category, displayAction)
     local tooltip = nil
 
     if rawText:len() > actionNameLimit then

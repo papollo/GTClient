@@ -5,5 +5,7 @@ Module
   website: game_questlog
   scripts: [ game_questlog.lua ]
   sandboxed: true
+  dependencies:
+    - game_skills
   @onLoad: questLogController:init()
   @onUnload: questLogController:terminate()

@@ -1,0 +1,242 @@
+JournalTab < TabButton
+  size: 180 24
+
+JournalColumn < ScrollablePanel
+  padding-right: 8
+  layout:
+    type: verticalBox
+    spacing: 8
+
+JournalSection < Panel
+  background-color: #363636
+  padding: 7
+  layout:
+    type: verticalBox
+    spacing: 3
+    fit-children: true
+  Label
+    id: title
+    height: 23
+    margin-bottom: 2
+    color: #dfdfdf
+    text-align: left
+    font: verdana-11px-antialised
+
+JournalStat < UIWidget
+  height: 32
+  background-color: #ffffff05
+  Label
+    id: name
+    anchors.left: parent.left
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    anchors.right: value.left
+    margin-left: 4
+    margin-right: 6
+    text-wrap: true
+    text-align: left
+    color: #bbbbbb
+    phantom: true
+  Label
+    id: value
+    width: 135
+    anchors.right: parent.right
+    anchors.top: parent.top
+    anchors.bottom: parent.bottom
+    margin-right: 4
+    text-align: right
+    text-wrap: true
+    color: #bbbbbb
+    phantom: true
+  ProgressBar
+    id: progress
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    margin-left: 4
+    margin-right: 4
+    height: 4
+    background-color: #008b00
+    visible: false
+    phantom: true
+
+MainWindow
+  id: journal
+  !text: tr('Journal')
+  size: 790 639
+  @onEscape: modules.game_questlog.questLogController:close()
+
+  JournalTab
+    id: characterTab
+    !text: tr('Character sheet')
+    anchors.left: parent.left
+    anchors.top: parent.top
+    @onClick: modules.game_questlog.questLogController:selectTab('character')
+  JournalTab
+    id: questsTab
+    !text: tr('Quests')
+    anchors.left: characterTab.right
+    anchors.top: parent.top
+    margin-left: 6
+    @onClick: modules.game_questlog.questLogController:selectTab('quests')
+
+  Panel
+    id: characterPanel
+    anchors.top: characterTab.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: footer.top
+    margin-top: 8
+    margin-bottom: 8
+    JournalColumn
+      id: left
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.bottom: parent.bottom
+      anchors.right: leftScroll.left
+      vertical-scrollbar: leftScroll
+    VerticalScrollBar
+      id: leftScroll
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.right: parent.horizontalCenter
+      margin-right: 5
+      step: 32
+      pixels-scroll: true
+    JournalColumn
+      id: right
+      anchors.top: parent.top
+      anchors.left: parent.horizontalCenter
+      anchors.bottom: parent.bottom
+      anchors.right: rightScroll.left
+      margin-left: 5
+      padding-right: 8
+      vertical-scrollbar: rightScroll
+    VerticalScrollBar
+      id: rightScroll
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.right: parent.right
+      step: 32
+      pixels-scroll: true
+
+  Panel
+    id: panelQuestLog
+    anchors.top: characterTab.bottom
+    anchors.left: parent.left
+    anchors.right: parent.horizontalCenter
+    anchors.bottom: footer.top
+    margin-top: 8
+    margin-right: 6
+    margin-bottom: 8
+    Label
+      id: title
+      !text: tr('Quests')
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: 20
+    TextListQuestLog
+      id: areaPanelQuestList
+      anchors.top: title.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: comboBoxFilter.top
+      margin-bottom: 6
+    ComboBox
+      id: comboBoxFilter
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: textEditSearchQuest.top
+      margin-bottom: 5
+    TextEditQuestLog
+      id: textEditSearchQuest
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: filterPanel.top
+      margin-bottom: 6
+    Panel
+      id: filterPanel
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      height: 44
+      CheckBox
+        id: checkboxShowComplete
+        !text: tr('Show Completed')
+        anchors.top: parent.top
+        anchors.left: parent.left
+        width: 185
+        checked: true
+      Label
+        id: lblCompleteNumber
+        anchors.top: parent.top
+        anchors.right: parent.right
+        width: 150
+        text-align: right
+      CheckBox
+        id: checkboxShowShidden
+        !text: tr('Show hidden')
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        width: 185
+      Label
+        id: lblHiddenNumber
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        width: 150
+        text-align: right
+
+  Panel
+    id: panelQuestLineSelected
+    anchors.top: characterTab.bottom
+    anchors.left: parent.horizontalCenter
+    anchors.right: parent.right
+    anchors.bottom: footer.top
+    margin-top: 8
+    margin-left: 6
+    margin-bottom: 8
+    text-align: topLeft
+    padding-top: 25
+    !text: tr('No quest line Selected')
+    TextListQuestLog
+      id: ScrollAreaQuestList
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.right: parent.right
+      height: 180
+    MultiLineQuestLog
+      id: panelQuestInfo
+      anchors.top: ScrollAreaQuestList.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: checkboxShowInQuestTracker.top
+      margin-top: 6
+      margin-bottom: 6
+    CheckBox
+      id: checkboxShowInQuestTracker
+      !text: tr('Show in quest tracker')
+      anchors.bottom: parent.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
+
+  HorizontalSeparator
+    id: footer
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: closeButton.top
+    margin-bottom: 8
+  Button
+    id: trackerButton
+    !text: tr('Quest Tracker')
+    anchors.left: parent.left
+    anchors.bottom: parent.bottom
+    width: 180
+    @onClick: modules.game_questlog.questLogController:toggleMiniWindowsTracker()
+  Button
+    id: closeButton
+    !text: tr('Close')
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    width: 100
+    @onClick: modules.game_questlog.questLogController:close()
