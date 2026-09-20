@@ -12,6 +12,7 @@ locale = {
     ["Character sheet"] = "Karta postaci",
     ["Quests"] = "Zadania",
     ["Information"] = "Informacje",
+    ["Teachers"] = "Nauczyciele",
     ["Guild"] = "Gildia",
     ["No data"] = "Brak danych",
     ["No guild"] = "Bez gildii",

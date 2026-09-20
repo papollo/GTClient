@@ -3,7 +3,8 @@ questLogController = Controller:new()
 questLogController.name = 'game_questlog'
 questLogController.currentSortOrders = {
     quests = 'Alphabetically (A-Z)',
-    information = 'Alphabetically (A-Z)'
+    information = 'Alphabetically (A-Z)',
+    teachers = 'Alphabetically (A-Z)'
 }
 
 -- @ todo
@@ -17,13 +18,16 @@ local trackerMiniWindow = nil
 local questLogButton = nil
 local buttonQuestLogTrackerButton = nil
 local activeTab = 'character'
+local activeInformationTab = 'information'
 local updatingTrackerCheck = false
 local characterRows = {}
 local characterSections = {}
 local SORT_OPTIONS = { 'Alphabetically (A-Z)', 'Alphabetically (Z-A)', 'Completed on Top', 'Completed on Bottom' }
 local INFORMATION_SORT_OPTIONS = { 'Alphabetically (A-Z)', 'Alphabetically (Z-A)' }
+-- Opcode 240, journal/list response entry: u16 id, string name, u8 completed, u8 category.
 local CATEGORY_QUEST = 0
 local CATEGORY_INFORMATION = 1
+local CATEGORY_TEACHER = 2
 local TRACKER_SETTINGS_VERSION = 2
 
 -- @widgets
@@ -56,7 +60,8 @@ local settings = {
 local namePlayer = ""
 local journalLists = {
     quests = {},
-    information = {}
+    information = {},
+    teachers = {}
 }
 local questItemState = {}
 local selectedJournalId = nil
@@ -88,6 +93,10 @@ local function isIdInTracker(key, id)
         return false
     end
     return table.findbyfield(entries, 'missionId', tonumber(id)) ~= nil
+end
+
+local function getJournalListKey(tab)
+    return tab == 'information' and activeInformationTab or tab
 end
 
 local function setTrackerChecked(checked)
@@ -269,8 +278,9 @@ local function recolorVisibleItems()
 end
 
 local function sortQuestList(questList, sortOrder)
-    if activeTab == 'quests' or activeTab == 'information' then
-        questLogController.currentSortOrders[activeTab] = sortOrder
+    local listKey = getJournalListKey(activeTab)
+    if journalLists[listKey] then
+        questLogController.currentSortOrders[listKey] = sortOrder
     end
     local pinnedItems = {}
     local regularItems = {}
@@ -408,7 +418,7 @@ end
 local function configureSortOptions(tab)
     local filter = questLogController.ui.panelQuestLog.comboBoxFilter
     local options = tab == 'information' and INFORMATION_SORT_OPTIONS or SORT_OPTIONS
-    local sortOrder = questLogController.currentSortOrders[tab] or options[1]
+    local sortOrder = questLogController.currentSortOrders[getJournalListKey(tab)] or options[1]
     updatingSortOptions = true
     filter:clearOptions()
     for _, option in ipairs(options) do
@@ -421,7 +431,13 @@ end
 local function configureJournalControls(tab)
     local quests = tab == 'quests'
     local filterPanel = questLogController.ui.panelQuestLog.filterPanel
-    questLogController.ui.panelQuestLog.title:setText(tr(quests and 'Quests' or 'Information'))
+    local informationTabs = questLogController.ui.panelQuestLog.informationTabs
+    questLogController.ui.panelQuestLog.title:setText(tr(quests and 'Quests' or
+        (activeInformationTab == 'teachers' and 'Teachers' or 'Information')))
+    informationTabs:setVisible(not quests)
+    informationTabs:setHeight(quests and 0 or 24)
+    informationTabs.informationListTab:setOn(activeInformationTab == 'information')
+    informationTabs.teachersTab:setOn(activeInformationTab == 'teachers')
     filterPanel:setVisible(quests)
     filterPanel:setHeight(quests and 44 or 0)
     questLogController.ui.trackerButton:setVisible(quests and g_game.getClientVersion() >= 1280)
@@ -435,7 +451,8 @@ local function renderJournalList(tab)
     UITextList.questLogList:destroyChildren()
     resetJournalDetails()
 
-    local list = journalLists[tab] or {}
+    local listKey = getJournalListKey(tab)
+    local list = journalLists[listKey] or {}
     local quests = tab == 'quests'
     questLogCache = {
         items = {},
@@ -466,7 +483,7 @@ local function renderJournalList(tab)
     end
 
     local options = quests and SORT_OPTIONS or INFORMATION_SORT_OPTIONS
-    local sortOrder = questLogController.currentSortOrders[tab] or options[1]
+    local sortOrder = questLogController.currentSortOrders[listKey] or options[1]
     sortQuestList(UITextList.questLogList, sortOrder)
     filterQuestList(UITextEdit.search.SearchEdit:getText())
     updateQuestCounter()
@@ -557,6 +574,17 @@ function questLogController:selectTab(tab, requestQuests)
         g_game.requestQuestLog()
     elseif not journal then
         self:refreshCharacter()
+    end
+end
+
+function questLogController:selectInformationTab(tab)
+    if not self.ui or (tab ~= 'information' and tab ~= 'teachers') then
+        return
+    end
+    activeInformationTab = tab
+    if activeTab == 'information' then
+        configureJournalControls(activeTab)
+        renderJournalList(activeTab)
     end
 end
 
@@ -707,7 +735,8 @@ local function onQuestLog(questList)
     local availableQuestIds = {}
     journalLists = {
         quests = {},
-        information = {}
+        information = {},
+        teachers = {}
     }
 
     for _, data in ipairs(questList) do
@@ -717,6 +746,8 @@ local function onQuestLog(questList)
             availableQuestIds[tonumber(id)] = true
         elseif category == CATEGORY_INFORMATION then
             table.insert(journalLists.information, {id, entryName, false})
+        elseif category == CATEGORY_TEACHER then
+            table.insert(journalLists.teachers, {id, entryName, false})
         else
             g_logger.warning(string.format('Ignoring journal entry %s with unknown category %s',
                 tostring(id), tostring(category)))
@@ -998,6 +1029,7 @@ end
 
 function questLogController:onGameStart()
     activeTab = 'character'
+    activeInformationTab = 'information'
     namePlayer = g_game.getCharacterName():lower()
     UICheckBox.showInQuestTracker:setVisible(g_game.getClientVersion() >= 1280)
     self:selectTab('character')
@@ -1033,11 +1065,12 @@ function questLogController:onGameEnd()
     end
     hide()
     activeTab = 'character'
+    activeInformationTab = 'information'
     UITextList.questLogList:destroyChildren()
     UITextList.questLogLine:destroyChildren()
     UITextList.questLogInfo:setText('')
     questLogCache = { items = {}, completed = 0, hidden = 0, visible = 0 }
-    journalLists = { quests = {}, information = {} }
+    journalLists = { quests = {}, information = {}, teachers = {} }
     questItemState = {}
     selectedJournalId = nil
     trackerValidationPending = {}
@@ -1048,7 +1081,8 @@ function questLogController:onGameEnd()
     UITextEdit.search.SearchEdit:clearText()
     self.currentSortOrders = {
         quests = SORT_OPTIONS[1],
-        information = INFORMATION_SORT_OPTIONS[1]
+        information = INFORMATION_SORT_OPTIONS[1],
+        teachers = INFORMATION_SORT_OPTIONS[1]
     }
     configureSortOptions('quests')
     self.ui.panelQuestLineSelected:setText(tr('No quest line Selected'))

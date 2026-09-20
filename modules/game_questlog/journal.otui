@@ -143,12 +143,38 @@ MainWindow
       anchors.left: parent.left
       anchors.right: parent.right
       height: 20
-    TextListQuestLog
-      id: areaPanelQuestList
+    Panel
+      id: informationTabs
       anchors.top: title.bottom
       anchors.left: parent.left
       anchors.right: parent.right
+      height: 0
+      visible: false
+      TabButton
+        id: informationListTab
+        !text: tr('Information')
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        margin-right: 3
+        @onClick: modules.game_questlog.questLogController:selectInformationTab('information')
+      TabButton
+        id: teachersTab
+        !text: tr('Teachers')
+        anchors.top: parent.top
+        anchors.left: parent.horizontalCenter
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        margin-left: 3
+        @onClick: modules.game_questlog.questLogController:selectInformationTab('teachers')
+    TextListQuestLog
+      id: areaPanelQuestList
+      anchors.top: informationTabs.bottom
+      anchors.left: parent.left
+      anchors.right: parent.right
       anchors.bottom: comboBoxFilter.top
+      margin-top: 6
       margin-bottom: 6
     ComboBox
       id: comboBoxFilter

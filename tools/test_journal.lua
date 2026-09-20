@@ -234,6 +234,7 @@ function Widget:setText(value) self.text = tostring(value) end
 function Widget:getText() return self.text end
 function Widget:clearText() self.text = '' end
 function Widget:setVisible(value) self.visible = value end
+function Widget:setHeight(value) self.height = value end
 function Widget:isVisible() return self.visible and (not self.parent or self.parent:isVisible()) end
 function Widget:isExplicitlyVisible() return self.visible end
 function Widget:show() self.visible = true end
@@ -260,6 +261,7 @@ function Widget:moveChildToIndex(child, index)
     table.insert(self.children, index, child)
 end
 function Widget:addOption() end
+function Widget:clearOptions() end
 function Widget:setCurrentOption() end
 function Widget:centerIn() end
 function Widget:raise() end
@@ -269,10 +271,11 @@ function Widget:setFocusable() end
 function Widget:setIcon() end
 
 local journal = node({
-    characterTab = node(), questsTab = node(), trackerButton = node(),
+    characterTab = node(), questsTab = node(), informationTab = node(), trackerButton = node(),
     characterPanel = node({left = node(), right = node(), leftScroll = node(), rightScroll = node()}),
     panelQuestLog = node({
-        areaPanelQuestList = node({questList = node()}), comboBoxFilter = node(),
+        areaPanelQuestList = node({questList = node()}), comboBoxFilter = node(), title = node(),
+        informationTabs = node({informationListTab = node(), teachersTab = node()}),
         textEditSearchQuest = node({SearchEdit = node()}),
         filterPanel = node({checkboxShowComplete = node(), checkboxShowShidden = node(),
             lblCompleteNumber = node(), lblHiddenNumber = node()})
@@ -341,9 +344,12 @@ assert(journal.characterPanel.right.children[2].title.text == 'Additional combat
 questLogController:selectTab('quests')
 assert(requests == 1 and not journal.characterPanel.visible)
 questLogController:selectTab('character')
-local quests = {{1, 'Find [the letter]', false}, {2, 'Completed quest', true}}
+local quests = {{1, 'Find [the letter]', false, 0}, {2, 'Completed quest', true, 0},
+    {3, 'Learned schema', false, 1}, {4, 'Master Smith', false, 2}}
 g_game.onQuestLog(quests)
 assert(journal.characterPanel.visible, 'A late quest response must not select the quests tab')
+questLogController:selectTab('quests')
+assert(requests == 2)
 assert(journal.panelQuestLog.filterPanel.lblCompleteNumber.text == 'Completed: 1')
 local list = journal.panelQuestLog.areaPanelQuestList.questList
 local quest = list:getChildById('1')
@@ -355,16 +361,21 @@ assert(list.children[1] == quest)
 journal.panelQuestLog.filterPanel.checkboxShowShidden:setChecked(true)
 filterQuestList('[')
 assert(quest.visible and not list:getChildById('2').visible)
+questLogController:selectTab('information')
+assert(requests == 3 and journal.panelQuestLog.informationTabs.visible)
+assert(list:getChildById('3') and not list:getChildById('4'))
+questLogController:selectInformationTab('teachers')
+assert(list:getChildById('4') and not list:getChildById('3'))
 show('quests')
-assert(requests == 2 and journal.panelQuestLog.visible and not journal.characterPanel.visible)
+assert(requests == 4 and journal.panelQuestLog.visible and not journal.characterPanel.visible)
 keybindCallback()
 assert(not journal.visible and not journalButton.on)
 keybindCallback()
-assert(journal.visible and journal.panelQuestLog.visible and requests == 3)
+assert(journal.visible and journal.panelQuestLog.visible and requests == 5)
 questLogController:onGameEnd()
 assert(#list.children == 0 and not journal.visible)
 show()
-assert(journal.characterPanel.visible and requests == 3)
+assert(journal.characterPanel.visible and requests == 5)
 g_game.onQuestLog({})
 assert(journal.panelQuestLog.filterPanel.lblCompleteNumber.text == 'Completed: 0')
-print('PASS: journal tabs, live updates, late/empty quest responses, filters, pins, shortcut, and session reset')
+print('PASS: journal tabs, information categories, live updates, filters, pins, shortcut, and session reset')
