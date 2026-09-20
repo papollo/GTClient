@@ -545,7 +545,7 @@ protected:
     static void processEditList(uint32_t id, uint8_t doorId, std::string_view text);
 
     // questlog
-    static void processQuestLog(const std::vector<std::tuple<uint16_t, std::string, bool>>& questList);
+    static void processQuestLog(const std::vector<std::tuple<uint16_t, std::string, bool, uint8_t>>& questList);
     static void processQuestLine(uint16_t questId, const std::vector<std::tuple<std::string, std::string, uint16_t>>& questMissions);
 
     // modal dialogs >= 970

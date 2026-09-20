@@ -488,7 +488,7 @@ void Game::processEditList(const uint32_t id, const uint8_t doorId, const std::s
     g_lua.callGlobalField("g_game", "onEditList", id, doorId, text);
 }
 
-void Game::processQuestLog(const std::vector<std::tuple<uint16_t, std::string, bool>>& questList)
+void Game::processQuestLog(const std::vector<std::tuple<uint16_t, std::string, bool, uint8_t>>& questList)
 {
     g_lua.callGlobalField("g_game", "onQuestLog", questList);
 }
@@ -2003,4 +2003,3 @@ void Game::sendRequestTrackerQuestLog(const std::map<uint16_t, std::string>& que
 
     m_protocolGame->sendRequestTrackerQuestLog(quests);
 }
-

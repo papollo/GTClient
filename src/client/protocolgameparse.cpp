@@ -3271,13 +3271,14 @@ void ProtocolGame::parseAutomapFlag(const InputMessagePtr& msg)
 void ProtocolGame::parseQuestLog(const InputMessagePtr& msg)
 {
     const uint16_t questsCount = msg->getU16();
-    std::vector<std::tuple<uint16_t, std::string, bool>> questList;
+    std::vector<std::tuple<uint16_t, std::string, bool, uint8_t>> questList;
 
     for (auto i = 0; i < questsCount; ++i) {
         const uint16_t id = msg->getU16();
         const auto& questName = msg->getString();
         const bool questCompleted = static_cast<bool>(msg->getU8());
-        questList.emplace_back(id, questName, questCompleted);
+        const uint8_t category = msg->getU8();
+        questList.emplace_back(id, questName, questCompleted, category);
     }
 
     g_game.processQuestLog(questList);

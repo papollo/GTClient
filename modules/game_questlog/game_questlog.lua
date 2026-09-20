@@ -1,6 +1,10 @@
 questLogController = Controller:new()
 -- The current module may be unavailable while dependencies are being loaded.
 questLogController.name = 'game_questlog'
+questLogController.currentSortOrders = {
+    quests = 'Alphabetically (A-Z)',
+    information = 'Alphabetically (A-Z)'
+}
 
 -- @ todo
 -- test tracker onUpdateQuestTracker
@@ -17,6 +21,10 @@ local updatingTrackerCheck = false
 local characterRows = {}
 local characterSections = {}
 local SORT_OPTIONS = { 'Alphabetically (A-Z)', 'Alphabetically (Z-A)', 'Completed on Top', 'Completed on Bottom' }
+local INFORMATION_SORT_OPTIONS = { 'Alphabetically (A-Z)', 'Alphabetically (Z-A)' }
+local CATEGORY_QUEST = 0
+local CATEGORY_INFORMATION = 1
+local TRACKER_SETTINGS_VERSION = 2
 
 -- @widgets
 local UICheckBox = {
@@ -41,8 +49,20 @@ local UITextEdit = {
 }
 
 -- variable
-local settings = {}
+local settings = {
+    version = TRACKER_SETTINGS_VERSION,
+    characters = {}
+}
 local namePlayer = ""
+local journalLists = {
+    quests = {},
+    information = {}
+}
+local questItemState = {}
+local selectedJournalId = nil
+local trackerValidationPending = {}
+local trackerValidationChanged = false
+local updatingSortOptions = false
 local questLogCache = {
     items = {},
     completed = 0,
@@ -63,10 +83,11 @@ local file = "/settings/questtracking.json"
 =================================================== ]] --
 
 local function isIdInTracker(key, id)
-    if not settings[key] then
+    local entries = settings.characters and settings.characters[key]
+    if not entries then
         return false
     end
-    return table.findbyfield(settings[key], 1, tonumber(id)) ~= nil
+    return table.findbyfield(entries, 'missionId', tonumber(id)) ~= nil
 end
 
 local function setTrackerChecked(checked)
@@ -75,22 +96,33 @@ local function setTrackerChecked(checked)
     updatingTrackerCheck = false
 end
 
-local function addUniqueIdQuest(key, id, name)
-    if not settings[key] then
-        settings[key] = {}
+local function addUniqueIdQuest(key, id, name, questId)
+    if not settings.characters[key] then
+        settings.characters[key] = {}
     end
 
     if not isIdInTracker(key, id) then
-        table.insert(settings[key], {tonumber(id), name})
+        table.insert(settings.characters[key], {
+            missionId = tonumber(id),
+            missionName = name,
+            questId = tonumber(questId)
+        })
     end
 end
 
 local function removeNumber(key, id)
-    if settings[key] then
-        table.remove_if(settings[key], function(_, v)
-            return v[1] == tonumber(id)
+    if settings.characters and settings.characters[key] then
+        table.remove_if(settings.characters[key], function(_, v)
+            return v.missionId == tonumber(id)
         end)
     end
+end
+
+local function emptyTrackerSettings()
+    return {
+        version = TRACKER_SETTINGS_VERSION,
+        characters = {}
+    }
 end
 
 local function load()
@@ -99,12 +131,17 @@ local function load()
             return json.decode(g_resources.readFileContents(file))
         end)
         if not status then
-            return g_logger.error(
-                "Error while reading profiles file. To fix this problem you can delete storage.json. Details: " ..
-                    result)
+            g_logger.error(
+                "Error while reading quest tracker settings. The tracker will be reset. Details: " .. result)
+            return emptyTrackerSettings(), true
         end
-        return result or {}
+        local version = type(result) == 'table' and tonumber(result.version) or nil
+        if not version or version < TRACKER_SETTINGS_VERSION or type(result.characters) ~= 'table' then
+            return emptyTrackerSettings(), true
+        end
+        return result, false
     end
+    return emptyTrackerSettings(), false
 end
 
 local function save()
@@ -156,7 +193,7 @@ local sortFunctions = {
 local function sendQuestTracker(listToMap)
     local map = {}
     for _, entry in ipairs(listToMap) do
-        map[entry[1]] = entry[2]
+        map[entry.missionId] = entry.missionName
     end
     g_game.sendRequestTrackerQuestLog(map)
 end
@@ -189,7 +226,7 @@ local function resetItemCategorySelection(list)
     end
 end
 
-local function createQuestItem(parent, id, text, color, icon)
+local function createQuestItem(parent, id, text, color, icon, trackQuestState)
     local item = g_ui.createWidget("QuestLogLabel", parent)
     item:setId(id)
     item:setText(text)
@@ -199,12 +236,13 @@ local function createQuestItem(parent, id, text, color, icon)
     item.BaseColor = color
     item.isPinned = false
     item.isComplete = false
+    item.isHiddenQuestLog = false
     if icon then
         item:setIcon(icon)
     end
     if parent == UITextList.questLogList then
         table.insert(questLogCache.items, item)
-        if icon ~= "" then
+        if trackQuestState and icon ~= "" then
             item.isComplete = true
             questLogCache.completed = questLogCache.completed + 1
         end
@@ -231,7 +269,9 @@ local function recolorVisibleItems()
 end
 
 local function sortQuestList(questList, sortOrder)
-    questLogController.currentSortOrder = sortOrder
+    if activeTab == 'quests' or activeTab == 'information' then
+        questLogController.currentSortOrders[activeTab] = sortOrder
+    end
     local pinnedItems = {}
     local regularItems = {}
     for _, child in pairs(questLogCache.items) do
@@ -262,26 +302,27 @@ local function sortQuestList(questList, sortOrder)
 end
 
 
-local function setupQuestItemClickHandler(item, isQuestList)
+local function setupQuestItemClickHandler(item, isQuestList, questControls)
     function item:onClick()
         local list = isQuestList and UITextList.questLogList or UITextList.questLogLine
         resetItemCategorySelection(list)
         self:setChecked(true)
         self:setBackgroundColor(COLORS.SELECTED)
         if isQuestList then
+            selectedJournalId = tonumber(self:getId())
             g_game.requestQuestLine(self:getId())
-            self.iconShow:setVisible(true)
-            self.iconPin:setVisible(true)
+            self.iconShow:setVisible(questControls == true)
+            self.iconPin:setVisible(questControls == true)
             questLogController.ui.panelQuestLineSelected:setText(self:getText())
         else
             local text = self.description:gsub("\\n", "\n")
             UITextList.questLogInfo:setText(text)
         end
-        setTrackerChecked(not isQuestList and
+        setTrackerChecked(activeTab == 'quests' and not isQuestList and
             isIdInTracker(g_game.getCharacterName():lower(), tonumber(self:getId())))
     end
 
-    if isQuestList then
+    if isQuestList and questControls then
         function item.iconPin:onClick(mousePos)
             local parent = self:getParent()
             parent.isPinned = not parent.isPinned
@@ -297,7 +338,8 @@ local function setupQuestItemClickHandler(item, isQuestList)
             else
                 self:setImageColor("#ffffff")
                 self:setVisible(false)
-                sortQuestList(UITextList.questLogList, questLogController.currentSortOrder or "Alphabetically (A-Z)")
+                sortQuestList(UITextList.questLogList,
+                    questLogController.currentSortOrders.quests or "Alphabetically (A-Z)")
             end
             return true
         end
@@ -340,6 +382,94 @@ local function setupQuestItemClickHandler(item, isQuestList)
             return true
         end
     end
+end
+
+local function rememberQuestItemState()
+    if activeTab ~= 'quests' then
+        return
+    end
+    for _, item in ipairs(questLogCache.items) do
+        questItemState[tonumber(item:getId())] = {
+            pinned = item.isPinned == true,
+            hidden = item.isHiddenQuestLog == true
+        }
+    end
+end
+
+local function resetJournalDetails()
+    selectedJournalId = nil
+    UITextList.questLogLine:destroyChildren()
+    UITextList.questLogInfo:setText('')
+    local emptyLabel = activeTab == 'information' and 'No information selected' or 'No quest line Selected'
+    questLogController.ui.panelQuestLineSelected:setText(tr(emptyLabel))
+    setTrackerChecked(false)
+end
+
+local function configureSortOptions(tab)
+    local filter = questLogController.ui.panelQuestLog.comboBoxFilter
+    local options = tab == 'information' and INFORMATION_SORT_OPTIONS or SORT_OPTIONS
+    local sortOrder = questLogController.currentSortOrders[tab] or options[1]
+    updatingSortOptions = true
+    filter:clearOptions()
+    for _, option in ipairs(options) do
+        filter:addOption(tr(option), option)
+    end
+    filter:setCurrentOption(tr(sortOrder), true)
+    updatingSortOptions = false
+end
+
+local function configureJournalControls(tab)
+    local quests = tab == 'quests'
+    local filterPanel = questLogController.ui.panelQuestLog.filterPanel
+    questLogController.ui.panelQuestLog.title:setText(tr(quests and 'Quests' or 'Information'))
+    filterPanel:setVisible(quests)
+    filterPanel:setHeight(quests and 44 or 0)
+    questLogController.ui.trackerButton:setVisible(quests and g_game.getClientVersion() >= 1280)
+    UICheckBox.showInQuestTracker:setVisible(quests and g_game.getClientVersion() >= 1280)
+    UICheckBox.showInQuestTracker:setHeight(quests and 18 or 0)
+    configureSortOptions(tab)
+end
+
+local function renderJournalList(tab)
+    rememberQuestItemState()
+    UITextList.questLogList:destroyChildren()
+    resetJournalDetails()
+
+    local list = journalLists[tab] or {}
+    local quests = tab == 'quests'
+    questLogCache = {
+        items = {},
+        completed = 0,
+        hidden = 0,
+        visible = #list
+    }
+
+    local categoryColor = COLORS.BASE_1
+    for _, data in ipairs(list) do
+        local id, entryName, completed = unpack(data)
+        local icon = quests and completed and "/game_cyclopedia/images/checkmark-icon" or ""
+        local item = createQuestItem(UITextList.questLogList, id, entryName, categoryColor, icon, quests)
+        if quests then
+            local state = questItemState[tonumber(id)]
+            if state then
+                item.isPinned = state.pinned
+                item.isHiddenQuestLog = state.hidden
+                item.iconPin:setImageColor(state.pinned and '#00ff00' or '#ffffff')
+                item.iconShow:setImageColor(state.hidden and '#ff0000' or '#ffffff')
+                if state.hidden then
+                    questLogCache.hidden = questLogCache.hidden + 1
+                end
+            end
+        end
+        setupQuestItemClickHandler(item, true, quests)
+        categoryColor = categoryColor == COLORS.BASE_1 and COLORS.BASE_2 or COLORS.BASE_1
+    end
+
+    local options = quests and SORT_OPTIONS or INFORMATION_SORT_OPTIONS
+    local sortOrder = questLogController.currentSortOrders[tab] or options[1]
+    sortQuestList(UITextList.questLogList, sortOrder)
+    filterQuestList(UITextEdit.search.SearchEdit:getText())
+    updateQuestCounter()
 end
 
 --[[=================================================
@@ -406,21 +536,26 @@ function questLogController:refreshCharacter()
 end
 
 function questLogController:selectTab(tab, requestQuests)
-    if not self.ui or (tab ~= 'character' and tab ~= 'quests') then
+    if not self.ui or (tab ~= 'character' and tab ~= 'quests' and tab ~= 'information') then
         return
     end
+    rememberQuestItemState()
     local changed = activeTab ~= tab
     activeTab = tab
-    local quests = tab == 'quests'
-    self.ui.characterTab:setOn(not quests)
-    self.ui.questsTab:setOn(quests)
-    self.ui.characterPanel:setVisible(not quests)
-    self.ui.panelQuestLog:setVisible(quests)
-    self.ui.panelQuestLineSelected:setVisible(quests)
-    self.ui.trackerButton:setVisible(quests and g_game.getClientVersion() >= 1280)
-    if quests and g_game.isOnline() and (changed or requestQuests) then
+    local journal = tab == 'quests' or tab == 'information'
+    self.ui.characterTab:setOn(tab == 'character')
+    self.ui.questsTab:setOn(tab == 'quests')
+    self.ui.informationTab:setOn(tab == 'information')
+    self.ui.characterPanel:setVisible(not journal)
+    self.ui.panelQuestLog:setVisible(journal)
+    self.ui.panelQuestLineSelected:setVisible(journal)
+    if journal then
+        configureJournalControls(tab)
+        renderJournalList(tab)
+    end
+    if journal and g_game.isOnline() and (changed or requestQuests) then
         g_game.requestQuestLog()
-    elseif not quests then
+    elseif not journal then
         self:refreshCharacter()
     end
 end
@@ -482,9 +617,9 @@ local function showQuestTracker()
         local menu = g_ui.createWidget('PopupMenu')
         menu:setGameMenu(true)
         menu:addOption('Remove All quest', function()
-            if settings[namePlayer] then
-                table.clear(settings[namePlayer])
-                sendQuestTracker(settings[namePlayer])
+            if settings.characters[namePlayer] then
+                table.clear(settings.characters[namePlayer])
+                sendQuestTracker(settings.characters[namePlayer])
                 trackerMiniWindow.contentsPanel.list:getLayout():enableUpdates()
                 trackerMiniWindow.contentsPanel.list:getLayout():update()
             end
@@ -517,56 +652,117 @@ end
 --[[=================================================
 =                      onParse                      =
 =================================================== ]] --
-local function onQuestLog(questList)
-    local previous = {}
-    for _, item in ipairs(questLogCache.items) do
-        previous[item:getId()] = { pinned = item.isPinned, hidden = item.isHiddenQuestLog }
+local function completeTrackerValidation()
+    if next(trackerValidationPending) then
+        return
     end
-    UITextList.questLogList:destroyChildren()
-    
-    UITextList.questLogLine:destroyChildren()
-    UITextList.questLogInfo:setText("")
-    questLogController.ui.panelQuestLineSelected:setText(tr('No quest line Selected'))
-    setTrackerChecked(false)
+    local changed = trackerValidationChanged
+    if changed then
+        save()
+        trackerValidationChanged = false
+    end
+    local entries = settings.characters[namePlayer] or {}
+    if #entries > 0 or (changed and trackerMiniWindow) then
+        sendQuestTracker(entries)
+    elseif trackerMiniWindow then
+        trackerMiniWindow.contentsPanel.list:destroyChildren()
+    end
+end
 
-    questLogCache = {
-        items = {},
-        completed = 0,
-        hidden = 0,
-        visible = #questList
+local function validateTrackerParents(availableQuestIds)
+    local storedEntries = settings.characters[namePlayer]
+    local entries = {}
+    settings.characters[namePlayer] = entries
+    trackerValidationPending = {}
+    trackerValidationChanged = false
+
+    if storedEntries ~= nil and type(storedEntries) ~= 'table' then
+        trackerValidationChanged = true
+        storedEntries = {}
+    end
+    for _, entry in pairs(storedEntries or {}) do
+        local valid = type(entry) == 'table' and tonumber(entry.missionId) and
+            type(entry.missionName) == 'string' and tonumber(entry.questId) and
+            availableQuestIds[tonumber(entry.questId)] == true
+        if not valid then
+            trackerValidationChanged = true
+        else
+            entry.missionId = tonumber(entry.missionId)
+            entry.questId = tonumber(entry.questId)
+            table.insert(entries, entry)
+            trackerValidationPending[entry.questId] = true
+        end
+    end
+
+    if not next(trackerValidationPending) then
+        completeTrackerValidation()
+        return
+    end
+    for questId in pairs(trackerValidationPending) do
+        g_game.requestQuestLine(questId)
+    end
+end
+
+local function onQuestLog(questList)
+    local availableQuestIds = {}
+    journalLists = {
+        quests = {},
+        information = {}
     }
 
-    local categoryColor = COLORS.BASE_1
-    for _, data in pairs(questList) do
-        local id, questName, questCompleted = unpack(data)
-        local icon = questCompleted and "/game_cyclopedia/images/checkmark-icon" or ""
-        local itemCat = createQuestItem(UITextList.questLogList, id, questName, categoryColor, icon)
-        local state = previous[itemCat:getId()]
-        if state then
-            itemCat.isPinned = state.pinned
-            itemCat.isHiddenQuestLog = state.hidden
-            itemCat.iconPin:setImageColor(state.pinned and '#00ff00' or '#ffffff')
-            itemCat.iconShow:setImageColor(state.hidden and '#ff0000' or '#ffffff')
-            if state.hidden then
-                questLogCache.hidden = questLogCache.hidden + 1
-            end
+    for _, data in ipairs(questList) do
+        local id, entryName, completed, category = unpack(data)
+        if category == CATEGORY_QUEST then
+            table.insert(journalLists.quests, {id, entryName, completed})
+            availableQuestIds[tonumber(id)] = true
+        elseif category == CATEGORY_INFORMATION then
+            table.insert(journalLists.information, {id, entryName, false})
+        else
+            g_logger.warning(string.format('Ignoring journal entry %s with unknown category %s',
+                tostring(id), tostring(category)))
         end
-        setupQuestItemClickHandler(itemCat, true)
-        categoryColor = categoryColor == COLORS.BASE_1 and COLORS.BASE_2 or COLORS.BASE_1
     end
-    sortQuestList(UITextList.questLogList, questLogController.currentSortOrder or SORT_OPTIONS[1])
-    filterQuestList(UITextEdit.search.SearchEdit:getText())
-    updateQuestCounter()
+
+    if g_game.getClientVersion() >= 1280 then
+        validateTrackerParents(availableQuestIds)
+    end
+    if activeTab == 'quests' or activeTab == 'information' then
+        renderJournalList(activeTab)
+    end
 end
 
 local function onQuestLine(questId, questMissions)
+    questId = tonumber(questId)
+    if trackerValidationPending[questId] then
+        local availableMissions = {}
+        for _, data in ipairs(questMissions) do
+            local missionId = tonumber(data[3])
+            if missionId then
+                availableMissions[missionId] = true
+            end
+        end
+        local entries = settings.characters[namePlayer] or {}
+        for index = #entries, 1, -1 do
+            local entry = entries[index]
+            if entry.questId == questId and not availableMissions[entry.missionId] then
+                table.remove(entries, index)
+                trackerValidationChanged = true
+            end
+        end
+        trackerValidationPending[questId] = nil
+        completeTrackerValidation()
+    end
+
+    if selectedJournalId ~= questId or (activeTab ~= 'quests' and activeTab ~= 'information') then
+        return
+    end
     UITextList.questLogLine:destroyChildren()
     local categoryColor = COLORS.BASE_1
-    for _, data in pairs(questMissions) do
+    for _, data in ipairs(questMissions) do
         local missionName, missionDescription, missionId = unpack(data)
         local itemCat = createQuestItem(UITextList.questLogLine, missionId, missionName, categoryColor)
         itemCat.description = missionDescription
-        setupQuestItemClickHandler(itemCat, false)
+        setupQuestItemClickHandler(itemCat, false, activeTab == 'quests')
         categoryColor = categoryColor == COLORS.BASE_1 and COLORS.BASE_2 or COLORS.BASE_1
     end
 end
@@ -600,8 +796,9 @@ end
 =               onCall otui / html                  =
 =================================================== ]] --
 function filterQuestList(searchText)
-    local showComplete = UICheckBox.showComplete:isChecked()
-    local showHidden = UICheckBox.showShidden:isChecked()
+    local quests = activeTab == 'quests'
+    local showComplete = not quests or UICheckBox.showComplete:isChecked()
+    local showHidden = quests and UICheckBox.showShidden:isChecked()
     local searchPattern = searchText and string.lower(searchText) or nil
     questLogCache.visible = 0
     for _, child in pairs(questLogCache.items) do
@@ -635,7 +832,7 @@ function filterQuestList(searchText)
 end
 
 function questLogController:onCheckChangeQuestTracker(event)
-    if updatingTrackerCheck or g_game.getClientVersion() < 1280 then
+    if updatingTrackerCheck or activeTab ~= 'quests' or g_game.getClientVersion() < 1280 then
         return
     end
     if UITextList.questLogLine:hasChildren() and UITextList.questLogLine:getFocusedChild() then
@@ -646,7 +843,7 @@ function questLogController:onCheckChangeQuestTracker(event)
             elseif not trackerMiniWindow:isVisible() then
                 toggleTracker()
             end
-            addUniqueIdQuest(namePlayer, id, UITextList.questLogLine:getFocusedChild():getText())
+            addUniqueIdQuest(namePlayer, id, UITextList.questLogLine:getFocusedChild():getText(), selectedJournalId)
         else
             removeNumber(namePlayer, id, UITextList.questLogLine:getFocusedChild():getText())
             local trackerLabel = trackerMiniWindow and trackerMiniWindow.contentsPanel.list:getChildById(tostring(id))
@@ -655,14 +852,14 @@ function questLogController:onCheckChangeQuestTracker(event)
                 trackerLabel = nil
             end
         end
-        if settings[namePlayer] and (event.checked == isIdInTracker(namePlayer, id)) then
-            sendQuestTracker(settings[namePlayer])
+        if settings.characters[namePlayer] and (event.checked == isIdInTracker(namePlayer, id)) then
+            sendQuestTracker(settings.characters[namePlayer])
         end
     end
 end
 
 function questLogController:onFilterQuestLog(event)
-    if sortFunctions[event.text] then
+    if not updatingSortOptions and sortFunctions[event.text] then
         sortQuestList(UITextList.questLogList, event.text)
     end
 end
@@ -712,8 +909,8 @@ function onQuestLogMousePress(widget, mousePos, mouseButton)
     menu:setGameMenu(true)
     menu:addOption(tr('remove'), function()
         removeNumber(namePlayer, widget:getParent():getId())
-        if settings[namePlayer] then
-            sendQuestTracker(settings[namePlayer])
+        if settings.characters[namePlayer] then
+            sendQuestTracker(settings.characters[namePlayer])
         end
         widget:getParent():destroy()
     end)
@@ -806,9 +1003,12 @@ function questLogController:onGameStart()
     self:selectTab('character')
     if g_game.getClientVersion() >= 1280 then
         namePlayer = g_game.getCharacterName():lower()
-        settings = load() or {}
-        if settings[namePlayer] then
-            sendQuestTracker(settings[namePlayer])
+        local migrated
+        settings, migrated = load()
+        if migrated then
+            g_logger.info('Quest tracker settings migrated to version ' .. TRACKER_SETTINGS_VERSION ..
+                '; previous tracked missions were cleared.')
+            save()
         end
         if not buttonQuestLogTrackerButton then
             buttonQuestLogTrackerButton = modules.game_mainpanel.addToggleButton("QuestLogTracker",
@@ -819,6 +1019,8 @@ function questLogController:onGameStart()
         if trackerMiniWindow then
             trackerMiniWindow:setupOnStart()
         end
+        -- The list is needed to validate persisted tracker entries before sending them.
+        g_game.requestQuestLog()
     else
         UICheckBox.showInQuestTracker:setVisible(false)
         questLogController.ui.trackerButton:setVisible(false)
@@ -835,12 +1037,20 @@ function questLogController:onGameEnd()
     UITextList.questLogLine:destroyChildren()
     UITextList.questLogInfo:setText('')
     questLogCache = { items = {}, completed = 0, hidden = 0, visible = 0 }
+    journalLists = { quests = {}, information = {} }
+    questItemState = {}
+    selectedJournalId = nil
+    trackerValidationPending = {}
+    trackerValidationChanged = false
     setTrackerChecked(false)
     UICheckBox.showComplete:setChecked(true)
     UICheckBox.showShidden:setChecked(false)
     UITextEdit.search.SearchEdit:clearText()
-    self.ui.panelQuestLog.comboBoxFilter:setCurrentOption(tr(SORT_OPTIONS[1]))
-    self.currentSortOrder = SORT_OPTIONS[1]
+    self.currentSortOrders = {
+        quests = SORT_OPTIONS[1],
+        information = INFORMATION_SORT_OPTIONS[1]
+    }
+    configureSortOptions('quests')
     self.ui.panelQuestLineSelected:setText(tr('No quest line Selected'))
     updateQuestCounter()
     for _, row in pairs(characterRows) do

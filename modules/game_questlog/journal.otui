@@ -79,6 +79,13 @@ MainWindow
     anchors.top: parent.top
     margin-left: 6
     @onClick: modules.game_questlog.questLogController:selectTab('quests')
+  JournalTab
+    id: informationTab
+    !text: tr('Information')
+    anchors.left: questsTab.right
+    anchors.top: parent.top
+    margin-left: 6
+    @onClick: modules.game_questlog.questLogController:selectTab('information')
 
   Panel
     id: characterPanel
