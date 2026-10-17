@@ -1318,13 +1318,15 @@ void ProtocolGame::sendMarketCreateOffer(const uint8_t type, const uint16_t item
     msg->addU8(Proto::ClientMarketCreate);
     msg->addU8(type);
     msg->addU16(itemId);
-    if (const auto& item = Item::create(itemId)) {
-        if (item->getClassification() > 0) {
-            msg->addU8(itemTier);
-        }
+    if (m_marketTierCapability && itemTier > 0) {
+        msg->addU8(itemTier);
     }
     msg->addU16(amount);
-    msg->addU64(price);
+    if (g_game.getClientVersion() >= 1281) {
+        msg->addU64(price);
+    } else {
+        msg->addU32(static_cast<uint32_t>(price));
+    }
     msg->addU8(anonymous);
     send(msg);
 }

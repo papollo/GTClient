@@ -1,19 +1,33 @@
 MarketItemBox < UICheckBox
   id: itemBox
+  height: 36
   border-width: 1
   border-color: #000000
   color: #aaaaaa
-  text-align: center
 
   Item
     id: item
     phantom: true
     virtual: true
-    text-offset: 0 22
+    size: 24 24
+    text-offset: 0 10
     text-align: right
-    anchors.top: parent.top
-    anchors.horizontalCenter: parent.horizontalCenter
-    margin: 1
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 3
+
+  Label
+    id: itemName
+    phantom: true
+    height: 30
+    anchors.left: item.right
+    anchors.right: parent.right
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 5
+    margin-right: 4
+    font: verdana-11px-rounded
+    text-offset: 0 1
+    text-wrap: true
 
   $checked:
     border-color: #ffffff
@@ -39,52 +53,13 @@ Panel
     margin-left: 3
 
   MarketComboBox
-    id: subCategoryComboBox
+    id: tierComboBox
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     margin-top: 3
     margin-right: 3
     margin-left: 3
-
-    $disabled:
-      color: #aaaaaa44
-
-  MarketButtonBox
-    id: filterLevel
-    &default: false
-    !text: tr('Level')
-    !tooltip: tr('Filter list to match your level')
-    anchors.top: prev.bottom
-    anchors.left: parent.left
-    margin-top: 3
-    margin-right: 3
-    margin-left: 3
-    width: 40
-    height: 20
-
-  MarketButtonBox
-    id: filterVocation
-    &default: false
-    !text: tr('Voc.')
-    !tooltip: tr('Filter list to match your vocation')
-    anchors.top: prev.top
-    anchors.left: prev.right
-    margin-right: 3
-    margin-left: 3
-    width: 34
-    height: 20
-
-  MarketComboBox
-    id: slotComboBox
-    anchors.top: prev.top
-    anchors.left: prev.right
-    anchors.right: parent.right
-    margin-right: 3
-    margin-left: 3
-
-    $disabled:
-      color: #aaaaaa44
 
   MarketButtonBox
     id: filterDepot
@@ -94,7 +69,7 @@ Panel
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    margin-top: 6
+    margin-top: 3
     margin-right: 3
     margin-left: 3
 
@@ -114,7 +89,7 @@ Panel
       anchors.top: parent.top
       anchors.bottom: parent.bottom
       anchors.right: parent.right
-      step: 28
+      step: 36
       pixels-scroll: true
 
     ScrollablePanel
@@ -125,15 +100,12 @@ Panel
       anchors.bottom: parent.bottom
       vertical-scrollbar: itemsPanelListScrollBar
       layout:
-        type: grid
-        cell-size: 36 36
-        flow: true
-        auto-spacing: true
+        type: verticalBox
 
   Label
     !text: tr('Find') .. ':'
-    anchors.top: prev.bottom
-    anchors.left: prev.left
+    anchors.top: itemsContainer.bottom
+    anchors.left: itemsContainer.left
     margin-top: 9
     width: 30
     font: verdana-11px-rounded
@@ -150,9 +122,36 @@ Panel
   MarketButtonBox
     id: filterSearchAll
     &default: true
-    !text: tr('All')
-    !tooltip: tr('Search all items')
+    !tooltip: tr('Ignoruj kategorie')
+    width: 24
     anchors.verticalCenter: prev.verticalCenter
     anchors.left: prev.right
-    anchors.right: itemsContainer.right
     margin-left: 3
+
+    UIWidget
+      id: searchAllEnabledIcon
+      phantom: true
+      size: 14 14
+      anchors.centerIn: parent
+      image-source: /game_cyclopedia/images/checkmark-icon
+
+    UIWidget
+      id: searchCurrentCategoryIcon
+      phantom: true
+      size: 14 14
+      anchors.centerIn: parent
+      visible: false
+
+      UIWidget
+        phantom: true
+        size: 2 14
+        anchors.centerIn: parent
+        background-color: #ff0000
+        rotation: 45
+
+      UIWidget
+        phantom: true
+        size: 2 14
+        anchors.centerIn: parent
+        background-color: #ff0000
+        rotation: -45

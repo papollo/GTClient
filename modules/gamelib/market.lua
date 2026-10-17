@@ -112,6 +112,56 @@ MarketCategoryStrings = {
     [255] = 'Weapons'
 }
 
+MarketItemCategories = {
+    { id = 7, name = 'Helmets and Hats' },
+    { id = 1, name = 'Armors' },
+    { id = 8, name = 'Legs' },
+    { id = 3, name = 'Boots' },
+    { id = 13, name = 'Shields' },
+    { id = 2, name = 'Amulets' },
+    { id = 11, name = 'Rings' },
+    { id = 19, name = 'Weapons: Distance' },
+    { id = 17, name = 'Weapons: Axe' },
+    { id = 16, name = 'Weapons: Ammo' },
+    { id = 20, name = 'Weapons: Swords' },
+    { id = 18, name = 'Weapons: Clubs' },
+    { id = 21, name = 'Weapons: Wands' },
+    { id = 12, name = 'Runes' },
+    { id = 5, name = 'Decoration' },
+    { id = 15, name = 'Valuables' },
+    { id = 6, name = 'Food' },
+    { id = 10, name = 'Potions' },
+    { id = 9, name = 'Others' },
+    { id = 4, name = 'Containers' },
+    { id = 14, name = 'Tools' },
+    { id = 22, name = 'Premium Scrolls' },
+}
+
+MarketCategoryDisplayNames = {
+    [7] = 'Helmets',
+    [1] = 'Armors',
+    [8] = 'Legs',
+    [3] = 'Boots',
+    [13] = 'Belts',
+    [2] = 'Amulets',
+    [11] = 'Rings',
+    [19] = 'Crossbows',
+    [17] = 'Bows',
+    [16] = 'Ammunition',
+    [20] = 'One-handed',
+    [18] = 'Two-handed',
+    [21] = 'Wands',
+    [12] = 'Runes and scrolls',
+    [5] = 'Trophies',
+    [15] = 'Valuables',
+    [6] = 'Food',
+    [10] = 'Potions',
+    [9] = 'Others',
+    [4] = 'Containers',
+    [14] = 'Tools',
+    [22] = 'Premium Scrolls'
+}
+
 function getMarketCategoryName(id)
     if table.haskey(MarketCategoryStrings, id) then
         return MarketCategoryStrings[id]

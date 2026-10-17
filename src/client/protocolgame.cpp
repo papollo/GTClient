@@ -48,6 +48,7 @@ void ProtocolGame::login(const std::string_view accountName, const std::string_v
 void ProtocolGame::onConnect()
 {
     m_firstRecv = true;
+    m_marketTierCapability = false;
     Protocol::onConnect();
 
     m_localPlayer = g_game.getLocalPlayer();

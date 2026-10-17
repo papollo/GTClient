@@ -26,6 +26,7 @@
 #include "declarations.h"
 #include "protocolcodes.h"
 #include <framework/net/protocol.h>
+#include <unordered_set>
 
 class ProtocolGame final : public Protocol
 {
@@ -363,7 +364,7 @@ private:
     void parseCreatureShader(const InputMessagePtr& msg);
     void parseMapShader(const InputMessagePtr& msg);
 
-    MarketOffer readMarketOffer(const InputMessagePtr& msg, uint8_t action, uint16_t var);
+    MarketOffer readMarketOffer(const InputMessagePtr& msg, uint8_t action, uint16_t var, uint8_t itemTier = 0);
 
     Imbuement getImbuementInfo(const InputMessagePtr& msg);
     PreyMonster getPreyMonster(const InputMessagePtr& msg) const;
@@ -383,6 +384,8 @@ public:
 
 private:
     bool m_enableSendExtendedOpcode{ false };
+    bool m_marketTierCapability{ false };
+    std::unordered_set<uint16_t> m_marketTierItemIds;
     bool m_gameInitialized{ false };
     bool m_mapKnown{ false };
     bool m_firstRecv{ true };

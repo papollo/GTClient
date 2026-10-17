@@ -41,6 +41,7 @@ if /I "%TARGET_DIR%"=="%TEST_TARGET_DIR%" (
 )
 
 if "%USE_FALLBACK%"=="0" (
+    call :clear_stale_cache "%NINJA_BUILD_DIR%" || exit /b 1
     echo [1/7] Configuring windows release package build...
     cmake -S "%SOURCE_DIR%" -B "%NINJA_BUILD_DIR%" -G Ninja -D CMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" -D BUILD_STATIC_LIBRARY=ON -D VCPKG_TARGET_TRIPLET=x64-windows-static -D CMAKE_BUILD_TYPE=%BUILD_CONFIG% -D TOGGLE_BIN_FOLDER=ON
     if errorlevel 1 (
@@ -55,6 +56,7 @@ if "%USE_FALLBACK%"=="0" (
         exit /b 1
     )
 ) else (
+    call :clear_stale_cache "%FALLBACK_BUILD_DIR%" || exit /b 1
     echo [1/7] Configuring windows release package build with MSBuild...
     cmake -S "%SOURCE_DIR%" -B "%FALLBACK_BUILD_DIR%" -G "Visual Studio 17 2022" -A x64 -D CMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" -D BUILD_STATIC_LIBRARY=ON -D VCPKG_TARGET_TRIPLET=x64-windows-static -D CMAKE_BUILD_TYPE=%BUILD_CONFIG% -D TOGGLE_BIN_FOLDER=ON
     if errorlevel 1 (
@@ -92,13 +94,29 @@ for %%F in (init.lua otclientrc.lua cacert.pem) do (
     )
 )
 
-call :copy_runtime_files "%NINJA_BUILD_DIR%\bin" || exit /b 1
-call :copy_runtime_files "%NINJA_BUILD_DIR%\bin\%BUILD_CONFIG%" || exit /b 1
-call :copy_runtime_files "%NINJA_BUILD_DIR%\%BUILD_CONFIG%" || exit /b 1
-call :copy_runtime_files "%FALLBACK_BUILD_DIR%\bin\%BUILD_CONFIG%" || exit /b 1
-call :copy_runtime_files "%FALLBACK_BUILD_DIR%\bin" || exit /b 1
-call :copy_runtime_files "%FALLBACK_BUILD_DIR%\%BUILD_CONFIG%" || exit /b 1
-call :copy_runtime_files "%FALLBACK_BUILD_DIR%\Release" || exit /b 1
+for %%D in (
+    "%NINJA_BUILD_DIR%\bin"
+    "%NINJA_BUILD_DIR%\bin\%BUILD_CONFIG%"
+    "%NINJA_BUILD_DIR%\%BUILD_CONFIG%"
+    "%FALLBACK_BUILD_DIR%\bin\%BUILD_CONFIG%"
+    "%FALLBACK_BUILD_DIR%\bin"
+    "%FALLBACK_BUILD_DIR%\%BUILD_CONFIG%"
+    "%FALLBACK_BUILD_DIR%\Release"
+) do (
+    if exist "%%~fD\." (
+        for %%F in ("%%~fD\otclient*.exe") do (
+            if exist "%%~fF" (
+                call :copy_file "%%~fF" "%TARGET_DIR%" || exit /b 1
+                set "COPIED_EXE=1"
+            )
+        )
+        for %%F in ("%%~fD\*.dll") do (
+            if exist "%%~fF" (
+                call :copy_file "%%~fF" "%TARGET_DIR%" || exit /b 1
+            )
+        )
+    )
+)
 
 if "%COPIED_EXE%"=="0" (
     echo [ERROR] No otclient executable was copied. Expected Release build output was not found.
@@ -216,6 +234,36 @@ echo Output: %TARGET_DIR%
 echo Test output: %TEST_TARGET_DIR%
 exit /b 0
 
+:clear_stale_cache
+set "CACHE_BUILD_DIR=%~1"
+for %%I in ("%CACHE_BUILD_DIR%") do set "CACHE_BUILD_DIR=%%~fI"
+for %%I in ("%SOURCE_DIR%\build") do set "EXPECTED_BUILD_ROOT=%%~fI"
+for %%I in ("%CACHE_BUILD_DIR%\..") do set "CACHE_BUILD_PARENT=%%~fI"
+
+if /I not "%CACHE_BUILD_PARENT%"=="%EXPECTED_BUILD_ROOT%" (
+    echo [ERROR] Refusing to inspect a build directory outside "%EXPECTED_BUILD_ROOT%": %CACHE_BUILD_DIR%
+    exit /b 1
+)
+if not exist "%CACHE_BUILD_DIR%\CMakeCache.txt" exit /b 0
+
+set "CACHE_SOURCE_DIR="
+for /f "tokens=1,* delims==" %%A in ('findstr /B /C:"CMAKE_HOME_DIRECTORY:INTERNAL=" "%CACHE_BUILD_DIR%\CMakeCache.txt"') do set "CACHE_SOURCE_DIR=%%B"
+if not defined CACHE_SOURCE_DIR (
+    echo [ERROR] Could not read CMAKE_HOME_DIRECTORY from "%CACHE_BUILD_DIR%\CMakeCache.txt".
+    exit /b 1
+)
+for %%I in ("%CACHE_SOURCE_DIR%") do set "CACHE_SOURCE_DIR=%%~fI"
+
+if /I "%CACHE_SOURCE_DIR%"=="%SOURCE_DIR%" exit /b 0
+
+echo [INFO] Removing stale CMake cache for "%CACHE_SOURCE_DIR%".
+rmdir /S /Q "%CACHE_BUILD_DIR%"
+if exist "%CACHE_BUILD_DIR%" (
+    echo [ERROR] Failed to remove stale build directory: %CACHE_BUILD_DIR%
+    exit /b 1
+)
+exit /b 0
+
 :clean_dir
 set "DIR_PATH=%~1"
 if not exist "%DIR_PATH%" goto :eof
@@ -226,22 +274,6 @@ set "ROBOCOPY_EXIT=%ERRORLEVEL%"
 if %ROBOCOPY_EXIT% GEQ 8 (
     echo [ERROR] Failed to clean directory: %DIR_PATH%
     exit /b 1
-)
-exit /b 0
-
-:copy_runtime_files
-set "FROM_DIR=%~1"
-if not exist "%FROM_DIR%" goto :eof
-for %%F in ("%FROM_DIR%\otclient*.exe") do (
-    if exist "%%~fF" (
-        call :copy_file "%%~fF" "%TARGET_DIR%" || exit /b 1
-        set "COPIED_EXE=1"
-    )
-)
-for %%F in ("%FROM_DIR%\*.dll") do (
-    if exist "%%~fF" (
-        call :copy_file "%%~fF" "%TARGET_DIR%" || exit /b 1
-    )
 )
 exit /b 0
 

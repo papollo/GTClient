@@ -1,33 +1,5 @@
 Cyclopedia.Items = {}
-Cyclopedia.CategoryItems = {
-    { id = 1, name = "Armors" },
-    { id = 2, name = "Amulets" },
-    { id = 3, name = "Boots" },
-    { id = 4, name = "Containers" },
-    { id = 24, name = "Creature Products" },
-    { id = 5, name = "Decoration" },
-    { id = 6, name = "Food" },
-    { id = 30, name = "Gold" },
-    { id = 7, name = "Helmets and Hats" },
-    { id = 8, name = "Legs" },
-    { id = 9, name = "Others" },
-    { id = 10, name = "Potions" },
-    { id = 25, name = "Quivers" },
-    { id = 11, name = "Rings" },
-    { id = 12, name = "Runes" },
-    { id = 13, name = "Shields" },
-    { id = 26, name = "Soul Cores" },
-    { id = 14, name = "Tools" },
-    { id = 31, name = "Unsorted" },
-    { id = 15, name = "Valuables" },
-    { id = 16, name = "Weapons: Ammo" },
-    { id = 17, name = "Weapons: Axe" },
-    { id = 18, name = "Weapons: Clubs" },
-    { id = 19, name = "Weapons: Distance" },
-    { id = 20, name = "Weapons: Swords" },
-    { id = 21, name = "Weapons: Wands" },
-    { id = 1000, name = "Weapons: All" }
-}
+Cyclopedia.CategoryItems = MarketItemCategories
 
 local UI = nil
 

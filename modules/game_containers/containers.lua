@@ -284,7 +284,7 @@ function terminate()
         onGameStart = startRestore,
         onGameEnd = onGameEnd
     })
-    ProtocolGame.unregisterExtendedJSONOpcode(CONTAINER_META_OPCODE)
+    pcall(ProtocolGame.unregisterExtendedJSONOpcode, CONTAINER_META_OPCODE)
 
     stopRestore()
     clean()

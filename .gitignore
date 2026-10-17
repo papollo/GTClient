@@ -315,6 +315,8 @@ android/app/src/main/assets
 
 # .ai
 .ai
+graphify-out
+*.md
 
 # sciprt
 build-release.ps1

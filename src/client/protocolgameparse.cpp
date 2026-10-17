@@ -3388,6 +3388,28 @@ void ProtocolGame::parseExtendedOpcode(const InputMessagePtr& msg)
     } else if (opcode == 2) {
         parsePingBack(msg);
     } else {
+        constexpr std::string_view marketTierPrefix = "market_tiers_v1:";
+        if (opcode == 203 && (buffer == "market_tiers_v1" || buffer.starts_with(marketTierPrefix))) {
+            m_marketTierCapability = true;
+            m_marketTierItemIds.clear();
+            if (buffer.starts_with(marketTierPrefix)) {
+                size_t start = marketTierPrefix.size();
+                while (start < buffer.size()) {
+                    const size_t end = buffer.find(',', start);
+                    const size_t tokenEnd = end == std::string::npos ? buffer.size() : end;
+                    const size_t idEnd = buffer.find('=', start);
+                    const size_t length = (idEnd != std::string::npos && idEnd < tokenEnd ? idEnd : tokenEnd) - start;
+                    uint16_t itemId = 0;
+                    const auto parsed = std::from_chars(buffer.data() + start, buffer.data() + start + length, itemId);
+                    if (parsed.ec == std::errc{} && parsed.ptr == buffer.data() + start + length && itemId > 0) {
+                        m_marketTierItemIds.insert(itemId);
+                    }
+                    if (end == std::string::npos) break;
+                    start = end + 1;
+                }
+            }
+            g_logger.info("[MarketTier] capability acknowledgement parsed from server on opcode 203");
+        }
         callLuaField("onExtendedOpcode", opcode, buffer);
     }
 }
@@ -5368,7 +5390,7 @@ void ProtocolGame::parseMarketEnter(const InputMessagePtr& msg)
         const auto& item = Item::create(itemId);
 
         uint8_t itemClass = 0;
-        if (item && item->getClassification() > 0) {
+        if (m_marketTierCapability && item && (item->getClassification() > 0 || m_marketTierItemIds.count(itemId))) {
             itemClass = msg->getU8();
         }
 
@@ -5390,8 +5412,13 @@ void ProtocolGame::parseMarketEnterOld(const InputMessagePtr& msg)
     std::vector<std::vector<uint16_t>> depotItems;
     for (auto i = 0; i < itemsSent; ++i) {
         const uint16_t itemId = msg->getU16();
+        uint8_t itemClass = 0;
+        const auto& item = Item::create(itemId);
+        if (m_marketTierCapability && item && (item->getClassification() > 0 || m_marketTierItemIds.count(itemId))) {
+            itemClass = msg->getU8();
+        }
         const uint16_t count = msg->getU16();
-        depotItems.push_back({ itemId, count });
+        depotItems.push_back({ itemId, count, itemClass });
     }
 
     g_lua.callGlobalField("g_game", "onMarketEnter", depotItems, offers, balance, vocation);
@@ -5400,11 +5427,9 @@ void ProtocolGame::parseMarketEnterOld(const InputMessagePtr& msg)
 void ProtocolGame::parseMarketDetail(const InputMessagePtr& msg)
 {
     const uint16_t itemId = msg->getU16();
-    if (g_game.getClientVersion() >= 1281) {
-        const auto& item = Item::create(itemId);
-        if (item && item->getClassification() > 0) {
-            msg->getU8(); // ?
-        }
+    const auto& item = Item::create(itemId);
+    if (m_marketTierCapability && item && (item->getClassification() > 0 || m_marketTierItemIds.count(itemId))) {
+        msg->getU8(); // tier
     }
 
     std::unordered_map<int, std::string> descriptions;
@@ -5484,17 +5509,18 @@ void ProtocolGame::parseMarketDetail(const InputMessagePtr& msg)
     g_lua.callGlobalField("g_game", "onMarketDetail", itemId, descriptions, purchaseStatsList, saleStatsList);
 }
 
-MarketOffer ProtocolGame::readMarketOffer(const InputMessagePtr& msg, const uint8_t action, const uint16_t var)
+MarketOffer ProtocolGame::readMarketOffer(const InputMessagePtr& msg, const uint8_t action, const uint16_t var, const uint8_t browseTier)
 {
     const uint32_t timestamp = msg->getU32();
     const uint16_t counter = msg->getU16();
     uint16_t itemId = 0;
+    uint8_t itemTier = browseTier;
     if (var == Otc::OLD_MARKETREQUEST_MY_OFFERS || var == Otc::MARKETREQUEST_OWN_OFFERS || var == Otc::OLD_MARKETREQUEST_MY_HISTORY || var == Otc::MARKETREQUEST_OWN_HISTORY) {
         itemId = msg->getU16();
-        if (g_game.getClientVersion() >= 1281) {
+        if (m_marketTierCapability) {
             const auto& item = Item::create(itemId);
-            if (item && item->getClassification() > 0) {
-                msg->getU8();
+            if (item && (item->getClassification() > 0 || m_marketTierItemIds.count(itemId))) {
+                itemTier = msg->getU8();
             }
         }
     } else {
@@ -5512,7 +5538,7 @@ MarketOffer ProtocolGame::readMarketOffer(const InputMessagePtr& msg, const uint
         playerName = msg->getString();
     }
 
-    g_lua.callGlobalField("g_game", "onMarketReadOffer", action, amount, counter, itemId, playerName, price, state, timestamp, var);
+    g_lua.callGlobalField("g_game", "onMarketReadOffer", action, amount, counter, itemId, playerName, price, state, timestamp, var, itemTier);
     return { .timestamp = timestamp, .counter = counter, .action = action, .itemId = itemId, .amount = amount, .price = price,
         .playerName = playerName, .state = state, .var = var
     };
@@ -5521,17 +5547,22 @@ MarketOffer ProtocolGame::readMarketOffer(const InputMessagePtr& msg, const uint
 void ProtocolGame::parseMarketBrowse(const InputMessagePtr& msg)
 {
     uint16_t var = 0;
+    uint8_t itemTier = 0;
     if (g_game.getClientVersion() >= 1281) {
         var = msg->getU8();
-        if (var == 3) {
+        if (var == Otc::MARKETREQUEST_ITEM_BROWSE) {
             var = msg->getU16();
             const auto& item = Item::create(var);
-            if (item && item->getClassification() > 0) {
-                msg->getU8();
+            if (m_marketTierCapability && item && (item->getClassification() > 0 || m_marketTierItemIds.count(var))) {
+                itemTier = msg->getU8();
             }
         }
     } else {
         var = msg->getU16();
+        const auto& item = Item::create(var);
+        if (m_marketTierCapability && item && (item->getClassification() > 0 || m_marketTierItemIds.count(var))) {
+            itemTier = msg->getU8();
+        }
     }
 
     const uint32_t buyOfferCount = msg->getU32();
@@ -5539,11 +5570,11 @@ void ProtocolGame::parseMarketBrowse(const InputMessagePtr& msg)
     std::vector<MarketOffer> offers;
 
     for (uint32_t i = 0; i < buyOfferCount; ++i) {
-        offers.push_back(readMarketOffer(msg, Otc::MARKETACTION_BUY, var));
+        offers.push_back(readMarketOffer(msg, Otc::MARKETACTION_BUY, var, itemTier));
     }
     const uint32_t sellOfferCount = msg->getU32();
     for (uint32_t i = 0; i < sellOfferCount; ++i) {
-        offers.push_back(readMarketOffer(msg, Otc::MARKETACTION_SELL, var));
+        offers.push_back(readMarketOffer(msg, Otc::MARKETACTION_SELL, var, itemTier));
     }
 
     std::vector<std::vector<uint64_t>> intOffers;
