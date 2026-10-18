@@ -105,8 +105,8 @@ for %%D in (
 ) do (
     if exist "%%~fD\." (
         for %%F in ("%%~fD\otclient*.exe") do (
-            if exist "%%~fF" (
-                call :copy_file "%%~fF" "%TARGET_DIR%" || exit /b 1
+            if exist "%%~fF" if "!COPIED_EXE!"=="0" (
+                call :copy_executable "%%~fF" || exit /b 1
                 set "COPIED_EXE=1"
             )
         )
@@ -273,6 +273,22 @@ robocopy "%EMPTY_DIR%" "%DIR_PATH%" /MIR /NFL /NDL /NJH /NJS /NP >nul
 set "ROBOCOPY_EXIT=%ERRORLEVEL%"
 if %ROBOCOPY_EXIT% GEQ 8 (
     echo [ERROR] Failed to clean directory: %DIR_PATH%
+    exit /b 1
+)
+exit /b 0
+
+:copy_executable
+set "FILE_PATH=%~1"
+if not exist "%FILE_PATH%" goto :eof
+echo   - %~nx1 ^> GothicTales.exe
+copy /Y "%FILE_PATH%" "%TARGET_DIR%\GothicTales.exe" >nul
+if errorlevel 1 (
+    echo [ERROR] Failed to copy %~nx1 as GothicTales.exe
+    exit /b 1
+)
+copy /Y "%FILE_PATH%" "%TARGET_DIR%\otclient_x64.exe" >nul
+if errorlevel 1 (
+    echo [ERROR] Failed to copy %~nx1 as otclient_x64.exe
     exit /b 1
 )
 exit /b 0

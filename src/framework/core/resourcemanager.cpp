@@ -708,7 +708,17 @@ void ResourceManager::updateExecutable(std::string fileName)
     setWriteDir(getWorkDir());
     const std::filesystem::path path(m_binaryPath);
     const auto stem = path.stem().string();
+#if defined(WIN32)
+    const auto baseName = std::string("GothicTales");
+    const auto launcherPath = path.parent_path() / "GothicTales.exe";
+    std::error_code ec;
+    if (path != launcherPath &&
+        !std::filesystem::copy_file(path, launcherPath, std::filesystem::copy_options::skip_existing, ec) && ec) {
+        g_logger.error("Cannot create GothicTales.exe launcher: {}", ec.message());
+    }
+#else
     const auto baseName = stdext::split(stem, "-")[0];
+#endif
     const auto newBinary = baseName + "-" + std::to_string(time(nullptr)) + path.extension().string();
     g_logger.info("Updating binary file: {} (stem: {}, baseName: {}, binaryPath: {}, workDir: {})",
         newBinary, stem, baseName, m_binaryPath.string(), getWorkDir());
@@ -733,12 +743,41 @@ bool ResourceManager::launchCorrect(const std::vector<std::string>& args) { // c
 #if (defined(ANDROID) || defined(FREE_VERSION))
     return false;
 #else
+#if defined(WIN32)
+    const auto baseBinaryName = std::string("GothicTales");
+#else
     const auto currentStem = m_binaryPath.stem().string();
     const auto baseBinaryName = stdext::split(currentStem, "-")[0];
+#endif
     auto normalizedBaseBinaryName = baseBinaryName;
     stdext::tolower(normalizedBaseBinaryName);
 
     const std::filesystem::path path(m_binaryPath.parent_path());
+#if defined(WIN32)
+    const auto launcherPath = path / "GothicTales.exe";
+    bool createdLauncher = false;
+    if (m_binaryPath != launcherPath) {
+        std::error_code launcherError;
+        const bool launcherExists = std::filesystem::exists(launcherPath, launcherError);
+        if (launcherError) {
+            g_logger.error("Cannot inspect GothicTales.exe launcher: {}", launcherError.message());
+        } else if (!launcherExists) {
+            createdLauncher = std::filesystem::copy_file(m_binaryPath, launcherPath, launcherError);
+            if (launcherError)
+                g_logger.error("Cannot create GothicTales.exe launcher: {}", launcherError.message());
+        }
+    }
+    auto legacyStem = m_binaryPath.stem().string();
+    stdext::tolower(legacyStem);
+    if (m_binaryPath != launcherPath && legacyStem.starts_with("otclient-")) {
+        std::error_code launcherError;
+        if (std::filesystem::exists(launcherPath, launcherError) && !launcherError) {
+            if (g_platform.spawnProcess(launcherPath.string(), args))
+                return true;
+            g_logger.error("Cannot start GothicTales.exe launcher: {}", launcherPath.string());
+        }
+    }
+#endif
     std::error_code ec;
     auto lastWrite = last_write_time(m_binaryPath, ec);
     std::filesystem::path binary = m_binaryPath;
@@ -753,6 +792,10 @@ bool ResourceManager::launchCorrect(const std::vector<std::string>& args) { // c
             continue;
 
         if (entry.path().extension() == m_binaryPath.extension()) {
+#if defined(WIN32)
+            if (createdLauncher && entry.path() == launcherPath)
+                continue;
+#endif
             std::error_code _ec;
             auto writeTime = last_write_time(entry.path(), _ec);
             if (!_ec && writeTime > lastWrite) {
@@ -766,6 +809,18 @@ bool ResourceManager::launchCorrect(const std::vector<std::string>& args) { // c
         if (is_directory(entry.path()))
             continue;
 
+#if defined(WIN32)
+        if (m_binaryPath.filename() == "GothicTales.exe" &&
+            entry.path().extension() == m_binaryPath.extension()) {
+            auto legacyStem = entry.path().stem().string();
+            stdext::tolower(legacyStem);
+            if (legacyStem.starts_with("otclient-")) {
+                std::error_code _ec;
+                std::filesystem::remove(entry.path(), _ec);
+                continue;
+            }
+        }
+#endif
         auto fileName1 = entry.path().stem().string();
         fileName1 = stdext::split(fileName1, "-")[0];
         stdext::tolower(fileName1);
@@ -773,6 +828,8 @@ bool ResourceManager::launchCorrect(const std::vector<std::string>& args) { // c
             continue;
 
         if (entry.path().extension() == m_binaryPath.extension()) {
+            if (entry.path().filename() == "GothicTales.exe")
+                continue;
             if (binary == entry.path())
                 continue;
             std::error_code _ec;
@@ -783,7 +840,10 @@ bool ResourceManager::launchCorrect(const std::vector<std::string>& args) { // c
     if (binary == m_binaryPath)
         return false;
 
-    g_platform.spawnProcess(binary.string(), args);
+    if (!g_platform.spawnProcess(binary.string(), args)) {
+        g_logger.error("Cannot start updated client executable: {}", binary.string());
+        return false;
+    }
     return true;
 #endif
 }

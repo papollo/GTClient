@@ -18,9 +18,6 @@ local function onMarketTierCapability(_, opcode, buffer)
         for id, tier in (itemIds or ''):gmatch('(%d+)=(%d+)') do
             tieredMarketItemIds[tonumber(id)] = tonumber(tier)
         end
-        local mappedItems = 0
-        for _ in pairs(tieredMarketItemIds) do mappedItems = mappedItems + 1 end
-        g_logger.info('[MarketTier] capability acknowledgement received on opcode ' .. MARKET_TIER_OPCODE .. ', mapped items=' .. mappedItems)
     end
 end
 
@@ -32,7 +29,6 @@ end
 
 -- public functions
 function initProtocol()
-    g_logger.warning('[MarketTier] market protocol module initialized; listening on opcode ' .. MARKET_TIER_OPCODE)
     ProtocolGame.registerExtendedOpcode(MARKET_TIER_OPCODE, onMarketTierCapability)
     connect(g_game, {
         onGameStart = MarketProtocol.registerProtocol,
@@ -66,12 +62,8 @@ end
 function MarketProtocol.registerProtocol()
     MarketProtocol.updateProtocol(g_game.getProtocolGame())
     marketTierCapability = false
-    g_logger.warning('[MarketTier] game started; protocol available=' .. tostring(protocol ~= nil) .. ', client version=' .. g_game.getClientVersion())
     if protocol then
-        g_logger.warning('[MarketTier] sending capability on opcode ' .. MARKET_TIER_OPCODE .. ' for client version ' .. g_game.getClientVersion())
         protocol:sendExtendedOpcode(MARKET_TIER_OPCODE, MARKET_TIER_CAPABILITY)
-    else
-        g_logger.info('[MarketTier] capability not sent; no game protocol, client version=' .. g_game.getClientVersion())
     end
 end
 
@@ -98,9 +90,6 @@ end
 
 function MarketProtocol.sendMarketBrowse(browseId, browseType, itemTier)
     if g_game.getFeature(GamePlayerMarket) then
-        if browseId == MarketRequest.BrowseItem then
-            g_logger.info('[MarketTier] sending browse: item=' .. tostring(browseType) .. ', tier=' .. tostring(itemTier) .. ', capability=' .. tostring(marketTierCapability))
-        end
         local msg = OutputMessage.create()
         msg:addU8(ClientOpcodes.ClientMarketBrowse)
         if g_game.getClientVersion() >= 1251 then

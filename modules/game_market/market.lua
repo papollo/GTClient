@@ -768,13 +768,10 @@ local function onSelectMySellOffer(table, selectedRow, previousSelectedRow)
 end
 
 local function onChangeFilter(combobox, option)
-    local selectedTier = tierList:getCurrentOption()
-    g_logger.info('[MarketTier] filter changed: tier=' .. tostring(selectedTier and selectedTier.data) .. ', options=' .. #tierList.options)
     Market.updateCurrentItems()
 end
 
 local function ensureTierFilterOptions()
-    g_logger.info('[MarketTier] ensure options: capability=' .. tostring(MarketProtocol.hasTierCapability()) .. ', current options=' .. tostring(tierList and #tierList.options or 0))
     if not tierList or not MarketProtocol.hasTierCapability() or #tierList.options > 1 then
         return
     end
@@ -1422,13 +1419,11 @@ function Market.loadMarketItems(category)
         categories = {category}
     end
     local requestedTier = tierList:getCurrentOption().data
-    local tieredItems = 0
     for _, itemCategory in ipairs(categories) do
         for i = 1, #(marketItems[itemCategory] or {}) do
             local item = marketItems[itemCategory][i]
             local itemTier = MarketProtocol.hasTierCapability() and MarketProtocol.getMarketItemTier(item)
             if itemTier then
-                tieredItems = tieredItems + 1
                 if requestedTier == 0 or requestedTier == itemTier then
                     local variant = table.copy(item)
                     variant.tier = itemTier
@@ -1442,7 +1437,6 @@ function Market.loadMarketItems(category)
         end
     end
 
-    g_logger.info('[MarketTier] loaded category=' .. tostring(category) .. ', capability=' .. tostring(MarketProtocol.hasTierCapability()) .. ', selected tier=' .. tostring(requestedTier) .. ', tiered base items=' .. tieredItems .. ', visible items=' .. #currentItems .. ', filter options=' .. #tierList.options)
     Market.refreshItemsWidget()
 end
 
@@ -1532,7 +1526,6 @@ end
 -- protocol callback functions
 
 function Market.onMarketEnter(depotItems, offers, balance, vocation)
-    g_logger.info('[MarketTier] market entered: capability=' .. tostring(MarketProtocol.hasTierCapability()) .. ', filter options=' .. tostring(tierList and #tierList.options or 0))
     if MarketProtocol.hasTierCapability() then
         Market.onMarketTierCapability()
     end
