@@ -5387,10 +5387,8 @@ void ProtocolGame::parseMarketEnter(const InputMessagePtr& msg)
 
     for (auto i = 0; i < itemsSentCount; ++i) {
         const uint16_t itemId = msg->getU16();
-        const auto& item = Item::create(itemId);
-
         uint8_t itemClass = 0;
-        if (m_marketTierCapability && item && (item->getClassification() > 0 || m_marketTierItemIds.count(itemId))) {
+        if (m_marketTierCapability && m_marketTierItemIds.count(itemId)) {
             itemClass = msg->getU8();
         }
 
@@ -5413,8 +5411,7 @@ void ProtocolGame::parseMarketEnterOld(const InputMessagePtr& msg)
     for (auto i = 0; i < itemsSent; ++i) {
         const uint16_t itemId = msg->getU16();
         uint8_t itemClass = 0;
-        const auto& item = Item::create(itemId);
-        if (m_marketTierCapability && item && (item->getClassification() > 0 || m_marketTierItemIds.count(itemId))) {
+        if (m_marketTierCapability && m_marketTierItemIds.count(itemId)) {
             itemClass = msg->getU8();
         }
         const uint16_t count = msg->getU16();
@@ -5427,8 +5424,7 @@ void ProtocolGame::parseMarketEnterOld(const InputMessagePtr& msg)
 void ProtocolGame::parseMarketDetail(const InputMessagePtr& msg)
 {
     const uint16_t itemId = msg->getU16();
-    const auto& item = Item::create(itemId);
-    if (m_marketTierCapability && item && (item->getClassification() > 0 || m_marketTierItemIds.count(itemId))) {
+    if (m_marketTierCapability && m_marketTierItemIds.count(itemId)) {
         msg->getU8(); // tier
     }
 
@@ -5518,10 +5514,7 @@ MarketOffer ProtocolGame::readMarketOffer(const InputMessagePtr& msg, const uint
     if (var == Otc::OLD_MARKETREQUEST_MY_OFFERS || var == Otc::MARKETREQUEST_OWN_OFFERS || var == Otc::OLD_MARKETREQUEST_MY_HISTORY || var == Otc::MARKETREQUEST_OWN_HISTORY) {
         itemId = msg->getU16();
         if (m_marketTierCapability) {
-            const auto& item = Item::create(itemId);
-            if (item && (item->getClassification() > 0 || m_marketTierItemIds.count(itemId))) {
-                itemTier = msg->getU8();
-            }
+            itemTier = msg->getU8();
         }
     } else {
         itemId = var;
@@ -5552,17 +5545,38 @@ void ProtocolGame::parseMarketBrowse(const InputMessagePtr& msg)
         var = msg->getU8();
         if (var == Otc::MARKETREQUEST_ITEM_BROWSE) {
             var = msg->getU16();
-            const auto& item = Item::create(var);
-            if (m_marketTierCapability && item && (item->getClassification() > 0 || m_marketTierItemIds.count(var))) {
+            if (m_marketTierCapability && m_marketTierItemIds.count(var)) {
                 itemTier = msg->getU8();
             }
         }
     } else {
         var = msg->getU16();
-        const auto& item = Item::create(var);
-        if (m_marketTierCapability && item && (item->getClassification() > 0 || m_marketTierItemIds.count(var))) {
+        if (m_marketTierCapability && m_marketTierItemIds.count(var)) {
             itemTier = msg->getU8();
         }
+    }
+
+    if (var == Otc::MARKETREQUEST_ALL_ACTIVE) {
+        const uint32_t total = msg->getU32();
+        const uint32_t count = msg->getU32();
+        std::vector<std::vector<uint64_t>> intOffers;
+        std::vector<std::string> nameOffers;
+        intOffers.reserve(count);
+        nameOffers.reserve(count);
+        for (uint32_t i = 0; i < count; ++i) {
+            const uint8_t action = msg->getU8();
+            const uint32_t created = msg->getU32();
+            const uint32_t timestamp = msg->getU32();
+            const uint16_t counter = msg->getU16();
+            const uint16_t itemId = msg->getU16();
+            const uint8_t tier = msg->getU8();
+            const uint16_t amount = msg->getU16();
+            const uint64_t price = g_game.getClientVersion() >= 1281 ? msg->getU64() : msg->getU32();
+            intOffers.push_back({ action, amount, counter, itemId, price, Otc::OFFER_STATE_ACTIVE, timestamp, var, tier, created });
+            nameOffers.push_back(msg->getString());
+        }
+        g_lua.callGlobalField("g_game", "onMarketActiveOffers", intOffers, nameOffers, total);
+        return;
     }
 
     const uint32_t buyOfferCount = msg->getU32();

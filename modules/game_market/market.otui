@@ -9,7 +9,7 @@ MarketWindow < MainWindow
 
   MarketTabBar
     id: mainTabBar
-    width: 164
+    width: 300
     height: 25
     anchors.top: parent.top
     anchors.left: parent.left

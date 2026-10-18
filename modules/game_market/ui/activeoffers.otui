@@ -1,0 +1,76 @@
+Panel
+  id: activeOffersPanel
+
+  Table
+    id: activeOffersTable
+    anchors.top: parent.top
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: buyOfferButton.top
+    margin: 4
+    margin-bottom: 6
+    padding: 1
+    focusable: false
+    background-color: #222833
+    border-width: 1
+    border-color: #191f27
+    table-data: activeOffersData
+    row-style: OfferTableRow
+    column-style: OfferTableColumn
+    header-column-style: false
+    header-row-style: false
+
+    OfferTableHeaderRow
+      id: header
+      OfferTableHeaderColumn
+        !text: tr('Item')
+        width: 160
+      OfferTableHeaderColumn
+        !text: tr('Seller')
+        width: 100
+      OfferTableHeaderColumn
+        !text: tr('Amount')
+        width: 65
+      OfferTableHeaderColumn
+        !text: tr('Piece Price')
+        width: 85
+      OfferTableHeaderColumn
+        !text: tr('Total Price')
+        width: 95
+      OfferTableHeaderColumn
+        !text: tr('Created')
+        width: 130
+
+  TableData
+    id: activeOffersData
+    anchors.top: activeOffersTable.top
+    anchors.bottom: activeOffersTable.bottom
+    anchors.left: activeOffersTable.left
+    anchors.right: activeOffersTable.right
+    margin-top: 22
+    vertical-scrollbar: activeOffersScrollBar
+
+  VerticalScrollBar
+    id: activeOffersScrollBar
+    anchors.top: activeOffersTable.top
+    anchors.bottom: activeOffersTable.bottom
+    anchors.right: activeOffersTable.right
+    step: 28
+    pixels-scroll: true
+
+  Button
+    id: buyOfferButton
+    !text: tr('Buy')
+    anchors.left: parent.left
+    anchors.bottom: parent.bottom
+    margin: 4
+    width: 90
+    enabled: false
+
+  Button
+    id: refreshActiveOffersButton
+    !text: tr('Refresh')
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    margin: 4
+    width: 90

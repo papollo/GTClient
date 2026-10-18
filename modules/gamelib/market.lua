@@ -12,6 +12,8 @@ MarketRequest = {
     MyHistory = 1,
     MyOffers = 2,
     BrowseItem = 3,
+    AllActive = 4,
+    OldAllActive = 0xFFFD,
     OldMyOffers = 0xFFFE,
     OldMyHistory = 0xFFFF
 }

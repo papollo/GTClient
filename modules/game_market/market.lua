@@ -34,6 +34,7 @@ itemStatsPanel = nil
 myOffersPanel = nil
 currentOffersPanel = nil
 offerHistoryPanel = nil
+activeOffersPanel = nil
 itemsPanel = nil
 selectedOffer = {}
 selectedMyOffer = {}
@@ -72,6 +73,22 @@ sellMyOfferTable = nil
 
 buyMyHistoryTable = nil
 sellMyHistoryTable = nil
+activeOffersTable = nil
+activeOffers = {}
+selectedActiveOffer = nil
+local MARKET_ERROR_OPCODE = 204
+
+local function onMarketError(protocol, opcode, buffer)
+    if opcode == MARKET_ERROR_OPCODE and buffer == 'market_same_account' then
+        local messageBox
+        local close = function() messageBox:ok() end
+        messageBox = displayGeneralBox(tr('Market'), utf8ToCp1250('Handel pomiędzy postaciami z tego samego konta jest zablokowany.'), {{
+            text = tr('Close'),
+            callback = close
+        }}, close, close)
+        messageBox:lock()
+    end
+end
 
 refreshTimeout = 0
 updateEvent = nil
@@ -936,6 +953,24 @@ local function initInterface()
         end
     end, MouseLeftButton)
 
+    activeOffersPanel = g_ui.loadUI('ui/activeoffers')
+    g_mouse.bindPress(mainTabBar:addTab(tr('Active Offers'), activeOffersPanel), function()
+        lastKnownTab = 'active offers'
+        Market.refreshActiveOffers()
+    end, MouseLeftButton)
+    activeOffersTable = activeOffersPanel:getChildById('activeOffersTable')
+    activeOffersTable.onSelectionChange = function(widget, row)
+        selectedActiveOffer = row and row.offer or nil
+        activeOffersPanel:getChildById('buyOfferButton'):setEnabled(selectedActiveOffer ~= nil and selectedActiveOffer:getType() == MarketAction.Sell)
+    end
+    activeOffersPanel:getChildById('buyOfferButton').onClick = function()
+        if not selectedActiveOffer then return end
+        local action = selectedActiveOffer:getType() == MarketAction.Sell and MarketAction.Buy or MarketAction.Sell
+        selectedOffer[action] = selectedActiveOffer
+        openAmountWindow(Market.acceptMarketOffer, action, action == MarketAction.Buy and 'Buy' or 'Sell')
+    end
+    activeOffersPanel:getChildById('refreshActiveOffersButton').onClick = Market.refreshActiveOffers
+
     offersTabBar = myOffersPanel:getChildById('offersTabBar')
     offersTabBar:setContentWidget(myOffersPanel:getChildById('offersTabContent'))
 
@@ -1095,10 +1130,12 @@ function init()
     registerMessageMode(MessageModes.Market, onMarketMessage)
 
     protocol.initProtocol()
+    ProtocolGame.registerExtendedOpcode(MARKET_ERROR_OPCODE, onMarketError)
     connect(g_game, {
         onGameEnd = Market.reset,
         onMarketEnter = Market.onMarketEnter,
         onMarketBrowse = Market.onMarketBrowse,
+        onMarketActiveOffers = Market.onMarketActiveOffers,
         onMarketDetail = Market.onMarketDetail,
         onMarketReadOffer = Market.onMarketReadOffer,
         onMarketLeave = Market.onMarketLeave,
@@ -1119,10 +1156,12 @@ function terminate()
     unregisterMessageMode(MessageModes.Market, onMarketMessage)
 
     protocol.terminateProtocol()
+    pcall(ProtocolGame.unregisterExtendedOpcode, MARKET_ERROR_OPCODE)
     disconnect(g_game, {
         onGameEnd = Market.reset,
         onMarketEnter = Market.onMarketEnter,
         onMarketBrowse = Market.onMarketBrowse,
+        onMarketActiveOffers = Market.onMarketActiveOffers,
         onMarketDetail = Market.onMarketDetail,
         onMarketReadOffer = Market.onMarketReadOffer,
         onMarketLeave = Market.onMarketLeave,
@@ -1337,6 +1376,8 @@ end
 function Market.refreshOffers()
     if (not lastKnownTab or lastKnownTab == 'market offers') and Market.isItemSelected() then
         Market.onItemBoxChecked(selectedItem.ref)
+    elseif lastKnownTab == 'active offers' then
+        Market.refreshActiveOffers()
     elseif lastKnownTab == 'current offers' then
         Market.refreshMyOffers()
     elseif lastKnownTab == 'offer history' then
@@ -1352,6 +1393,14 @@ end
 function Market.refreshOfferHistory()
     clearMyHistory()
     MarketProtocol.sendMarketBrowseOfferHistory()
+end
+
+function Market.refreshActiveOffers()
+    activeOffers = {}
+    selectedActiveOffer = nil
+    activeOffersTable:clearData()
+    activeOffersPanel:getChildById('buyOfferButton'):setEnabled(false)
+    MarketProtocol.sendMarketBrowseAllActive()
 end
 
 function Market.loadMarketItems(category)
@@ -1579,6 +1628,31 @@ function Market.onMarketBrowse(intOffers, nameOffers)
     local tmpOffers = MarketOffers2
     MarketOffers2 = {}
     updateOffers(tmpOffers)
+end
+
+function Market.onMarketActiveOffers(intOffers, nameOffers, total)
+    for i, values in ipairs(intOffers) do
+        local action, amount, counter, itemId, price, state, timestamp, _, tier, created = unpack(values)
+        local item = Item.create(itemId)
+        if item and tier and tier > 0 then item:setTier(tier) end
+        local offer = MarketOffer.new({timestamp, counter}, action, item, amount, price, nameOffers[i], state, MarketRequest.AllActive)
+        table.insert(activeOffers, { offer = offer, created = created })
+    end
+    if lastKnownTab ~= 'active offers' then return end
+    if #activeOffers < total then return end
+    activeOffersTable:clearData()
+    table.sort(activeOffers, function(a, b) return a.created > b.created end)
+    for _, entry in ipairs(activeOffers) do
+        local offer = entry.offer
+        local name = offer:getItem():getMarketData().name
+        local row = activeOffersTable:addRow({
+            { text = name }, { text = offer:getPlayer() }, { text = offer:getAmount() },
+            { text = offer:getPrice() }, { text = offer:getPrice() * offer:getAmount() },
+            { text = os.date('%Y-%m-%d %H:%M', entry.created) }
+        })
+        row.offer = offer
+        row:setTooltip(name .. '\n' .. (offer:getType() == MarketAction.Sell and tr('Click Buy to purchase this offer') or tr('Buy order: use Browse to sell this item')))
+    end
 end
 
 function Market.onMarketReadOffer(action, amount, counter, itemId, playerName, price, state, timestamp, var, tier)
