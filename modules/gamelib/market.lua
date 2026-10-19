@@ -109,7 +109,7 @@ MarketCategoryStrings = {
     [19] = 'Crossbows',
     [20] = 'One Handed',
     [21] = 'Rods',
-    [22] = 'Premium Scrolls',
+    [22] = 'Schematy',
     [23] = 'Tibia Coins',
     [255] = 'Weapons'
 }
@@ -133,10 +133,10 @@ MarketItemCategories = {
     { id = 15, name = 'Valuables' },
     { id = 6, name = 'Food' },
     { id = 10, name = 'Potions' },
+    { id = 22, name = 'Schematy' },
     { id = 9, name = 'Others' },
     { id = 4, name = 'Containers' },
     { id = 14, name = 'Tools' },
-    { id = 22, name = 'Premium Scrolls' },
 }
 
 MarketCategoryDisplayNames = {
@@ -161,7 +161,7 @@ MarketCategoryDisplayNames = {
     [9] = 'Others',
     [4] = 'Containers',
     [14] = 'Tools',
-    [22] = 'Premium Scrolls'
+    [22] = 'Schematy'
 }
 
 function getMarketCategoryName(id)
