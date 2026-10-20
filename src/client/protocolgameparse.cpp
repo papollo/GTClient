@@ -3383,11 +3383,6 @@ void ProtocolGame::parseExtendedOpcode(const InputMessagePtr& msg)
     const uint8_t opcode = msg->getU8();
     const auto& buffer = msg->getString();
 
-    if (opcode == 217) {
-        g_logger.info(std::string("[LibraryTrace][client-cpp] received extended opcode 217 bytes=") +
-                      std::to_string(buffer.size()));
-    }
-
     if (opcode == 0) {
         m_enableSendExtendedOpcode = true;
     } else if (opcode == 2) {

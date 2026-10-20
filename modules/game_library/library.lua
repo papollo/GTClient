@@ -729,11 +729,6 @@ local function resetDetailPanel(message, clearSelection)
     end
 
     local domainState = getDomainState()
-    g_logger.info(string.format('[LibraryTrace][client] resetDetailPanel domain=%s message=%s clearSelection=%s selectedId=%s selectedTier=%s category=%s search=%s lootTarget=%s',
-        tostring(state.domain), tostring(message), tostring(clearSelection), tostring(domainState and domainState.selectedId),
-        tostring(domainState and domainState.selectedTier), tostring(domainState and domainState.activeCategory),
-        tostring(domainState and domainState.search),
-        tostring(state.items.lootNavigationTarget ~= nil)))
     ui.detailPlaceholder:setText(message)
     ui.detailPlaceholder:show()
     ui.detailContent:hide()
@@ -1250,8 +1245,6 @@ end
 local function sendRequest(domain, action, data)
     local protocol = getProtocol()
     if not protocol then
-        g_logger.info(string.format('[LibraryTrace][client] request skipped: no protocol domain=%s action=%s',
-            tostring(domain), tostring(action)))
         return nil
     end
 
@@ -1268,9 +1261,6 @@ local function sendRequest(domain, action, data)
         requestId = requestId,
         data = data or {}
     }
-    g_logger.info(string.format('[LibraryTrace][client] request id=%s domain=%s action=%s wareId=%s clientId=%s tier=%s category=%s search=%s',
-        requestId, tostring(domain), tostring(action), tostring(payload.data.wareId), tostring(payload.data.clientId),
-        tostring(payload.data.tier), tostring(payload.data.category), tostring(payload.data.search)))
     protocol:sendExtendedJSONOpcode(LIBRARY_OPCODE, payload)
     return requestId
 end
@@ -2146,8 +2136,6 @@ end
 
 local function requestDetail(entryId, selector)
     if not entryId then
-        g_logger.info(string.format('[LibraryTrace][client] requestDetail skipped: missing id domain=%s selector=%s',
-            tostring(state.domain), tostring(selector)))
         return
     end
 
@@ -2184,14 +2172,10 @@ local function requestDetail(entryId, selector)
 
     local cached = state.domain ~= DOMAIN_DAMAGE_CALCULATOR and domainState.detailCache[cacheKey] or nil
     if cached then
-        g_logger.info(string.format('[LibraryTrace][client] detail cache hit domain=%s id=%s tier=%s cacheWareId=%s cacheClientId=%s',
-            tostring(state.domain), tostring(entryId), tostring(selector), tostring(cached.wareId), tostring(cached.clientId)))
         showDetail(cached)
         return
     end
 
-    g_logger.info(string.format('[LibraryTrace][client] detail cache miss domain=%s id=%s tier=%s cacheKey=%s',
-        tostring(state.domain), tostring(entryId), tostring(selector), tostring(cacheKey)))
     resetDetailPanel(getDetailLoadingText(state.domain), false)
     sendRequest(state.domain, 'detail', payload)
 end
@@ -3153,20 +3137,13 @@ end
 
 showDetail = function(data)
     if not data then
-        g_logger.info('[LibraryTrace][client] showDetail skipped: no data')
         return
     end
 
     local domain = data.domain or state.domain
     if domain ~= state.domain then
-        g_logger.info(string.format('[LibraryTrace][client] showDetail skipped: domain mismatch response=%s current=%s id=%s wareId=%s clientId=%s',
-            tostring(domain), tostring(state.domain), tostring(data.id), tostring(data.wareId), tostring(data.clientId)))
         return
     end
-
-    g_logger.info(string.format('[LibraryTrace][client] showDetail domain=%s id=%s wareId=%s clientId=%s tier=%s category=%s target=%s',
-        tostring(domain), tostring(data.id), tostring(data.wareId), tostring(data.clientId), tostring(data.tier),
-        tostring(data.category), tostring(state.items.lootNavigationTarget ~= nil)))
 
     if domain == DOMAIN_DAMAGE_CALCULATOR then
         renderDamageCalculatorDetail(data)
@@ -3302,13 +3279,6 @@ local function renderResults(response)
     local monsterDropNavigationTarget = type(pendingMonsterDropTarget) == 'table' and
         (pendingMonsterDropTarget.listRequested or pendingMonsterDropTarget.categoryUnavailable) and pendingMonsterDropTarget or nil
     local items = response.items or {}
-    local lootNavigationMatches = 0
-    g_logger.info(string.format('[LibraryTrace][client] renderResults domain=%s category=%s search=%s rows=%d navWareId=%s navClientId=%s navTier=%s navListRequested=%s',
-        tostring(state.domain), tostring(response.category), tostring(response.search), #items,
-        tostring(lootNavigationTarget and lootNavigationTarget.wareId),
-        tostring(lootNavigationTarget and lootNavigationTarget.clientId),
-        tostring(lootNavigationTarget and lootNavigationTarget.tier),
-        tostring(lootNavigationTarget and lootNavigationTarget.listRequested)))
     domainState.page = tonumber(response.page) or 1
     domainState.totalPages = math.max(1, tonumber(response.totalPages) or 1)
     domainState.totalResults = tonumber(response.totalResults) or #items
@@ -3316,8 +3286,6 @@ local function renderResults(response)
     setResultWidgetsEnabled(state.domain == DOMAIN_MONSTERS or state.domain == DOMAIN_VOCATIONS or domainState.activeCategory ~= nil)
 
     if #items == 0 then
-        g_logger.info(string.format('[LibraryTrace][client] renderResults empty domain=%s category=%s search=%s lootTarget=%s',
-            tostring(state.domain), tostring(response.category), tostring(response.search), tostring(lootNavigationTarget ~= nil)))
         if usesCombinedList then
             updateMonsterEmptyLabel(getNoResultsText(state.domain))
         else
@@ -3413,11 +3381,6 @@ local function renderResults(response)
         end
 
         if lootNavigationTarget and tonumber(entry.wareId or entry.id) == lootNavigationTarget.wareId then
-            lootNavigationMatches = lootNavigationMatches + 1
-            g_logger.info(string.format('[LibraryTrace][client] result matched loot target row=%d name=%s wareId=%s clientId=%s tier=%s targetWareId=%s targetClientId=%s targetTier=%s',
-                index, tostring(entry.name), tostring(entry.wareId or entry.id), tostring(entry.clientId),
-                tostring(entry.tier), tostring(lootNavigationTarget.wareId), tostring(lootNavigationTarget.clientId),
-                tostring(lootNavigationTarget.tier)))
             domainState.selectedResult = row
             row:setChecked(true)
             list:focusChild(row)
@@ -3432,9 +3395,6 @@ local function renderResults(response)
     end
 
     if lootNavigationTarget then
-        g_logger.info(string.format('[LibraryTrace][client] result list finished lootTargetMatches=%d responseCategory=%s responseSearch=%s selectedId=%s targetWareId=%s',
-            lootNavigationMatches, tostring(response.category), tostring(response.search), tostring(domainState.selectedId),
-            tostring(lootNavigationTarget.wareId)))
         state.items.lootNavigationTarget = nil
     elseif monsterDropNavigationTarget then
         monsterDropNavigationTarget.listRendered = true
@@ -3973,16 +3933,11 @@ local function handleListResponse(domain, data, requestData)
     local search = normalizeSearch(data.search or requestData.search or '')
     local category = data.category or requestData.category or domainState.activeCategory or ''
     local page = tonumber(data.page) or tonumber(requestData.page) or 1
-    g_logger.info(string.format('[LibraryTrace][client] list response domain=%s category=%s search=%s page=%s items=%d activeDomain=%s activeCategory=%s activeSearch=%s lootTarget=%s',
-        tostring(domain), tostring(category), tostring(search), tostring(page), #(data.items or {}), tostring(state.domain),
-        tostring(domainState.activeCategory), tostring(domainState.search), tostring(state.items.lootNavigationTarget ~= nil)))
     data.domain = domain
     local cacheKey = makePageCacheKey(domain, category, search, page)
     domainState.pageCache[cacheKey] = data
 
     if domain == DOMAIN_ITEMS and state.items.contextSelectionActive then
-        g_logger.info(string.format('[LibraryTrace][client] list response ignored: item context selection active category=%s search=%s',
-            tostring(category), tostring(search)))
         return
     end
     if domain == DOMAIN_MONSTERS and state.monsters.contextSelectionActive then
@@ -3997,24 +3952,14 @@ local function handleListResponse(domain, data, requestData)
     end
 
     if domain == state.domain and category == (domainState.activeCategory or '') and search == normalizeSearch(domainState.search or '') then
-        g_logger.info(string.format('[LibraryTrace][client] list response accepted domain=%s category=%s search=%s',
-            tostring(domain), tostring(category), tostring(search)))
         renderResults(data)
     else
-        g_logger.info(string.format('[LibraryTrace][client] list response ignored domain=%s/%s category=%s/%s search=%s/%s',
-            tostring(domain), tostring(state.domain), tostring(category), tostring(domainState.activeCategory),
-            tostring(search), tostring(normalizeSearch(domainState.search or ''))))
     end
 end
 
 local function handleDetailResponse(domain, data, requestData)
     local domainState = getDomainState(domain)
     requestData = requestData or {}
-    g_logger.info(string.format('[LibraryTrace][client] handleDetailResponse domain=%s requestWareId=%s requestClientId=%s requestMonsterId=%s requestVariant=%s responseWareId=%s responseClientId=%s responseMonsterId=%s responseTier=%s responseCategory=%s currentDomain=%s selectedId=%s selectedTier=%s',
-        tostring(domain), tostring(requestData.wareId), tostring(requestData.clientId), tostring(requestData.monsterId),
-        tostring(requestData.variant), tostring(data.wareId), tostring(data.clientId), tostring(data.monsterId),
-        tostring(data.tier), tostring(data.category), tostring(state.domain), tostring(domainState.selectedId),
-        tostring(domainState.selectedTier)))
     data.domain = domain
     if domain == DOMAIN_MONSTERS then
         updateBestiaryPoints(getBestiaryTotalPoints(data))
@@ -4072,24 +4017,14 @@ local function handleDetailResponse(domain, data, requestData)
             ((navigationTarget.wareId and tonumber(navigationTarget.wareId) == tonumber(requestData.wareId)) or
                 (navigationTarget.clientId and data.clientId and
                     tonumber(navigationTarget.clientId) == tonumber(data.clientId)))
-        g_logger.info(string.format('[LibraryTrace][client] detail response domain=%s current=%s requestWareId=%s requestClientId=%s responseWareId=%s responseClientId=%s responseTier=%s selectedId=%s selectedTier=%s targetWareId=%s targetClientId=%s targetTier=%s clientNav=%s lootNav=%s id=%s',
-            tostring(domain), tostring(state.domain), tostring(requestData.wareId), tostring(requestData.clientId),
-            tostring(data.wareId), tostring(data.clientId), tostring(data.tier), tostring(domainState.selectedId),
-            tostring(domainState.selectedTier), tostring(navigationTarget and navigationTarget.wareId),
-            tostring(navigationTarget and navigationTarget.clientId), tostring(navigationTarget and navigationTarget.tier),
-            tostring(isCurrentClientNavigation), tostring(isCurrentLootNavigation), tostring(id)))
         if (isCurrentClientNavigation or isCurrentLootNavigation) and id then
             navigationTarget.wareId = id
             domainState.selectedId = id
             domainState.selectedTier = tier
             showDetail(data)
         elseif not requestedClientId and domain == state.domain and id == domainState.selectedId and tier == tonumber(domainState.selectedTier) and overrideMatches then
-            g_logger.info('[LibraryTrace][client] detail response accepted by selected item match')
             showDetail(data)
         else
-            g_logger.info(string.format('[LibraryTrace][client] detail response ignored domain=%s id=%s selectedId=%s tier=%s selectedTier=%s requestedClientId=%s overrideMatches=%s',
-                tostring(domain), tostring(id), tostring(domainState.selectedId), tostring(tier),
-                tostring(domainState.selectedTier), tostring(requestedClientId), tostring(overrideMatches)))
         end
     end
 end
@@ -4160,13 +4095,6 @@ end
 local function handleLibraryError(domain, action, payload, requestData)
     requestData = requestData or {}
     local errorData = type(payload) == 'table' and payload.error or nil
-    g_logger.info(string.format('[LibraryTrace][client] request error domain=%s action=%s code=%s message=%s requestWareId=%s requestClientId=%s requestTier=%s currentDomain=%s targetWareId=%s targetClientId=%s targetTier=%s',
-        tostring(domain), tostring(action), tostring(type(errorData) == 'table' and errorData.code),
-        tostring(type(errorData) == 'table' and errorData.message), tostring(requestData.wareId),
-        tostring(requestData.clientId), tostring(requestData.tier), tostring(state.domain),
-        tostring(state.items.lootNavigationTarget and state.items.lootNavigationTarget.wareId),
-        tostring(state.items.lootNavigationTarget and state.items.lootNavigationTarget.clientId),
-        tostring(state.items.lootNavigationTarget and state.items.lootNavigationTarget.tier)))
     if domain == DOMAIN_DAILY_REWARDS then
         state.dailyRewards.statusRequested = false
         if domain == state.domain then
@@ -4365,7 +4293,6 @@ end
 
 local function onLibraryOpcode(protocol, opcode, payload)
     if type(payload) ~= 'table' then
-        g_logger.info(string.format('[LibraryTrace][client] non-table response opcode=%s type=%s', tostring(opcode), type(payload)))
         return
     end
 
@@ -4381,18 +4308,7 @@ local function onLibraryOpcode(protocol, opcode, payload)
             domain = payload.domain or pending.domain
             requestData = pending.data or requestData
         end
-        g_logger.info(string.format('[LibraryTrace][client] response correlation id=%s pending=%s pendingDomain=%s pendingAction=%s pendingWareId=%s pendingClientId=%s pendingTier=%s',
-            tostring(requestId), tostring(pending ~= nil), tostring(pending and pending.domain),
-            tostring(pending and pending.action), tostring(requestData.wareId), tostring(requestData.clientId),
-            tostring(requestData.tier)))
-    else
-        g_logger.info(string.format('[LibraryTrace][client] response has no requestId action=%s domain=%s',
-            tostring(action), tostring(domain)))
     end
-
-    g_logger.info(string.format('[LibraryTrace][client] response opcode=%s id=%s action=%s domain=%s ok=%s currentDomain=%s hasData=%s',
-        tostring(opcode), tostring(requestId), tostring(action), tostring(domain), tostring(payload.ok),
-        tostring(state.domain), tostring(type(payload.data))))
 
     if payload.ok == false then
         handleLibraryError(domain, action, payload, requestData)
@@ -4434,11 +4350,6 @@ local function queueSearch()
         return
     end
     if state.domain == DOMAIN_ITEMS then
-        if state.items.lootNavigationTarget then
-            g_logger.info(string.format('[LibraryTrace][client] queueSearch clears loot target wareId=%s clientId=%s tier=%s searchText=%s',
-                tostring(state.items.lootNavigationTarget.wareId), tostring(state.items.lootNavigationTarget.clientId),
-                tostring(state.items.lootNavigationTarget.tier), tostring(ui.searchEdit:getText())))
-        end
         state.items.lootNavigationTarget = nil
         state.items.contextSelectionActive = false
     elseif state.domain == DOMAIN_MONSTERS then
@@ -4484,16 +4395,8 @@ end
 
 local function switchDomain(domain)
     if state.domain == domain then
-        local domainState = getDomainState(domain)
-        g_logger.info(string.format('[LibraryTrace][client] switchDomain no-op domain=%s category=%s search=%s lootTarget=%s',
-            tostring(domain), tostring(domainState.activeCategory), tostring(domainState.search),
-            tostring(state.items.lootNavigationTarget ~= nil)))
         return
     end
-
-    g_logger.info(string.format('[LibraryTrace][client] switchDomain from=%s to=%s itemsCategory=%s itemsSearch=%s lootTarget=%s',
-        tostring(state.domain), tostring(domain), tostring(state.items.activeCategory), tostring(state.items.search),
-        tostring(state.items.lootNavigationTarget ~= nil)))
 
     if state.domain == DOMAIN_ITEMS then
         state.items.lootNavigationTarget = nil
@@ -4571,14 +4474,11 @@ end
 
 state.items.openLootDetail = function(lootData)
     if type(lootData) ~= 'table' then
-        g_logger.info(string.format('[LibraryTrace][client] openLootDetail rejected: type=%s', type(lootData)))
         return
     end
 
     local wareId = tonumber(lootData.wareId)
     if not wareId or wareId <= 0 then
-        g_logger.info(string.format('[LibraryTrace][client] openLootDetail rejected: name=%s wareId=%s clientId=%s tier=%s',
-            tostring(lootData.name), tostring(lootData.wareId), tostring(lootData.clientId), tostring(lootData.tier)))
         return
     end
 
@@ -4590,29 +4490,18 @@ state.items.openLootDetail = function(lootData)
         tier = tier,
         listRequested = false
     }
-    g_logger.info(string.format('[LibraryTrace][client] openLootDetail name=%s wareId=%s clientId=%s tier=%s currentDomain=%s category=%s search=%s',
-        tostring(lootData.name), tostring(wareId), tostring(lootData.clientId), tostring(tier), tostring(state.domain),
-        tostring(state.items.activeCategory), tostring(state.items.search)))
     if searchEvent then
         removeEvent(searchEvent)
         searchEvent = nil
     end
     switchDomain(DOMAIN_ITEMS)
-    g_logger.info(string.format('[LibraryTrace][client] openLootDetail after switch domain=%s category=%s search=%s target=%s',
-        tostring(state.domain), tostring(state.items.activeCategory), tostring(state.items.search),
-        tostring(state.items.lootNavigationTarget ~= nil)))
     clearResultSelection(DOMAIN_ITEMS)
     requestDetail(wareId, tier)
 end
 
 state.items.focusLootNavigation = function(data)
     local target = state.items.lootNavigationTarget
-    g_logger.info(string.format('[LibraryTrace][client] focusLootNavigation dataWareId=%s dataClientId=%s dataTier=%s category=%s name=%s targetWareId=%s targetClientId=%s targetTier=%s listRequested=%s',
-        tostring(data and data.wareId), tostring(data and data.clientId), tostring(data and data.tier),
-        tostring(data and data.category), tostring(data and data.name), tostring(target and target.wareId),
-        tostring(target and target.clientId), tostring(target and target.tier), tostring(target and target.listRequested)))
     if type(target) ~= 'table' or target.listRequested then
-        g_logger.info('[LibraryTrace][client] focusLootNavigation stopped: no target or list already requested')
         return
     end
 
@@ -4620,14 +4509,10 @@ state.items.focusLootNavigation = function(data)
     local responseClientId = tonumber(data.clientId)
     if target.clientId then
         if responseClientId ~= tonumber(target.clientId) then
-            g_logger.info(string.format('[LibraryTrace][client] focusLootNavigation stopped: clientId mismatch response=%s target=%s',
-                tostring(responseClientId), tostring(target.clientId)))
             return
         end
         target.wareId = wareId
     elseif wareId ~= target.wareId then
-        g_logger.info(string.format('[LibraryTrace][client] focusLootNavigation stopped: wareId mismatch response=%s target=%s',
-            tostring(wareId), tostring(target.wareId)))
         return
     end
 
@@ -4641,7 +4526,6 @@ state.items.focusLootNavigation = function(data)
     end
 
     if not categoryExists then
-        g_logger.info(string.format('[LibraryTrace][client] focusLootNavigation stopped: unknown category=%s', tostring(categoryKey)))
         state.items.lootNavigationTarget = nil
         return
     end
@@ -4662,8 +4546,6 @@ state.items.focusLootNavigation = function(data)
         end
     end
     state.items.search = searchName
-    g_logger.info(string.format('[LibraryTrace][client] focusLootNavigation accepted wareId=%s category=%s search=%s',
-        tostring(wareId), tostring(categoryKey), tostring(searchName)))
 
     state.items.navigationSearchUpdating = true
     ui.searchEdit:setText(state.items.search)
@@ -4685,8 +4567,6 @@ state.items.focusLootNavigation = function(data)
         return
     end
 
-    g_logger.info(string.format('[LibraryTrace][client] focusLootNavigation requesting result list category=%s search=%s wareId=%s clientId=%s',
-        tostring(categoryKey), tostring(state.items.search), tostring(target.wareId), tostring(target.clientId)))
     requestCurrentPage(true)
 end
 
