@@ -120,6 +120,84 @@ QuestLogLabel < UIWidget
     width: 15
     margin-left: 3
     visible: false
+  CheckBoxButton
+    id: iconTracked
+    anchors.verticalCenter: parent.verticalCenter
+    anchors.right: parent.right
+    icon-source: /game_questlog/images/icon-pin
+    height: 15
+    width: 15
+    margin-right: 3
+    visible: false
+
+QuestPinPanel < UIWindow
+  focusable: false
+  anchors.top: parent.top
+  anchors.left: parent.left
+  margin-left: 16
+  margin-top: 8
+  width: 260
+  draggable: true
+  layout:
+    type: verticalBox
+    fit-children: true
+  padding: 6
+  background-color: #000000aa
+
+  Panel
+    id: header
+    height: 18
+    phantom: true
+    Label
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      font: verdana-11px-antialised
+      color: #ffffff
+      !text: tr('Pinned quests')
+      phantom: true
+    CheckBoxButton
+      id: lockButton
+      focusable: false
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      icon-source: /game_questlog/images/icon-pin
+      size: 15 15
+      image-color: #00ff00
+
+  Panel
+    id: list
+    layout:
+      type: verticalBox
+      fit-children: true
+    phantom: true
+
+QuestPinEntry < Panel
+  width: 248
+  phantom: true
+  layout:
+    type: verticalBox
+    fit-children: true
+  padding-bottom: 5
+
+  Label
+    id: name
+    width: 236
+    font: verdana-11px-antialised
+    color: #ffffff
+    text-wrap: true
+    text-auto-resize: true
+
+  Label
+    id: description
+    width: 236
+    font: verdana-11px-antialised
+    color: #d0d0d0
+    text-wrap: true
+    text-auto-resize: true
+
+  HorizontalSeparator
+    margin-top: 4
+    phantom: true
 
 
 QuestLogTracker < MiniWindow

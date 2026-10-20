@@ -15,6 +15,7 @@ questLogController.currentSortOrders = {
 
 -- @  windows
 local trackerMiniWindow = nil
+local questPinPanel = nil
 local questLogButton = nil
 local buttonQuestLogTrackerButton = nil
 local activeTab = 'character'
@@ -68,6 +69,8 @@ local selectedJournalId = nil
 local trackerValidationPending = {}
 local trackerValidationChanged = false
 local updatingSortOptions = false
+local panelPositionSaveEvent = nil
+local mapGeometryHandler = nil
 local questLogCache = {
     items = {},
     completed = 0,
@@ -82,10 +85,47 @@ local COLORS = {
     SELECTED = "#585858"
 }
 local file = "/settings/questtracking.json"
+local save
 
 --[[=================================================
 =               Local Functions                     =
 =================================================== ]] --
+
+local function debugQuestPins(stage)
+    local pins = settings and settings.pinnedDetails and settings.pinnedDetails[namePlayer] or {}
+    local positions = settings and settings.pinnedPanelPositions and settings.pinnedPanelPositions[namePlayer]
+    if type(pins) ~= 'table' then pins = {} end
+    if type(positions) ~= 'table' then positions = nil end
+    local mapPanel = modules.game_interface and modules.game_interface.getMapPanel()
+    local mapX, mapY = 0, 0
+    local widget = mapPanel
+    while widget and widget ~= rootWidget do
+        mapX = mapX + widget:getX()
+        mapY = mapY + widget:getY()
+        widget = widget:getParent()
+    end
+
+    local panelPosition = questPinPanel and questPinPanel:getPosition()
+    if not panelPosition then panelPosition = { x = -1, y = -1 } end
+    local parent = questPinPanel and questPinPanel:getParent()
+    local parentId = parent and parent:getId() or 'nil'
+    local writeDir = g_resources.getWriteDir()
+    g_logger.info(string.format(
+        '[QuestPinDebug] %s player=%s online=%s pins=%d file=%s exists=%s writeDir=%s panel=%s visible=%s parent=%s pos=%d,%d size=%d,%d map=%s mapRect=%d,%d,%d,%d savedPos=%s',
+        tostring(stage), tostring(namePlayer), tostring(g_game.isOnline()), #pins, file,
+        tostring(g_resources.fileExists(file)), tostring(writeDir), tostring(questPinPanel ~= nil),
+        tostring(questPinPanel and questPinPanel:isVisible()), tostring(parentId), panelPosition.x, panelPosition.y,
+        questPinPanel and questPinPanel:getWidth() or 0, questPinPanel and questPinPanel:getHeight() or 0,
+        tostring(mapPanel ~= nil), mapX, mapY, mapPanel and mapPanel:getWidth() or 0,
+        mapPanel and mapPanel:getHeight() or 0,
+        positions and string.format('%s,%s,%s', tostring(positions.x), tostring(positions.y),
+            tostring(positions.scope)) or 'nil'))
+    for index, pin in ipairs(pins) do
+        g_logger.info(string.format('[QuestPinDebug] %s pin[%d] questId=%s missionId=%s name=%s completed=%s',
+            tostring(stage), index, tostring(pin.questId), tostring(pin.missionId), tostring(pin.name),
+            tostring(pin.completed)))
+    end
+end
 
 local function isIdInTracker(key, id)
     local entries = settings.characters and settings.characters[key]
@@ -127,6 +167,220 @@ local function removeNumber(key, id)
     end
 end
 
+local function getPinnedDetails()
+    settings.pinnedDetails = type(settings.pinnedDetails) == 'table' and settings.pinnedDetails or {}
+    settings.pinnedDetails[namePlayer] = type(settings.pinnedDetails[namePlayer]) == 'table' and
+        settings.pinnedDetails[namePlayer] or {}
+    local pins = settings.pinnedDetails[namePlayer]
+    table.remove_if(pins, function(_, pin)
+        return type(pin) ~= 'table' or not tonumber(pin.missionId) or not tonumber(pin.questId) or
+            type(pin.name) ~= 'string' or type(pin.description) ~= 'string'
+    end)
+    while #pins > 3 do
+        table.remove(pins)
+    end
+    return pins
+end
+
+local function getMissionState(name)
+    local plainName, completed = name:gsub(' %(completed%)$', '')
+    return plainName, completed > 0
+end
+
+local function findPinnedDetail(missionId, questId, missionName)
+    local plainMissionName = missionName and getMissionState(missionName)
+    for index, entry in ipairs(getPinnedDetails()) do
+        if tonumber(entry.missionId) == tonumber(missionId) and tonumber(entry.questId) == tonumber(questId) and
+            (not missionName or getMissionState(entry.name) == plainMissionName) then
+            return index, entry
+        end
+    end
+end
+
+local function renderPinnedDetails()
+    if not questPinPanel then
+        return
+    end
+    local mapPanel = modules.game_interface.getMapPanel()
+    if not mapPanel or mapPanel:getWidth() <= 0 or mapPanel:getHeight() <= 0 then
+        debugQuestPins('render skipped: map geometry unavailable')
+        questPinPanel:setVisible(false)
+        return
+    end
+    questPinPanel.list:destroyChildren()
+    for _, entry in ipairs(getPinnedDetails()) do
+        local item = g_ui.createWidget('QuestPinEntry', questPinPanel.list)
+        local name, completed = getMissionState(entry.name)
+        item:getChildById('name'):setText(name)
+        item:getChildById('name'):setColor((entry.completed or completed) and '#00ff00' or '#ffffff')
+        item:getChildById('description'):setText(entry.description)
+    end
+    local visible = #getPinnedDetails() > 0
+    questPinPanel:setVisible(visible)
+    if visible then
+        questPinPanel:raise()
+    end
+    debugQuestPins('render complete')
+end
+
+local function togglePinnedDetail(item)
+    local pins = getPinnedDetails()
+    local missionId = tonumber(item:getId())
+    local questId = item.questId
+    local missionName = item:getText()
+    local pinIndex = findPinnedDetail(missionId, questId, missionName)
+    if pinIndex then
+        table.remove(pins, pinIndex)
+    elseif #pins >= 3 then
+        displayInfoBox(tr('Quest Pins'), tr('You can pin up to 3 detailed quests.'))
+        return false
+    else
+        local name, completed = getMissionState(missionName)
+        table.insert(pins, {
+            missionId = missionId,
+            questId = questId,
+            name = name,
+            description = item.description:gsub('\\n', '\n'),
+            completed = completed
+        })
+    end
+    item.iconTracked:setImageColor(findPinnedDetail(missionId, questId, missionName) and '#00ff00' or '#ffffff')
+    debugQuestPins(string.format('toggle questId=%s missionId=%s', tostring(questId), tostring(missionId)))
+    save()
+    renderPinnedDetails()
+    return true
+end
+
+local function refreshPinnedDetails(questId, questMissions)
+    local pins = getPinnedDetails()
+    g_logger.info(string.format('[QuestPinDebug] quest line received questId=%s missions=%d pinsBefore=%d',
+        tostring(questId), #questMissions, #pins))
+    local changed = false
+    for index = #pins, 1, -1 do
+        local pin = pins[index]
+        if tonumber(pin.questId) == questId then
+            local mission, matchingId
+            local idMatches = 0
+            local pinnedName = getMissionState(pin.name)
+            for _, data in ipairs(questMissions) do
+                local missionName = getMissionState(data[1])
+                if tonumber(data[3]) == tonumber(pin.missionId) then
+                    idMatches = idMatches + 1
+                    matchingId = data
+                end
+                if missionName == pinnedName then
+                    mission = data
+                    break
+                end
+            end
+            mission = mission or (idMatches == 1 and matchingId)
+            if not mission then
+                table.remove(pins, index)
+                changed = true
+            else
+                local missionName, completed = getMissionState(mission[1])
+                local description = mission[2]:gsub('\\n', '\n')
+                if pin.name ~= missionName or pin.description ~= description or pin.completed ~= completed then
+                    pin.name = missionName
+                    pin.description = description
+                    pin.completed = completed
+                    changed = true
+                end
+            end
+        end
+    end
+    if changed then
+        debugQuestPins(string.format('quest line changed questId=%s', tostring(questId)))
+        save()
+        renderPinnedDetails()
+    else
+        debugQuestPins(string.format('quest line unchanged questId=%s', tostring(questId)))
+    end
+end
+
+local function requestPinnedQuestLines()
+    local questIds = {}
+    for _, pin in ipairs(getPinnedDetails()) do
+        questIds[tonumber(pin.questId)] = true
+    end
+    for questId in pairs(questIds) do
+        g_logger.info(string.format('[QuestPinDebug] requesting quest line questId=%s', tostring(questId)))
+        g_game.requestQuestLine(questId)
+    end
+end
+
+local function savePinnedPanelPosition()
+    if not questPinPanel or namePlayer == '' then
+        return
+    end
+    local position = questPinPanel:getPosition()
+    debugQuestPins(string.format('saving panel position at %d,%d', position.x, position.y))
+    settings.pinnedPanelPositions = type(settings.pinnedPanelPositions) == 'table' and settings.pinnedPanelPositions or {}
+    settings.pinnedPanelPositions[namePlayer] = { x = position.x, y = position.y, scope = 'client' }
+    save()
+end
+
+local function getMapPositionInClient()
+    local mapPanel = modules.game_interface.getMapPanel()
+    local x, y = 0, 0
+    local widget = mapPanel
+    while widget and widget ~= rootWidget do
+        x = x + widget:getX()
+        y = y + widget:getY()
+        widget = widget:getParent()
+    end
+    return x, y
+end
+
+local function clampPinnedPanelPosition(x, y)
+    local mapPanel = modules.game_interface.getMapPanel()
+    local mapX, mapY = getMapPositionInClient()
+    return {
+        x = math.max(mapX + 16, math.min(x, mapX + mapPanel:getWidth() - questPinPanel:getWidth() - 16)),
+        y = math.max(mapY + 8, math.min(y, mapY + mapPanel:getHeight() - questPinPanel:getHeight() - 8))
+    }
+end
+
+local function restorePinnedPanelPosition()
+    local positions = settings.pinnedPanelPositions
+    local position = type(positions) == 'table' and positions[namePlayer]
+    local mapPanel = modules.game_interface.getMapPanel()
+    local mapX, mapY = getMapPositionInClient()
+    local x, y
+    if type(position) == 'table' and tonumber(position.x) and tonumber(position.y) then
+        x, y = tonumber(position.x), tonumber(position.y)
+        if position.scope == 'map' then
+            x = x + mapX
+            y = y + mapY
+        elseif position.scope ~= 'gameRoot' then
+            -- Older untagged positions already use rootWidget coordinates.
+        else
+            local gameRoot = modules.game_interface.getRootPanel()
+            x = x + gameRoot:getX()
+            y = y + gameRoot:getY()
+        end
+        position.scope = 'client'
+    else
+        x, y = mapX + 16, mapY + 8
+    end
+    questPinPanel:breakAnchors()
+    questPinPanel:setPosition(clampPinnedPanelPosition(x, y))
+    debugQuestPins('position restored')
+end
+
+local function onQuestPinMapGeometryChange()
+    local mapPanel = modules.game_interface.getMapPanel()
+    debugQuestPins(string.format('map geometry event size=%d,%d', mapPanel:getWidth(), mapPanel:getHeight()))
+    if mapPanel:getWidth() > 0 and mapPanel:getHeight() > 0 then
+        disconnect(mapPanel, { onGeometryChange = mapGeometryHandler })
+        mapGeometryHandler = nil
+        restorePinnedPanelPosition()
+        renderPinnedDetails()
+    else
+        g_logger.info('[QuestPinDebug] waiting for valid map geometry before showing panel')
+    end
+end
+
 local function emptyTrackerSettings()
     return {
         version = TRACKER_SETTINGS_VERSION,
@@ -136,6 +390,7 @@ end
 
 local function load()
     if g_resources.fileExists(file) then
+        g_logger.info(string.format('[QuestPinDebug] loading %s from %s', file, tostring(g_resources.getWriteDir())))
         local status, result = pcall(function()
             return json.decode(g_resources.readFileContents(file))
         end)
@@ -146,14 +401,21 @@ local function load()
         end
         local version = type(result) == 'table' and tonumber(result.version) or nil
         if not version or version < TRACKER_SETTINGS_VERSION or type(result.characters) ~= 'table' then
+            g_logger.warning(string.format('[QuestPinDebug] settings rejected version=%s expected>=%d charactersTable=%s',
+                tostring(version), TRACKER_SETTINGS_VERSION, tostring(type(result.characters) == 'table')))
             return emptyTrackerSettings(), true
         end
+        g_logger.info(string.format('[QuestPinDebug] settings decoded version=%s pinnedCharacters=%d positionCharacters=%d',
+            tostring(version), type(result.pinnedDetails) == 'table' and table.size(result.pinnedDetails) or 0,
+            type(result.pinnedPanelPositions) == 'table' and table.size(result.pinnedPanelPositions) or 0))
         return result, false
     end
+    g_logger.warning(string.format('[QuestPinDebug] settings file missing: %s writeDir=%s', file,
+        tostring(g_resources.getWriteDir())))
     return emptyTrackerSettings(), false
 end
 
-local function save()
+save = function()
     local status, result = pcall(function()
         return json.encode(settings, 2)
     end)
@@ -163,7 +425,9 @@ local function save()
     if result:len() > 100 * 1024 * 1024 then
         return g_logger.error("Something went wrong, file is above 100MB, won't be saved")
     end
-    g_resources.writeFileContents(file, result)
+    local written = g_resources.writeFileContents(file, result)
+    g_logger.info(string.format('[QuestPinDebug] settings saved file=%s bytes=%d success=%s', file, result:len(),
+        tostring(written)))
 end
 
 local sortFunctions = {
@@ -320,6 +584,9 @@ local function setupQuestItemClickHandler(item, isQuestList, questControls)
         self:setBackgroundColor(COLORS.SELECTED)
         if isQuestList then
             selectedJournalId = tonumber(self:getId())
+            UITextList.questLogLine:destroyChildren()
+            UITextList.questLogInfo:setText('')
+            setTrackerChecked(false)
             g_game.requestQuestLine(self:getId())
             self.iconShow:setVisible(questControls == true)
             self.iconPin:setVisible(questControls == true)
@@ -390,6 +657,10 @@ local function setupQuestItemClickHandler(item, isQuestList, questControls)
             updateQuestCounter()
             recolorVisibleItems()
             return true
+        end
+    elseif not isQuestList and questControls then
+        function item.iconTracked:onClick()
+            return togglePinnedDetail(self:getParent())
         end
     end
 end
@@ -732,6 +1003,7 @@ local function validateTrackerParents(availableQuestIds)
 end
 
 local function onQuestLog(questList)
+    debugQuestPins(string.format('quest log received entries=%d', #questList))
     local availableQuestIds = {}
     journalLists = {
         quests = {},
@@ -753,10 +1025,28 @@ local function onQuestLog(questList)
                 tostring(id), tostring(category)))
         end
     end
+    renderPinnedDetails()
 
     if g_game.getClientVersion() >= 1280 then
         validateTrackerParents(availableQuestIds)
     end
+    local pins = getPinnedDetails()
+    local pinsChanged = false
+    for index = #pins, 1, -1 do
+        local questId = tonumber(pins[index].questId)
+        if not availableQuestIds[questId] then
+            g_logger.warning(string.format('[QuestPinDebug] removing pinned questId=%s: missing from quest log',
+                tostring(questId)))
+            table.remove(pins, index)
+            pinsChanged = true
+        end
+    end
+    if pinsChanged then
+        debugQuestPins('pins removed by quest log validation')
+        save()
+        renderPinnedDetails()
+    end
+    requestPinnedQuestLines()
     if activeTab == 'quests' or activeTab == 'information' then
         renderJournalList(activeTab)
     end
@@ -764,6 +1054,9 @@ end
 
 local function onQuestLine(questId, questMissions)
     questId = tonumber(questId)
+    g_logger.info(string.format('[QuestPinDebug] quest line event questId=%s missions=%d', tostring(questId),
+        #questMissions))
+    refreshPinnedDetails(questId, questMissions)
     if trackerValidationPending[questId] then
         local availableMissions = {}
         for _, data in ipairs(questMissions) do
@@ -792,33 +1085,44 @@ local function onQuestLine(questId, questMissions)
     for _, data in ipairs(questMissions) do
         local missionName, missionDescription, missionId = unpack(data)
         local itemCat = createQuestItem(UITextList.questLogLine, missionId, missionName, categoryColor)
+        itemCat.questId = questId
         itemCat.description = missionDescription
+        local _, pinned = findPinnedDetail(missionId, questId, missionName)
+        itemCat.iconTracked:setVisible(activeTab == 'quests')
+        itemCat.iconTracked:setImageColor(pinned and '#00ff00' or '#ffffff')
         setupQuestItemClickHandler(itemCat, false, activeTab == 'quests')
         categoryColor = categoryColor == COLORS.BASE_1 and COLORS.BASE_2 or COLORS.BASE_1
     end
 end
 
 local function onQuestTracker(remainingQuests, missions)
-    if not trackerMiniWindow then
+    if not trackerMiniWindow and #(settings.characters[namePlayer] or {}) > 0 then
         showQuestTracker()
     end
     if not missions or type(missions[1]) ~= "table" then
+        if not trackerMiniWindow then
+            return
+        end
         trackerMiniWindow.contentsPanel.list:destroyChildren()
         return
     end
-    trackerMiniWindow.contentsPanel.list:destroyChildren()
+    if trackerMiniWindow then
+        trackerMiniWindow.contentsPanel.list:destroyChildren()
+    end
     for index, mission in ipairs(missions) do
         local missionId, questName, questIsCompleted, missionName, missionDesc = unpack(mission)
-        local trackerLabel = g_ui.createWidget('QuestTrackerLabel', trackerMiniWindow.contentsPanel.list)
-        trackerLabel:setId(missionId)
-        trackerLabel.description:setText(missionDesc)
+        if trackerMiniWindow and isIdInTracker(namePlayer, missionId) then
+            local trackerLabel = g_ui.createWidget('QuestTrackerLabel', trackerMiniWindow.contentsPanel.list)
+            trackerLabel:setId(missionId)
+            trackerLabel.description:setText(missionDesc)
+        end
     end
 end
 
 local function onUpdateQuestTracker(missionId, missionName, questIsCompleted, missionDesc)
     -- untest
     -- print(missionId, missionName, questIsCompleted, missionDesc)
-    local trackerLabel = trackerMiniWindow.contentsPanel.list:getChildById(missionId)
+    local trackerLabel = trackerMiniWindow and trackerMiniWindow.contentsPanel.list:getChildById(missionId)
     if trackerLabel then
         trackerLabel.description:setText(missionDesc)
     end
@@ -953,7 +1257,33 @@ end
 =               Controller                     =
 =================================================== ]] --
 function questLogController:onInit()
+    g_logger.info(string.format('[QuestPinDebug] onInit online=%s fileExists=%s writeDir=%s',
+        tostring(g_game.isOnline()), tostring(g_resources.fileExists(file)), tostring(g_resources.getWriteDir())))
     g_ui.importStyle("styles/game_questlog.otui")
+    questPinPanel = g_ui.createWidget('QuestPinPanel', rootWidget)
+    local lockButton = questPinPanel:getChildById('header'):getChildById('lockButton')
+    local originalDragMove = questPinPanel.onDragMove
+    questPinPanel.onDragMove = function(widget, mousePos, mouseMoved)
+        originalDragMove(widget, mousePos, mouseMoved)
+        widget:setPosition(clampPinnedPanelPosition(widget:getX(), widget:getY()))
+        if panelPositionSaveEvent then
+            removeEvent(panelPositionSaveEvent)
+        end
+        panelPositionSaveEvent = scheduleEvent(function()
+            panelPositionSaveEvent = nil
+            debugQuestPins('drag settled')
+            savePinnedPanelPosition()
+        end, 300)
+    end
+    lockButton.isLocked = false
+    lockButton.onClick = function(widget)
+        widget.isLocked = not widget.isLocked
+        questPinPanel:setDraggable(not widget.isLocked)
+        widget:setImageColor(widget.isLocked and '#ff0000' or '#00ff00')
+        debugQuestPins(string.format('lock toggled locked=%s', tostring(widget.isLocked)))
+        return true
+    end
+    questPinPanel:setVisible(false)
     questLogController:loadUI('journal')
     questLogController.ui:centerIn('parent')
     hide()
@@ -1021,9 +1351,19 @@ function questLogController:onInit()
 end
 
 function questLogController:onTerminate()
+    if mapGeometryHandler then
+        disconnect(modules.game_interface.getMapPanel(), { onGeometryChange = mapGeometryHandler })
+        mapGeometryHandler = nil
+    end
+    if panelPositionSaveEvent then
+        removeEvent(panelPositionSaveEvent)
+        panelPositionSaveEvent = nil
+    end
+    savePinnedPanelPosition()
     characterRows, characterSections = {}, {}
     questLogButton, trackerMiniWindow, buttonQuestLogTrackerButton = destroyWindows(
         {questLogButton, trackerMiniWindow, buttonQuestLogTrackerButton})
+    questPinPanel = destroyWindows(questPinPanel)
     Keybind.delete("Windows", "Show/hide quest Log")
 end
 
@@ -1031,17 +1371,31 @@ function questLogController:onGameStart()
     activeTab = 'character'
     activeInformationTab = 'information'
     namePlayer = g_game.getCharacterName():lower()
+    debugQuestPins('onGameStart entered')
+    questPinPanel:setParent(rootWidget)
+    questPinPanel:setVisible(false)
+    debugQuestPins('panel attached to rootWidget')
+    local migrated
+    settings, migrated = load()
+    local mapPanel = modules.game_interface.getMapPanel()
+    debugQuestPins(string.format('settings loaded migrated=%s mapSize=%d,%d', tostring(migrated),
+        mapPanel:getWidth(), mapPanel:getHeight()))
+    if mapPanel:getWidth() > 0 and mapPanel:getHeight() > 0 then
+        restorePinnedPanelPosition()
+        renderPinnedDetails()
+    else
+        mapGeometryHandler = onQuestPinMapGeometryChange
+        connect(mapPanel, { onGeometryChange = mapGeometryHandler })
+    end
+    debugQuestPins('panel restored before journal initialization')
     UICheckBox.showInQuestTracker:setVisible(g_game.getClientVersion() >= 1280)
     self:selectTab('character')
+    if migrated then
+        g_logger.info('Quest tracker settings migrated to version ' .. TRACKER_SETTINGS_VERSION ..
+            '; previous tracked missions were cleared.')
+        save()
+    end
     if g_game.getClientVersion() >= 1280 then
-        namePlayer = g_game.getCharacterName():lower()
-        local migrated
-        settings, migrated = load()
-        if migrated then
-            g_logger.info('Quest tracker settings migrated to version ' .. TRACKER_SETTINGS_VERSION ..
-                '; previous tracked missions were cleared.')
-            save()
-        end
         if not buttonQuestLogTrackerButton then
             buttonQuestLogTrackerButton = modules.game_mainpanel.addToggleButton("QuestLogTracker",
                 tr("Open QuestLog Tracker"), "/images/options/button_questlog_tracker", function()
@@ -1051,18 +1405,27 @@ function questLogController:onGameStart()
         if trackerMiniWindow then
             trackerMiniWindow:setupOnStart()
         end
-        -- The list is needed to validate persisted tracker entries before sending them.
-        g_game.requestQuestLog()
     else
         UICheckBox.showInQuestTracker:setVisible(false)
         questLogController.ui.trackerButton:setVisible(false)
     end
+    -- The list validates both persisted tracker entries and pinned quest details.
+    g_game.requestQuestLog()
+    debugQuestPins('quest log requested on login')
 end
 
 function questLogController:onGameEnd()
-    if g_game.getClientVersion() >= 1280 then
-        save()
+    debugQuestPins('onGameEnd entered')
+    if mapGeometryHandler then
+        disconnect(modules.game_interface.getMapPanel(), { onGeometryChange = mapGeometryHandler })
+        mapGeometryHandler = nil
     end
+    if panelPositionSaveEvent then
+        removeEvent(panelPositionSaveEvent)
+        panelPositionSaveEvent = nil
+    end
+    savePinnedPanelPosition()
+    save()
     hide()
     activeTab = 'character'
     activeInformationTab = 'information'
@@ -1096,4 +1459,9 @@ function questLogController:onGameEnd()
     if trackerMiniWindow then
         trackerMiniWindow:setParent(nil, true)
     end
+    if questPinPanel then
+        questPinPanel.list:destroyChildren()
+        questPinPanel:hide()
+    end
+    debugQuestPins('onGameEnd complete')
 end
