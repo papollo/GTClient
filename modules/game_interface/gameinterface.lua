@@ -691,18 +691,6 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
                 end)
             end
 
-            if g_game.getFeature(GamePlayerMounts) then
-                if not localPlayer:isMounted() then
-                    menu:addOption(tr('Mount'), function()
-                        localPlayer:mount()
-                    end)
-                else
-                    menu:addOption(tr('Dismount'), function()
-                        localPlayer:dismount()
-                    end)
-                end
-            end
-
             if creatureThing:isPartyMember() then
                 if creatureThing:isPartyLeader() then
                     if creatureThing:isPartySharedExperienceActive() then

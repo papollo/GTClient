@@ -472,9 +472,9 @@ function create(player, outfitList, creatureMount, mountList, familiarList, wing
     colorModeGroup.onSelectionChange = onColorModeChange
     colorModeGroup:selectWidget(window.appearance.colorMode.head)
 
-    window.preview.options.showMount:setVisible(g_game.getFeature(GamePlayerMounts))
-    window.configure.mount:setVisible(g_game.getFeature(GamePlayerMounts))
-    window.appearance.settings.mount:setVisible(g_game.getFeature(GamePlayerMounts))
+    window.preview.options.showMount:setVisible(false)
+    window.configure.mount:setVisible(false)
+    window.appearance.settings.mount:setVisible(false)
 
     window.preview.options.showFamiliar:setVisible(g_game.getFeature(GamePlayerFamiliars))
     window.appearance.settings.familiar:setVisible(g_game.getFeature(GamePlayerFamiliars))
@@ -1762,18 +1762,7 @@ function loadDefaultSettings()
 end
 
 function accept()
-    if g_game.getFeature(GamePlayerMounts) then
-        local player = g_game.getLocalPlayer()
-        local isMountedChecked = window.configure.mount.check:isChecked()
-        if not player:isMounted() and isMountedChecked then
-            player:mount()
-        elseif player:isMounted() and not isMountedChecked then
-            player:dismount()
-        end
-        if settings.currentPreset > 0 then
-            settings.presets[settings.currentPreset].mounted = isMountedChecked
-        end
-    end
+    tempOutfit.mount = ServerData.currentOutfit.mount
     if g_game.getFeature(GamePlayerFamiliars) then
         if settings.currentPreset > 0 then
             settings.presets[settings.currentPreset].familiar = window.configure.familiar.check:isChecked()
