@@ -1,0 +1,10 @@
+Module
+  name: game_job_board
+  description: Daily job board
+  author: Gothic Tales
+  sandboxed: true
+  autoload: true
+  dependencies: [ game_interface ]
+  scripts: [ game_job_board ]
+  @onLoad: init()
+  @onUnload: terminate()
