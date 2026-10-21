@@ -35,7 +35,10 @@ local function renderOffer(offer)
     card:setId(offer.category)
     card:getChildById('npc'):setText(displayText(offer.categoryName .. ' - ' .. offer.npcName))
     card:getChildById('name'):setText(displayText(offer.name))
-    card:getChildById('description'):setText(displayText(offer.description))
+    local description = card:getChildById('description')
+    description:setText(displayText(offer.description))
+    local descriptionHeight = math.max(22, description:getTextSize().height)
+    description:setHeight(descriptionHeight)
 
     local requirementLines = {}
     for _, requirement in ipairs(offer.requirements) do
@@ -48,6 +51,7 @@ local function renderOffer(offer)
     local accept = card:getChildById('accept')
     accept:setText('Przyjmij')
     accept:setEnabled(not pending[offer.category])
+    card:setHeight(116 + descriptionHeight - 22)
 end
 
 local function onJobBoardOpcode(protocol, opcode, message)
