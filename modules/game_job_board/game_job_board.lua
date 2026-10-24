@@ -45,8 +45,8 @@ local function renderOffer(offer)
         requirementLines[#requirementLines + 1] = string.format('%s x %d', requirement.name, requirement.count)
     end
     card:getChildById('requirements'):setText(displayText(table.concat(requirementLines, '  •  ')))
-    card:getChildById('rewards'):setText(displayText(string.format('Nagroda: %d exp, %d złota',
-        tonumber(offer.rewards.experience) or 0, tonumber(offer.rewards.money) or 0)))
+    card:getChildById('rewards'):setText(displayText(string.format('Nagroda: %d exp, %s x %d',
+        tonumber(offer.rewards.experience) or 0, offer.rewards.itemName or '', tonumber(offer.rewards.itemCount) or 0)))
 
     local accept = card:getChildById('accept')
     accept:setText('Przyjmij')

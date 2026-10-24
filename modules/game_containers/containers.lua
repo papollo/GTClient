@@ -500,20 +500,24 @@ function onContainerOpen(container, previousContainer)
     refreshContainerPages(container)
 
     local layout = containerPanel:getLayout()
+    layout:update()
     local cellSize = layout:getCellSize()
+    local cellSpacing = layout:getCellSpacing()
+    local maxLines = math.max(layout:getNumLines(), 1)
+    local maxContentHeight = cellSize.height * maxLines + cellSpacing * (maxLines - 1)
     containerWindow:setContentMinimumHeight(cellSize.height)
-    containerWindow:setContentMaximumHeight(cellSize.height * layout:getNumLines() + 15)
+    containerWindow:setContentMaximumHeight(maxContentHeight)
 
     if not previousContainer then
         local panel = modules.game_interface.findContentPanelAvailable(containerWindow, cellSize.height)
         panel:addChild(containerWindow)
+    end
 
-        if modules.client_options.getOption('openMaximized') then
-            containerWindow:setContentHeight(cellSize.height * layout:getNumLines())
-        else
-            local filledLines = math.max(math.ceil(container:getItemsCount() / layout:getNumColumns()), 1)
-            containerWindow:setContentHeight(filledLines * cellSize.height)
-        end
+    if previousContainer or modules.client_options.getOption('openMaximized') then
+        containerWindow:setContentHeight(maxContentHeight)
+    else
+        local filledLines = math.max(math.ceil(container:getItemsCount() / layout:getNumColumns()), 1)
+        containerWindow:setContentHeight(filledLines * cellSize.height + cellSpacing * (filledLines - 1))
     end
 
     containerWindow:setup()
