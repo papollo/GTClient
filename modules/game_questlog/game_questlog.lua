@@ -23,6 +23,7 @@ local activeInformationTab = 'information'
 local updatingTrackerCheck = false
 local characterRows = {}
 local characterSections = {}
+-- Opcode 223: get progressive achievements; receive a list of id, name, progress, target, and optional icon.
 local SORT_OPTIONS = { 'Alphabetically (A-Z)', 'Alphabetically (Z-A)', 'Completed on Top', 'Completed on Bottom' }
 local INFORMATION_SORT_OPTIONS = { 'Alphabetically (A-Z)', 'Alphabetically (Z-A)' }
 -- Opcode 240, journal/list response entry: u16 id, string name, u8 completed, u8 category.
@@ -69,6 +70,9 @@ local selectedJournalId = nil
 local trackerValidationPending = {}
 local trackerValidationChanged = false
 local updatingSortOptions = false
+local ACHIEVEMENTS_OPCODE = 223
+local DEFAULT_ACHIEVEMENT_ICON = '/images/icons/icon_experience'
+local achievementEntries = {}
 local panelPositionSaveEvent = nil
 local mapGeometryHandler = nil
 local questLogCache = {
@@ -101,6 +105,46 @@ end
 
 local function getJournalListKey(tab)
     return tab == 'information' and activeInformationTab or tab
+end
+
+local function requestAchievements()
+    local protocol = g_game.getProtocolGame()
+    if protocol then
+        protocol:sendExtendedJSONOpcode(ACHIEVEMENTS_OPCODE, { action = 'get' })
+    end
+end
+
+local function renderAchievements()
+    if not questLogController.ui then
+        return
+    end
+    local list = questLogController.ui.achievementsPanel.list
+    list:destroyChildren()
+    for _, entry in ipairs(achievementEntries) do
+        local row = g_ui.createWidget('AchievementRow', list)
+        row:getChildById('icon'):setImageSource(entry.icon or DEFAULT_ACHIEVEMENT_ICON)
+        row:getChildById('name'):setText(entry.name)
+        row:getChildById('description'):setText(entry.shortDescription)
+        local tooltip = entry.description
+        row:setTooltip(tooltip)
+        for _, id in ipairs({ 'icon', 'name', 'description', 'progress' }) do
+            row:getChildById(id):setTooltip(tooltip)
+        end
+        local progress = row:getChildById('progress')
+        progress:setPercent(entry.target > 0 and math.min(100, entry.progress * 100 / entry.target) or 0)
+        progress:setText(string.format('%d/%d', entry.progress, entry.target))
+    end
+end
+
+local function onAchievementProgression(protocol, opcode, data)
+    if opcode ~= ACHIEVEMENTS_OPCODE or type(data) ~= 'table' or data.action ~= 'list'
+        or type(data.achievements) ~= 'table' then
+        return
+    end
+    achievementEntries = data.achievements
+    if activeTab == 'achievements' then
+        renderAchievements()
+    end
 end
 
 local function setTrackerChecked(checked)
@@ -764,27 +808,35 @@ function questLogController:refreshCharacter()
 end
 
 function questLogController:selectTab(tab, requestQuests)
-    if not self.ui or (tab ~= 'character' and tab ~= 'quests' and tab ~= 'information') then
+    if not self.ui or (tab ~= 'character' and tab ~= 'quests' and tab ~= 'information'
+        and tab ~= 'achievements') then
         return
     end
     rememberQuestItemState()
     local changed = activeTab ~= tab
     activeTab = tab
     local journal = tab == 'quests' or tab == 'information'
+    local achievements = tab == 'achievements'
     self.ui.characterTab:setOn(tab == 'character')
     self.ui.questsTab:setOn(tab == 'quests')
     self.ui.informationTab:setOn(tab == 'information')
-    self.ui.characterPanel:setVisible(not journal)
+    self.ui.achievementsTab:setOn(achievements)
+    self.ui.characterPanel:setVisible(not journal and not achievements)
     self.ui.panelQuestLog:setVisible(journal)
     self.ui.panelQuestLineSelected:setVisible(journal)
+    self.ui.achievementsPanel:setVisible(achievements)
     if journal then
         configureJournalControls(tab)
         renderJournalList(tab)
     end
     if journal and g_game.isOnline() and (changed or requestQuests) then
         g_game.requestQuestLog()
+    elseif achievements and g_game.isOnline() then
+        requestAchievements()
     elseif not journal then
-        self:refreshCharacter()
+        if not achievements then
+            self:refreshCharacter()
+        end
     end
 end
 
@@ -1259,6 +1311,8 @@ function questLogController:onInit()
     self:registerEvents(skillData, { onChange = function() self:refreshCharacter() end })
     self:selectTab('character')
 
+    ProtocolGame.registerExtendedJSONOpcode(ACHIEVEMENTS_OPCODE, onAchievementProgression)
+
     questLogController:registerEvents(g_game, {
         onQuestLog = onQuestLog,
         onQuestLine = onQuestLine,
@@ -1281,6 +1335,7 @@ function questLogController:onInit()
 end
 
 function questLogController:onTerminate()
+    pcall(ProtocolGame.unregisterExtendedJSONOpcode, ACHIEVEMENTS_OPCODE)
     if mapGeometryHandler then
         disconnect(modules.game_interface.getMapPanel(), { onGeometryChange = mapGeometryHandler })
         mapGeometryHandler = nil
@@ -1357,6 +1412,8 @@ function questLogController:onGameEnd()
     UITextList.questLogInfo:setText('')
     questLogCache = { items = {}, completed = 0, hidden = 0, visible = 0 }
     journalLists = { quests = {}, information = {}, teachers = {} }
+    achievementEntries = {}
+    self.ui.achievementsPanel:getChildById('list'):destroyChildren()
     questItemState = {}
     selectedJournalId = nil
     trackerValidationPending = {}

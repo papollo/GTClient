@@ -13,6 +13,7 @@ locale = {
     ["Quests"] = "Zadania",
     ["Information"] = "Informacje",
     ["Teachers"] = "Nauczyciele",
+    ["Achievements"] = "Osiągnięcia",
     ["Guild"] = "Gildia",
     ["No data"] = "Brak danych",
     ["No guild"] = "Bez gildii",

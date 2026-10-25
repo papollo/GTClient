@@ -103,7 +103,6 @@ function showCharacter()
 end
 
 Cyclopedia.Character = {}
-Cyclopedia.Character.Achievements = {}
 Cyclopedia.InventorySlotStyles = {
     [InventorySlotHead] = {
         icon = "/images/game/slots/inventory-head",
@@ -369,16 +368,6 @@ function Cyclopedia.loadCharacterItems(data)
     Cyclopedia.characterItemsFilter(UI.CharacterItems.filters.inventory, true)
 end
 
-function Cyclopedia.loadCharacterAchievements()
-    if not Cyclopedia.Character.Achievements.Loaded then
-        UI.CharacterAchievements.sort:addOption("Alphabetically", 1, true)
-        UI.CharacterAchievements.sort:addOption("By Grade", 2, true)
-        UI.CharacterAchievements.sort:addOption("By Unlock Date", 3, true)
-        Cyclopedia.achievementFilter(UI.CharacterAchievements.filters.accomplished)
-        Cyclopedia.Character.Achievements.Loaded = true
-    end
-end
-
 function Cyclopedia.characterItemListFilter(widget)
     local parent = widget:getParent()
     for i = 1, parent:getChildCount() do
@@ -397,65 +386,6 @@ function Cyclopedia.characterItemListFilter(widget)
         UI.CharacterItems.ListBase:setVisible(false)
         UI.CharacterItems.gridBase:setVisible(true)
     end
-end
-
-function Cyclopedia.achievementFilter(widget)
-    local parent = widget:getParent()
-    for i = 1, parent:getChildCount() do
-        local child = parent:getChildByIndex(i)
-        if child then
-            child:setChecked(false)
-        end
-    end
-
-    if widget:getId() ~= "accomplished" then
-        local last = Cyclopedia.Character.Achievements.lastSort
-        last = last or 1
-        Cyclopedia.achievementSort(last)
-    else
-        UI.CharacterAchievements.ListBase.List:destroyChildren()
-    end
-
-    widget:setChecked(not widget:isChecked())
-end
-
-function Cyclopedia.achievementSort(option)
-    local tempTable = {}
-
-    for id, data in pairs(ACHIEVEMENTS) do
-        local tempData = {
-            id = id,
-            name = data.name,
-            description = data.description,
-            grade = data.grade
-        }
-
-        table.insert(tempTable, tempData)
-    end
-
-    if option == 1 then
-        table.sort(tempTable, function(a, b)
-            return a.name < b.name
-        end)
-    elseif option == 2 then
-        table.sort(tempTable, function(a, b)
-            return a.grade > b.grade
-        end)
-    end
-
-    UI.CharacterAchievements.ListBase.List:destroyChildren()
-
-    for _, data in pairs(tempTable) do
-        local widget = g_ui.createWidget("Achievement", UI.CharacterAchievements.ListBase.List)
-        widget:setId(data.id)
-        widget.title:setText(data.name)
-        widget.title = data.name
-        widget:setText(data.description)
-        widget.icon:setWidth(11 * data.grade)
-        widget.grade = data.grade
-    end
-
-    Cyclopedia.Character.Achievements.lastSort = option
 end
 
 function Cyclopedia.loadCharacterRecentKills(data)
@@ -996,11 +926,6 @@ function Cyclopedia.configureCharacterCategories()
             }
         },
         {
-            text = "Achievements",
-            icon = "/game_cyclopedia/images/character_icons/icon_achievement",
-            open = "CharacterAchievements"
-        },
-        {
             text = "Item Summary",
             icon = "/game_cyclopedia/images/character_icons/icon_items",
             open = "CharacterItems"
@@ -1092,9 +1017,7 @@ function Cyclopedia.configureCharacterCategories()
         end
 
         function widget.Button.onClick(this)
-            if widget.open == "CharacterAchievements" then
-                Cyclopedia.loadCharacterAchievements()
-            elseif widget.open == "CharacterItems" then
+            if widget.open == "CharacterItems" then
                 g_game.requestCharacterInfo(0, CyclopediaCharacterInfoTypes.ItemSummary)
                 Cyclopedia.characterItemListFilter(UI.CharacterItems.listFilter.list)
             elseif widget.open == "CharacterAppearances" then

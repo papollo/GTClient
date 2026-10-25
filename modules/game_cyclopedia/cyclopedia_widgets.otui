@@ -188,32 +188,6 @@ CharacterListItem < UIWidget
     anchors.verticalCenter: item.verticalCenter
     anchors.left: separator.left
     margin-left: 5
-Achievement < UICheckBox
-  image-source: /images/ui/outfits/minipanel
-  image-border: 5
-  color: #C0C0C0
-  text-auto-resize: true
-  text-wrap: true
-  text-offset: 10 25
-  padding-bottom: 5
-  margin: 5
-  margin-bottom: 1
-  UIWidget
-    id: title
-    text-auto-resize: true
-    color: #909090
-    anchors.top: parent.top
-    margin-top: 2
-    anchors.horizontalCenter: parent.horizontalCenter
-  UIWidget
-    id: icon
-    image-source: /game_cyclopedia/images/icon-achievement
-    image-repeated: true
-    width: 22
-    anchors.top: title.top
-    anchors.left: parent.left
-    margin-left: 2
-    margin-top: 2
 CharacterDeath < UICheckBox
   size: 450 17
   Label

@@ -60,6 +60,49 @@ JournalStat < UIWidget
     visible: false
     phantom: true
 
+AchievementRow < Panel
+  height: 68
+  background-color: #ffffff05
+  UIWidget
+    id: icon
+    size: 36 36
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 8
+    image-source: /images/icons/icon_experience
+  Label
+    id: name
+    anchors.left: icon.right
+    anchors.right: parent.right
+    anchors.top: parent.top
+    margin-left: 10
+    margin-right: 8
+    margin-top: 4
+    height: 18
+    color: #dfdfdf
+  Label
+    id: description
+    anchors.left: icon.right
+    anchors.right: parent.right
+    anchors.top: name.bottom
+    margin-left: 10
+    margin-right: 8
+    height: 15
+    color: #a0a0a0
+    font: small-9px
+  ProgressBar
+    id: progress
+    anchors.left: icon.right
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    margin-left: 10
+    margin-right: 8
+    margin-bottom: 6
+    height: 20
+    background-color: #008b00
+    color: #ffffff
+    text-align: center
+
 MainWindow
   id: journal
   !text: tr('Journal')
@@ -86,6 +129,37 @@ MainWindow
     anchors.top: parent.top
     margin-left: 6
     @onClick: modules.game_questlog.questLogController:selectTab('information')
+  JournalTab
+    id: achievementsTab
+    !text: tr('Achievements')
+    anchors.left: informationTab.right
+    anchors.top: parent.top
+    margin-left: 6
+    @onClick: modules.game_questlog.questLogController:selectTab('achievements')
+
+  Panel
+    id: achievementsPanel
+    anchors.top: characterTab.bottom
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: footer.top
+    margin-top: 8
+    margin-bottom: 8
+    JournalColumn
+      id: list
+      anchors.top: parent.top
+      anchors.left: parent.left
+      anchors.bottom: parent.bottom
+      anchors.right: scrollbar.left
+      padding: 4
+      vertical-scrollbar: scrollbar
+    VerticalScrollBar
+      id: scrollbar
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.right: parent.right
+      step: 32
+      pixels-scroll: true
 
   Panel
     id: characterPanel
