@@ -23,7 +23,7 @@ local activeInformationTab = 'information'
 local updatingTrackerCheck = false
 local characterRows = {}
 local characterSections = {}
--- Opcode 223: get progressive achievements; receive a list of id, name, progress, target, and optional icon.
+-- Opcode 223: get/select/clear progressive achievements and receive their progress, earned title, and selected title.
 local SORT_OPTIONS = { 'Alphabetically (A-Z)', 'Alphabetically (Z-A)', 'Completed on Top', 'Completed on Bottom' }
 local INFORMATION_SORT_OPTIONS = { 'Alphabetically (A-Z)', 'Alphabetically (Z-A)' }
 -- Opcode 240, journal/list response entry: u16 id, string name, u8 completed, u8 category.
@@ -73,6 +73,7 @@ local updatingSortOptions = false
 local ACHIEVEMENTS_OPCODE = 223
 local DEFAULT_ACHIEVEMENT_ICON = '/images/icons/icon_experience'
 local achievementEntries = {}
+local selectedAchievement = nil
 local panelPositionSaveEvent = nil
 local mapGeometryHandler = nil
 local questLogCache = {
@@ -114,6 +115,14 @@ local function requestAchievements()
     end
 end
 
+local function requestAchievementTitle(action, achievementId)
+    local protocol = g_game.getProtocolGame()
+    if protocol then
+        protocol:sendExtendedJSONOpcode(ACHIEVEMENTS_OPCODE,
+            action == 'select' and { action = action, id = achievementId } or { action = action })
+    end
+end
+
 local function renderAchievements()
     if not questLogController.ui then
         return
@@ -123,9 +132,9 @@ local function renderAchievements()
     for _, entry in ipairs(achievementEntries) do
         local row = g_ui.createWidget('AchievementRow', list)
         row:getChildById('icon'):setImageSource(entry.icon or DEFAULT_ACHIEVEMENT_ICON)
-        row:getChildById('name'):setText(entry.name)
-        row:getChildById('description'):setText(entry.shortDescription)
-        local tooltip = entry.description
+        row:getChildById('name'):setText(utf8ToCp1250(entry.name))
+        row:getChildById('description'):setText(utf8ToCp1250(entry.shortDescription))
+        local tooltip = utf8ToCp1250(entry.description)
         row:setTooltip(tooltip)
         for _, id in ipairs({ 'icon', 'name', 'description', 'progress' }) do
             row:getChildById(id):setTooltip(tooltip)
@@ -133,6 +142,20 @@ local function renderAchievements()
         local progress = row:getChildById('progress')
         progress:setPercent(entry.target > 0 and math.min(100, entry.progress * 100 / entry.target) or 0)
         progress:setText(string.format('%d/%d', entry.progress, entry.target))
+
+        local earned = entry.earnedAchievement
+        local selected = selectedAchievement
+        local selectedForRow = selected and selected.id == entry.id
+        local titleName = selectedForRow and selected.name or earned and earned.name or ''
+        row:getChildById('earnedTitle'):setVisible(titleName ~= '')
+        row:getChildById('earnedTitle'):setText(utf8ToCp1250(titleName))
+        local titleButton = row:getChildById('titleButton')
+        titleButton:setVisible(earned ~= nil or selectedForRow)
+        titleButton:setImageSource(selectedForRow and '/images/game/prey/prey_star' or '/images/game/prey/prey_nostar')
+        titleButton:setTooltip(tr(selectedForRow and 'Remove title' or 'Use latest earned'))
+        titleButton.onClick = function()
+            requestAchievementTitle(selectedForRow and 'clear' or 'select', entry.id)
+        end
     end
 end
 
@@ -142,6 +165,7 @@ local function onAchievementProgression(protocol, opcode, data)
         return
     end
     achievementEntries = data.achievements
+    selectedAchievement = type(data.selectedAchievement) == 'table' and data.selectedAchievement or nil
     if activeTab == 'achievements' then
         renderAchievements()
     end
@@ -1413,6 +1437,7 @@ function questLogController:onGameEnd()
     questLogCache = { items = {}, completed = 0, hidden = 0, visible = 0 }
     journalLists = { quests = {}, information = {}, teachers = {} }
     achievementEntries = {}
+    selectedAchievement = nil
     self.ui.achievementsPanel:getChildById('list'):destroyChildren()
     questItemState = {}
     selectedJournalId = nil

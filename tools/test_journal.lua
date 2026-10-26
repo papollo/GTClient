@@ -18,6 +18,15 @@ local function flush()
     end
 end
 function tr(text, ...) return string.format(text, ...) end
+function utf8ToCp1250(text)
+    for character, byte in pairs({['ł'] = 0xB3, ['ę'] = 0xEA, ['ś'] = 0x9C, ['ń'] = 0xF1}) do
+        text = text:gsub(character, string.char(byte))
+    end
+    return text
+end
+function table.remove_if(t, predicate)
+    for i = #t, 1, -1 do if predicate(i, t[i]) then table.remove(t, i) end end
+end
 function comma_value(value) return tostring(value) end
 local features = {}
 local version = 1098
@@ -27,7 +36,9 @@ g_game = {
 }
 g_settings = { setNode = function() end }
 local warnings = {}
-g_logger = { warning = function(message) warnings[#warnings + 1] = message end }
+g_logger = { warning = function(message) warnings[#warnings + 1] = message end, error = function(message) error(message) end }
+json = { encode = function() return '{}' end }
+g_resources = { writeFileContents = function() end }
 
 dofile('modules/game_skills/skilldata.lua')
 dofile('modules/game_skills/skills.lua')
@@ -179,6 +190,15 @@ end
 local file = assert(io.open('modules/game_skills/skills.otui', 'r'))
 local otui = file:read('*a')
 file:close()
+file = assert(io.open('modules/game_questlog/journal.otui', 'r'))
+local journalOtui = file:read('*a')
+assert(journalOtui:find('id: earnedTitle\n    anchors.top: parent.top\n    anchors.right: titleButton.left', 1, true),
+    'Achievement title belongs beside the star')
+assert(journalOtui:find('id: earnedTitle\n    anchors.top: parent.top\n    anchors.right: titleButton.left\n    margin-right: 6\n    margin-top: 4\n    width: 220\n    height: 18\n    color: #bbbbbb\n    text-align: right\n    font: verdana-11px-antialised', 1, true),
+    'The title uses the CP1250 font used by achievement names')
+assert(journalOtui:find('id: description\n    anchors.left: icon.right\n    anchors.right: parent.right\n    anchors.top: name.bottom\n    margin-left: 10\n    margin-right: 8\n    height: 15\n    color: #a0a0a0\n    font: verdana-11px-antialised', 1, true),
+    'Achievement descriptions use the CP1250 font')
+file:close()
 assert(not otui:find("tr('Specialization')", 1, true))
 for _, title in ipairs({'Specialization', 'AttributesLabel', 'Critical Damage:', 'MagicLabel', 'Resistance:'}) do
     assert(not otui:find("tr('" .. title .. "')", 1, true), 'Section still visible in Skills: ' .. title)
@@ -269,9 +289,11 @@ function Widget:focus() end
 function Widget:setPhantom() end
 function Widget:setFocusable() end
 function Widget:setIcon() end
+function Widget:setImageSource(value) self.imageSource = value end
 
 local journal = node({
-    characterTab = node(), questsTab = node(), informationTab = node(), trackerButton = node(),
+    characterTab = node(), questsTab = node(), informationTab = node(), achievementsTab = node(), trackerButton = node(),
+    achievementsPanel = node({list = node()}),
     characterPanel = node({left = node(), right = node(), leftScroll = node(), rightScroll = node()}),
     panelQuestLog = node({
         areaPanelQuestList = node({questList = node()}), comboBoxFilter = node(), title = node(),
@@ -300,6 +322,10 @@ g_ui = {
     createWidget = function(style, parent)
         local widget
         if style == 'JournalStat' then widget = node({name = node(), value = node(), progress = node()})
+        elseif style == 'AchievementRow' then
+            widget = node({icon = node(), name = node(), description = node(), progress = node(),
+                earnedTitle = node(), titleButton = node()})
+        elseif style == 'QuestPinPanel' then widget = node({header = node({lockButton = node()}), list = node()})
         elseif style == 'JournalSection' then
             widget = node({title = node()})
             widget.isJournalSection = true
@@ -311,16 +337,27 @@ g_ui = {
     end
 }
 local journalButton = node()
-modules = { game_skills = { SkillData = SkillData }, game_mainpanel = {
+rootWidget = node()
+modules = { game_skills = { SkillData = SkillData }, game_interface = { getMapPanel = function() return nil end }, game_mainpanel = {
     addToggleButton = function() return journalButton end
 } }
 local keybindCallback
 Keybind = { new = function() end, bind = function(_, _, callbacks) keybindCallback = callbacks[1].callback end }
 KEY_DOWN = 1
 local requests = 0
+local achievementRequest
+local protocol = { sendExtendedJSONOpcode = function(_, opcode, data)
+    achievementRequest = { opcode = opcode, data = data }
+end }
 g_game.isOnline = function() return true end
+g_game.getProtocolGame = function() return protocol end
 g_game.getCharacterName = function() return 'Test character' end
 g_game.requestQuestLog = function() requests = requests + 1 end
+local achievementHandler
+ProtocolGame = {
+    registerExtendedJSONOpcode = function(_, callback) achievementHandler = callback end,
+    unregisterExtendedJSONOpcode = function() end
+}
 version = 1098
 SkillData.reset()
 SkillData.set('health', { text = '400', maximum = 540 })
@@ -378,4 +415,33 @@ show()
 assert(journal.characterPanel.visible and requests == 5)
 g_game.onQuestLog({})
 assert(journal.panelQuestLog.filterPanel.lblCompleteNumber.text == 'Completed: 0')
+questLogController:selectTab('achievements')
+assert(achievementRequest.data.action == 'get')
+achievementHandler(protocol, 223, {action = 'list', achievements = {{id = 1, name = 'Alchemist Apprentice',
+    shortDescription = 'Craft 50 potions', description = 'Brew potions.', progress = 0, target = 50,
+    }, {id = 2, name = 'Uczeń zielarza', shortDescription = 'Zbierz 50 roślin',
+    description = 'Zbierz rośliny.', progress = 0, target = 50,
+    earnedAchievement = {id = 2, level = 1, name = 'Młody zielarz'}}}})
+assert(not journal.achievementsPanel.list.children[1].titleButton.visible)
+local achievementRow = journal.achievementsPanel.list.children[2]
+local cp1250Title = 'M' .. string.char(0xB3) .. 'ody zielarz'
+assert(achievementRow.name.text == 'Ucze' .. string.char(0xF1) .. ' zielarza')
+assert(achievementRow.description.text == 'Zbierz 50 ro' .. string.char(0x9C) .. 'lin')
+assert(achievementRow.description.tooltip == 'Zbierz ro' .. string.char(0x9C) .. 'liny.')
+assert(achievementRow.earnedTitle.text == cp1250Title)
+assert(achievementRow.titleButton.imageSource == '/images/game/prey/prey_nostar')
+achievementRow.titleButton.onClick()
+assert(achievementRequest.data.action == 'select' and achievementRequest.data.id == 2)
+achievementHandler(protocol, 223, {action = 'list', selectedAchievement = {id = 2, level = 1, name = 'Młody zielarz'},
+    achievements = {{id = 1, name = 'Alchemist Apprentice', shortDescription = 'Craft 50 potions',
+        description = 'Brew potions.', progress = 0, target = 50},
+        {id = 2, name = 'Uczeń zielarza', shortDescription = 'Zbierz 50 roślin',
+            description = 'Zbierz rośliny.', progress = 0, target = 50,
+            earnedAchievement = {id = 2, level = 1, name = 'Młody zielarz'}}}})
+assert(not journal.achievementsPanel.list.children[1].titleButton.visible)
+achievementRow = journal.achievementsPanel.list.children[2]
+assert(achievementRow.earnedTitle.text == cp1250Title)
+assert(achievementRow.titleButton.imageSource == '/images/game/prey/prey_star')
+achievementRow.titleButton.onClick()
+assert(achievementRequest.data.action == 'clear')
 print('PASS: journal tabs, information categories, live updates, filters, pins, shortcut, and session reset')

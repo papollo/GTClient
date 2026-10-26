@@ -70,13 +70,35 @@ AchievementRow < Panel
     anchors.verticalCenter: parent.verticalCenter
     margin-left: 8
     image-source: /images/icons/icon_experience
+  UIWidget
+    id: titleButton
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: 6
+    margin-right: 8
+    size: 18 20
+    image-source: /images/game/prey/prey_nostar
+    image-size: 18 20
+    visible: false
+  Label
+    id: earnedTitle
+    anchors.top: parent.top
+    anchors.right: titleButton.left
+    margin-right: 6
+    margin-top: 4
+    width: 220
+    height: 18
+    color: #bbbbbb
+    text-align: right
+    font: verdana-11px-antialised
+    visible: false
   Label
     id: name
     anchors.left: icon.right
-    anchors.right: parent.right
+    anchors.right: earnedTitle.left
     anchors.top: parent.top
     margin-left: 10
-    margin-right: 8
+    margin-right: 6
     margin-top: 4
     height: 18
     color: #dfdfdf
@@ -89,7 +111,7 @@ AchievementRow < Panel
     margin-right: 8
     height: 15
     color: #a0a0a0
-    font: small-9px
+    font: verdana-11px-antialised
   ProgressBar
     id: progress
     anchors.left: icon.right
@@ -98,7 +120,7 @@ AchievementRow < Panel
     margin-left: 10
     margin-right: 8
     margin-bottom: 6
-    height: 20
+    height: 16
     background-color: #008b00
     color: #ffffff
     text-align: center

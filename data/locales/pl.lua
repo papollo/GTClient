@@ -9,6 +9,8 @@ locale = {
 
   translation = {
     ["Journal"] = "Dziennik",
+    ["Use latest earned"] = "Użyj ostatniego tytułu",
+    ["Remove title"] = "Usuń tytuł",
     ["Character sheet"] = "Karta postaci",
     ["Quests"] = "Zadania",
     ["Information"] = "Informacje",
