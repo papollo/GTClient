@@ -25,6 +25,8 @@ JournalSection < Panel
 JournalStat < UIWidget
   height: 32
   background-color: #ffffff05
+  image-source: images/specialization-gradient
+  image-color: #ffffff00
   Label
     id: name
     anchors.left: parent.left

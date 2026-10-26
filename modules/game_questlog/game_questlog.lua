@@ -820,6 +820,8 @@ function questLogController:refreshCharacter()
             row:getChildById('name'):setText(label)
             row:getChildById('value'):setText(value)
             row:getChildById('value'):setColor(valueColor)
+            row:setImageColor(state.specializationRank and state.specializationRank > 0
+                and valueColor or '#ffffff00')
             local progress = row:getChildById('progress')
             progress:setVisible(state.hasProgress and state.percent ~= nil)
             if state.hasProgress and state.percent then
