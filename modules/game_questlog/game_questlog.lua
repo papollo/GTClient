@@ -131,7 +131,8 @@ local function renderAchievements()
     list:destroyChildren()
     for _, entry in ipairs(achievementEntries) do
         local row = g_ui.createWidget('AchievementRow', list)
-        row:getChildById('icon'):setImageSource(entry.icon or DEFAULT_ACHIEVEMENT_ICON)
+        local icon = type(entry.icon) == 'string' and '/images/game/achievements/' .. entry.icon or nil
+        row:getChildById('icon'):setImageSource(icon and g_resources.fileExists(icon) and icon or DEFAULT_ACHIEVEMENT_ICON)
         row:getChildById('name'):setText(utf8ToCp1250(entry.name))
         row:getChildById('description'):setText(utf8ToCp1250(entry.shortDescription))
         local tooltip = utf8ToCp1250(entry.description)
@@ -165,6 +166,19 @@ local function onAchievementProgression(protocol, opcode, data)
         return
     end
     achievementEntries = data.achievements
+    table.sort(achievementEntries, function(left, right)
+        local leftLevel = left.earnedAchievement and left.earnedAchievement.level or 0
+        local rightLevel = right.earnedAchievement and right.earnedAchievement.level or 0
+        if leftLevel ~= rightLevel then
+            return leftLevel > rightLevel
+        end
+        local leftProgress = left.target > 0 and math.min(1, left.progress / left.target) or 0
+        local rightProgress = right.target > 0 and math.min(1, right.progress / right.target) or 0
+        if leftProgress ~= rightProgress then
+            return leftProgress > rightProgress
+        end
+        return left.id < right.id
+    end)
     selectedAchievement = type(data.selectedAchievement) == 'table' and data.selectedAchievement or nil
     if activeTab == 'achievements' then
         renderAchievements()

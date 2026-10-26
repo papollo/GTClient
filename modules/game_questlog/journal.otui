@@ -61,11 +61,12 @@ JournalStat < UIWidget
     phantom: true
 
 AchievementRow < Panel
-  height: 68
+  height: 144
   background-color: #ffffff05
   UIWidget
     id: icon
-    size: 36 36
+    size: 128 128
+    image-size: 128 128
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     margin-left: 8
@@ -74,7 +75,7 @@ AchievementRow < Panel
     id: titleButton
     anchors.top: parent.top
     anchors.right: parent.right
-    margin-top: 6
+    margin-top: 42
     margin-right: 8
     size: 18 20
     image-source: /images/game/prey/prey_nostar
@@ -85,7 +86,7 @@ AchievementRow < Panel
     anchors.top: parent.top
     anchors.right: titleButton.left
     margin-right: 6
-    margin-top: 4
+    margin-top: 40
     width: 220
     height: 18
     color: #bbbbbb
@@ -99,7 +100,7 @@ AchievementRow < Panel
     anchors.top: parent.top
     margin-left: 10
     margin-right: 6
-    margin-top: 4
+    margin-top: 40
     height: 18
     color: #dfdfdf
   Label
@@ -119,7 +120,7 @@ AchievementRow < Panel
     anchors.bottom: parent.bottom
     margin-left: 10
     margin-right: 8
-    margin-bottom: 6
+    margin-bottom: 40
     height: 16
     background-color: #008b00
     color: #ffffff
