@@ -74,6 +74,16 @@ AchievementRow < Panel
     margin-left: 8
     image-source: /images/icons/icon_experience
   UIWidget
+    id: rewardsHelp
+    anchors.top: parent.top
+    anchors.right: parent.right
+    margin-top: 12
+    margin-right: 8
+    size: 18 18
+    image-size: 18 18
+    image-source: /images/icons/icon_help
+    visible: false
+  UIWidget
     id: titleButton
     anchors.top: parent.top
     anchors.right: parent.right

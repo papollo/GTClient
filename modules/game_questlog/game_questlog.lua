@@ -24,6 +24,9 @@ local updatingTrackerCheck = false
 local characterRows = {}
 local characterSections = {}
 -- Opcode 223: get/select/clear progressive achievements and receive their progress, earned title, and selected title.
+-- Domain: progressive achievements. Action "list": achievements[] may include rewardTooltip, a localized UTF-8
+-- preview of the current and next level rewards, including the inactive-rewards notice. Requests are unchanged.
+-- Optional allRewardsTooltip: localized UTF-8 list of all level rewards and the inactive notice for the help icon.
 local SORT_OPTIONS = { 'Alphabetically (A-Z)', 'Alphabetically (Z-A)', 'Completed on Top', 'Completed on Bottom' }
 local INFORMATION_SORT_OPTIONS = { 'Alphabetically (A-Z)', 'Alphabetically (Z-A)' }
 -- Opcode 240, journal/list response entry: u16 id, string name, u8 completed, u8 category.
@@ -135,10 +138,24 @@ local function renderAchievements()
         row:getChildById('icon'):setImageSource(icon and g_resources.fileExists(icon) and icon or DEFAULT_ACHIEVEMENT_ICON)
         row:getChildById('name'):setText(utf8ToCp1250(entry.name))
         row:getChildById('description'):setText(utf8ToCp1250(entry.shortDescription))
-        local tooltip = utf8ToCp1250(entry.description)
+        local tooltipText = entry.description
+        if type(entry.rewardTooltip) == 'string' and entry.rewardTooltip ~= '' then
+            tooltipText = tooltipText .. '\n\n' .. entry.rewardTooltip
+        end
+        local tooltip = utf8ToCp1250(tooltipText)
         row:setTooltip(tooltip)
-        for _, id in ipairs({ 'icon', 'name', 'description', 'progress' }) do
+        for _, id in ipairs({ 'icon', 'name', 'description', 'progress', 'earnedTitle' }) do
             row:getChildById(id):setTooltip(tooltip)
+        end
+        local rewardsHelp = row:getChildById('rewardsHelp')
+        local hasAllRewards = type(entry.allRewardsTooltip) == 'string' and entry.allRewardsTooltip ~= ''
+        rewardsHelp:setVisible(hasAllRewards)
+        if hasAllRewards then
+            -- Preserve the server's line breaks while wrapping each level's description.
+            local allRewardsTooltip = utf8ToCp1250(entry.allRewardsTooltip):gsub('[^\n]+', function(line)
+                return line:wrap(700)
+            end)
+            rewardsHelp:setTooltip(allRewardsTooltip)
         end
         local progress = row:getChildById('progress')
         progress:setPercent(entry.target > 0 and math.min(100, entry.progress * 100 / entry.target) or 0)
