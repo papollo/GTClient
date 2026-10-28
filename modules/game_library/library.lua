@@ -504,6 +504,8 @@ local function bindUi()
         blessingsTab = child('blessingsTab'),
         damageCalculatorTab = child('damageCalculatorTab'),
         mechanicsTab = child('mechanicsTab'),
+        colonyMapTab = child('colonyMapTab'),
+        colonyMapPanel = child('colonyMapPanel'),
         leftColumn = child('leftColumn'),
         middleSeparator = child('middleSeparator'),
         categoryPanel = child('categoryPanel'),
@@ -796,7 +798,7 @@ local function hideAllEmptyLabels()
 end
 
 local function updatePagination()
-    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN or state.domain == ColonyMap.DOMAIN then
         ui.pageLabel:setText(tr('Page 1 / 1'))
         ui.prevPageButton:setEnabled(false)
         ui.nextPageButton:setEnabled(false)
@@ -813,7 +815,7 @@ local function updatePagination()
 end
 
 local function setResultWidgetsEnabled(enabled)
-    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN or state.domain == ColonyMap.DOMAIN then
         ui.searchEdit:setEnabled(false)
         ui.searchClearButton:setEnabled(false)
         ui.prevPageButton:setEnabled(false)
@@ -3458,13 +3460,15 @@ local function updateDomainUi()
     local isBlessings = state.domain == DOMAIN_BLESSINGS
     local isDamageCalculator = state.domain == DOMAIN_DAMAGE_CALCULATOR
     local isMechanics = state.domain == MechanicsGuide.DOMAIN
-    local isFullWidthPanel = isDailyRewards or isBlessings or isMechanics
+    local isColonyMap = state.domain == ColonyMap.DOMAIN
+    local isFullWidthPanel = isDailyRewards or isBlessings or isMechanics or isColonyMap
     ui.itemsTab:setOn(isItems)
     ui.monstersTab:setOn(isMonsters)
     ui.vocationsTab:setOn(isVocations)
     ui.dailyRewardsTab:setOn(isDailyRewards)
     ui.blessingsTab:setOn(isBlessings)
     ui.damageCalculatorTab:setOn(isDamageCalculator)
+    ui.colonyMapTab:setOn(isColonyMap)
     ui.mechanicsTab:setOn(isMechanics)
     ui.mechanicsTab:setText(isMechanics and tr('Mechaniki') or '')
     if state.dailyRewards.notificationAvailable then
@@ -3478,6 +3482,8 @@ local function updateDomainUi()
     ui.dailyRewardsPanel:setVisible(isDailyRewards)
     ui.blessingsPanel:setVisible(isBlessings)
     ui.mechanicsPanel:setVisible(isMechanics)
+    ui.colonyMapPanel:setVisible(isColonyMap)
+    if not isColonyMap then ColonyMap.deactivate() end
     ui.dailyFooterStatsLabel:setVisible(isDailyRewards)
     updateBestiaryFooterVisibility()
     ui.categoryPanel:setVisible(isItems)
@@ -4296,6 +4302,8 @@ local function onLibraryOpcode(protocol, opcode, payload)
         return
     end
 
+    if ColonyMap.handleResponse(payload) then return end
+
     local requestId = payload.requestId
     local action = payload.action
     local domain = payload.domain or state.domain
@@ -4340,7 +4348,7 @@ local function onLibraryOpcode(protocol, opcode, payload)
 end
 
 local function queueSearch()
-    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN or state.domain == ColonyMap.DOMAIN then
         return
     end
     if state.domain == DOMAIN_ITEMS and state.items.navigationSearchUpdating then
@@ -4364,7 +4372,7 @@ local function queueSearch()
 
     searchEvent = scheduleEvent(function()
         searchEvent = nil
-        if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
+        if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN or state.domain == ColonyMap.DOMAIN then
             return
         end
         local domainState = getDomainState()
@@ -4375,7 +4383,7 @@ local function queueSearch()
 end
 
 local function clearSearch()
-    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN then
+    if state.domain == DOMAIN_DAILY_REWARDS or state.domain == DOMAIN_BLESSINGS or state.domain == MechanicsGuide.DOMAIN or state.domain == ColonyMap.DOMAIN then
         return
     end
 
@@ -4429,6 +4437,11 @@ local function switchDomain(domain)
         setResultWidgetsEnabled(false)
         updatePagination()
         requestBlessingsStatus(true)
+        return
+    elseif domain == ColonyMap.DOMAIN then
+        setResultWidgetsEnabled(false)
+        updatePagination()
+        ColonyMap.activate()
         return
     elseif domain == MechanicsGuide.DOMAIN then
         setResultWidgetsEnabled(false)
@@ -4732,6 +4745,11 @@ local function show()
         updatePagination()
         requestBlessingsStatus(true)
         return
+    elseif state.domain == ColonyMap.DOMAIN then
+        setResultWidgetsEnabled(false)
+        updatePagination()
+        ColonyMap.activate()
+        return
     elseif state.domain == MechanicsGuide.DOMAIN then
         setResultWidgetsEnabled(false)
         updatePagination()
@@ -4804,6 +4822,7 @@ function hide()
     if not libraryWindow then
         return
     end
+    ColonyMap.deactivate()
     libraryWindow:hide()
     if libraryButton then
         libraryButton:setOn(false)
@@ -4831,6 +4850,7 @@ local function resetUiState()
     ui.monsterList:destroyChildren()
     ui.dailyRewardsList:destroyChildren()
     ui.blessingsList:destroyChildren()
+    ColonyMap.reset()
     MechanicsGuide.reset()
     ui.dailyStatusLabel:setText(tr('Loading daily rewards...'))
     ui.blessingsStatusLabel:setText(tr('Loading blessings...'))
@@ -4944,7 +4964,34 @@ function init()
         content = ui.mechanicsContent,
         statusLabel = ui.mechanicsStatusLabel
     })
+    ColonyMap.clearHover()
     libraryWindow:hide()
+    ColonyMap.bind({
+        viewport = child('colonyMapViewport'),
+        canvas = child('colonyMapCanvas'),
+        mine = child('colonyMapMine'),
+        exchange = child('colonyMapExchange'),
+        outline = child('colonyMapOutline'),
+        images = {
+            child('colonyMapCanvas'), child('colonyMapMine'), child('colonyMapExchange'),
+            child('colonyMapSwamp'), child('colonyMapEastForest'), child('colonyMapFreeMine'),
+            child('colonyMapOrcLands'), child('colonyMapOldFortress'), child('colonyMapOutline')
+        },
+        sectorButtons = {
+            swamp = child('colonyMapSwampButton'),
+            east_forest = child('colonyMapEastForestButton'),
+            free_mine = child('colonyMapFreeMineButton'),
+            orc_lands = child('colonyMapOrcLandsButton'),
+            old_fortress = child('colonyMapOldFortressButton')
+        },
+        zoomIn = child('colonyMapZoomIn'),
+        zoomOut = child('colonyMapZoomOut'),
+        resetView = child('colonyMapResetView'),
+        mineButton = child('colonyMapMineButton'),
+        exchangeButton = child('colonyMapExchangeButton')
+    }, sendRequest, function(id) state.pending[id] = nil end)
+    ui.colonyMapTab:setTooltip(utf8ToCp1250('Mapa kolonii'))
+    ui.colonyMapTab.onClick = function() switchDomain(ColonyMap.DOMAIN) end
     ui.itemsTab.onClick = function() switchDomain(DOMAIN_ITEMS) end
     ui.monstersTab.onClick = function() switchDomain(DOMAIN_MONSTERS) end
     ui.vocationsTab.onClick = function() switchDomain(DOMAIN_VOCATIONS) end
@@ -5028,6 +5075,7 @@ function terminate()
     stopDailyRewardNotification()
     cancelDamageSkillOverrideEvent()
     state.damageCalculator.cancelLevelOverrideEvent()
+    ColonyMap.terminate()
     MechanicsGuide.terminate()
 
     if searchEvent then

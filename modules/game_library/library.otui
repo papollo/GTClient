@@ -846,6 +846,24 @@ MainWindow
         image-source: /images/game/cyclopedia/vocation_off
         image-clip: 0 34 34 34
 
+    LibraryTabButton
+      id: colonyMapTab
+      anchors.top: parent.top
+      anchors.left: vocationsTab.right
+      margin-left: 6
+      image-source: /images/game/cyclopedia/map_off
+      image-clip: 0 0 34 34
+
+      $on:
+        size: 150 34
+        image-source: /images/game/cyclopedia/map_on
+        image-clip: 0 0 150 34
+
+      $pressed:
+        size: 34 34
+        image-source: /images/game/cyclopedia/map_off
+        image-clip: 0 34 34 34
+
   UIWidget
     id: contentContainer
     anchors.top: buttonSelection.bottom
@@ -853,6 +871,169 @@ MainWindow
     anchors.right: parent.right
     anchors.bottom: bottomSeparator.top
     margin-top: 5
+
+    UIWidget
+      id: colonyMapPanel
+      anchors.fill: parent
+      visible: false
+
+      UIWidget
+        id: colonyMapSidebar
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        width: 150
+        background-color: #404040
+        padding: 6
+        layout:
+          type: verticalBox
+          spacing: 6
+
+        Label
+          text: Areny
+          height: 22
+          color: #dddddd
+
+        Button
+          id: colonyMapMineButton
+          text: Stara Kopalnia
+          height: 28
+
+        Button
+          id: colonyMapExchangeButton
+          text: Plac Wymian
+          height: 28
+
+        Button
+          id: colonyMapSwampButton
+          text: Bagna
+          height: 28
+
+        Button
+          id: colonyMapEastForestButton
+          text: Las na wschodzie
+          height: 28
+
+        Button
+          id: colonyMapFreeMineButton
+          text: Wolna kopalnia
+          height: 28
+
+        Button
+          id: colonyMapOrcLandsButton
+          !text: utf8ToCp1250('Ziemie orków')
+          height: 28
+
+        Button
+          id: colonyMapOldFortressButton
+          text: Stara forteca
+          height: 28
+
+      UIWidget
+        id: colonyMapViewport
+        anchors.top: parent.top
+        anchors.left: colonyMapSidebar.right
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        clipping: true
+        margin-left: 8
+        margin-top: 4
+        margin-bottom: 4
+
+        UIWidget
+          id: colonyMapCanvas
+          size: 600 415
+          image-source: /images/game/pvp_map/Mine_Valley.png
+          image-smooth: true
+
+          UIWidget
+            id: colonyMapMine
+            anchors.fill: parent
+            image-source: /images/game/pvp_map/old_mine_arena.png
+            image-color: #dddddd
+            opacity: 0.35
+            phantom: true
+
+          UIWidget
+            id: colonyMapExchange
+            anchors.fill: parent
+            image-source: /images/game/pvp_map/exchange_square.png
+            image-color: #dddddd
+            opacity: 0.35
+            phantom: true
+
+          UIWidget
+            id: colonyMapSwamp
+            anchors.fill: parent
+            image-source: /images/game/pvp_map/swamp.png
+            image-color: #dddddd
+            opacity: 0.35
+            phantom: true
+
+          UIWidget
+            id: colonyMapEastForest
+            anchors.fill: parent
+            image-source: /images/game/pvp_map/east_forest.png
+            image-color: #dddddd
+            opacity: 0.35
+            phantom: true
+
+          UIWidget
+            id: colonyMapFreeMine
+            anchors.fill: parent
+            image-source: /images/game/pvp_map/free_mine.png
+            image-color: #dddddd
+            opacity: 0.35
+            phantom: true
+
+          UIWidget
+            id: colonyMapOrcLands
+            anchors.fill: parent
+            image-source: /images/game/pvp_map/orc_lands.png
+            image-color: #dddddd
+            opacity: 0.35
+            phantom: true
+
+          UIWidget
+            id: colonyMapOldFortress
+            anchors.fill: parent
+            image-source: /images/game/pvp_map/old_fortress.png
+            image-color: #dddddd
+            opacity: 0.35
+            phantom: true
+
+          UIWidget
+            id: colonyMapOutline
+            anchors.fill: parent
+            image-source: /images/game/pvp_map/sector_outlines.png
+            phantom: true
+
+        Button
+          id: colonyMapZoomIn
+          anchors.top: parent.top
+          anchors.right: colonyMapZoomOut.left
+          margin-top: 8
+          margin-right: 4
+          size: 28 26
+          text: +
+
+        Button
+          id: colonyMapZoomOut
+          anchors.top: parent.top
+          anchors.right: parent.right
+          margin-top: 8
+          margin-right: 8
+          size: 28 26
+          text: -
+
+        Button
+          id: colonyMapResetView
+          anchors.bottom: parent.bottom
+          anchors.right: parent.right
+          margin-bottom: 8
+          margin-right: 8
+          size: 80 26
+          text: Centruj
 
     UIWidget
       id: leftColumn

@@ -317,6 +317,7 @@ android/app/src/main/assets
 .ai
 graphify-out
 *.md
+!docs/colony_map_protocol.md
 
 # sciprt
 build-release.ps1

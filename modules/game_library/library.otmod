@@ -4,6 +4,6 @@ Module
   author: OpenAI
   website: https://openai.com
   sandboxed: true
-  scripts: [ mechanics/mechanics, library ]
+  scripts: [ mechanics/mechanics, colony_map_geometry, colony_map, library ]
   @onLoad: init()
   @onUnload: terminate()
